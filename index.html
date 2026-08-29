@@ -542,18 +542,28 @@ function renderQrCode(){
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
     <h2>招待QRコード</h2>
-    <div class="banner">招待コードを入れると、QRコードができます。店内掲示や、個別のご案内にどうぞ。</div>
+    <div class="banner">新しい常連コードは、その場で発行できます。1回だけ使えて、7日で期限切れになります。</div>
+    <button class="btn btn-primary" onclick="generateInviteCode()">＋ 新しい常連コードを発行する</button>
+    <h3 style="margin-top:20px;">すでにあるコードを表示</h3>
     <div class="muted" style="margin-bottom:6px;">招待コード</div>
     <input type="text" id="qrCodeInput" placeholder="例: REG-0002" value="${codeVal}" oninput="state._qrCodeInput=this.value;">
-    <button class="btn btn-primary" style="margin-top:10px;" onclick="render()">QRコードを作成</button>
+    <button class="btn btn-secondary" style="margin-top:10px;" onclick="render()">QRコードを作成</button>
     ${codeVal ? `
       <div class="card" style="text-align:center;margin-top:14px;">
+        <div style="font-weight:bold;font-size:18px;letter-spacing:1px;margin-bottom:10px;">${codeVal}</div>
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}" alt="QRコード" style="width:220px;height:220px;background:#fff;padding:10px;border-radius:8px;">
         <div class="muted" style="margin-top:10px;word-break:break-all;">${url}</div>
       </div>
       <div class="muted">※通信環境がないと、QR画像が出ないことがあります。読み取ると、コード入力済みでアプリが開きます。</div>
     ` : ''}
   `;
+}
+async function generateInviteCode(){
+  const { data, error } = await sb.rpc('create_invite_code', { p_store_id: state.currentStoreId, p_role: 'regular' });
+  if(error){ toast('発行できませんでした'); return; }
+  state._qrCodeInput = data;
+  toast('新しい招待コードを発行しました(7日間有効)');
+  render();
 }
 
 function startPost(){
