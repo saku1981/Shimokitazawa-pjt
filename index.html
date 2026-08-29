@@ -165,9 +165,7 @@ async function init(){
   const { data:{ user } } = await sb.auth.getUser();
   state.user = user;
 
-  const { data: stores } = await sb.from('stores').select('*').order('id');
-  cache.stores = stores || [];
-
+  await loadStores();
   await reloadMemberships();
 
   if(cache.memberships.length === 0){
@@ -184,6 +182,10 @@ async function reloadMemberships(){
   const { data } = await sb.from('memberships').select('*');
   cache.memberships = data || [];
 }
+async function loadStores(){
+  const { data } = await sb.from('stores').select('*').order('id');
+  cache.stores = data || [];
+}
 
 /* ===================== 招待コード ===================== */
 async function submitInvite(){
@@ -195,12 +197,12 @@ async function submitInvite(){
     toast('招待コードが無効か、使用済みです');
     return;
   }
+  await loadStores();
   await reloadMemberships();
   state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
   state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
-  state.screen = state.role === 'owner' ? 'home' : 'vlist';
   toast('参加しました');
-  render();
+  await go(state.role === 'owner' ? 'home' : 'vlist');
 }
 function renderInvite(){
   return `
