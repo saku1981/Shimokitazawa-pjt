@@ -150,7 +150,8 @@ const RECOMMEND_TEMPLATES = {
 
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null };
-let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[] };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[] };
+const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 
 function toast(msg){
@@ -296,6 +297,27 @@ async function loadPeerSettings(){
   cache.allSettings = data || [];
   return cache.allSettings;
 }
+async function loadStoreMates(storeId){
+  const { data } = await sb.from('memberships').select('*').eq('store_id', storeId).eq('role','regular').eq('show_nickname', true);
+  cache.storeMates[storeId] = data || [];
+  return cache.storeMates[storeId];
+}
+async function loadStoreRegulars(storeId){
+  // RLS returns: regulars at my own store, plus (for people who are already my own
+  // regulars) their regular memberships at other stores too — used to show, per regular,
+  // which other participating stores they're also part of.
+  const { data } = await sb.from('memberships').select('*').eq('role','regular');
+  cache.regularNetwork = data || [];
+  cache.storeRegulars[storeId] = cache.regularNetwork.filter(m=>m.store_id===storeId);
+  return cache.storeRegulars[storeId];
+}
+function otherStoresFor(userId, excludeStoreId){
+  return (cache.regularNetwork||[])
+    .filter(m=>m.user_id===userId && m.store_id!==excludeStoreId)
+    .map(m=>storeById(m.store_id))
+    .filter(Boolean)
+    .map(s=>s.name);
+}
 
 /* ===================== 画面遷移 ===================== */
 async function go(screen){
@@ -304,12 +326,13 @@ async function go(screen){
   if(screen==='home'){ await loadRecommendations(); }
   if(screen==='settings'){ await loadSettings(state.currentStoreId); await loadPerformers(state.currentStoreId); }
   if(screen==='vlist'){ for(const s of cache.stores){ await loadPosts(s.id); } }
-  if(screen==='vdetail'){ await loadPosts(state.currentStoreId); await loadRecommendations(); }
+  if(screen==='vdetail'){ await loadPosts(state.currentStoreId); await loadRecommendations(); await loadStoreMates(state.currentStoreId); }
   if(screen==='peers'){
     for(const s of cache.stores){ await loadPosts(s.id); }
     await loadPeerSettings();
   }
   if(screen==='recommendRequests'){ await loadRecommendations(); }
+  if(screen==='regularNotes'){ await loadStoreRegulars(state.currentStoreId); }
   render();
 }
 async function setRole(role){
@@ -327,6 +350,8 @@ document.getElementById('info-btn').onclick = ()=>{
     <p class="muted">2. お客様や出演者の顔が写る写真は、同意がない限り控えましょう。</p>
     <p class="muted">3. 非商用の個人プロジェクトです。投稿の数でお店を比べることはしません。</p>
     <p class="muted">4. 「紹介する」は、相手の承諾があって初めて成立する、ゆるやかなつながりです。</p>
+    <p class="muted">5. 常連同士も、ニックネームを見せ合うかどうかは自分で選べます。連絡先の交換などはできません。</p>
+    <p class="muted">6. 店主は常連ごとに、管理用の簡単なメモを残すことがあります(ご本人には表示されません)。また、同じ常連さんが他の参加店舗にもいる場合、店舗名が店主同士でわかることがあります。トラブル時の連携や、ゆるやかな信頼関係のためです。</p>
     <button class="btn btn-primary" onclick="closeModal()">閉じる</button>
   `);
 };
@@ -368,6 +393,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('peers')"><span>参加店舗の様子</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('recommendRequests')"><span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('qrCode')"><span>招待QRコード</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('regularNotes')"><span>常連メモ</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('settings')"><span>設定</span><span class="muted">→</span></div>
     </div>
   `;
@@ -481,6 +507,33 @@ async function revokeRecommend(id){
   await sb.from('recommendations').delete().eq('id', id);
   await loadRecommendations();
   toast('紹介を取り下げました');
+  render();
+}
+function renderRegularNotes(){
+  const store = storeById(state.currentStoreId);
+  const regulars = cache.storeRegulars[store.id] || [];
+  return `
+    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <h2>常連メモ</h2>
+    <div class="banner">この画面はあなただけに見えます。常連さんご本人には表示されません。同じ常連さんが他の参加店舗にもいる場合、店舗名がここにわかります。トラブル時の連携や、ゆるやかな信頼関係のためにお使いください。</div>
+    ${regulars.length===0 ? '<div class="muted">まだ常連の登録がありません。</div>' : regulars.map(r=>{
+      const others = otherStoresFor(r.user_id, store.id);
+      return `
+      <div class="card">
+        <div style="font-weight:bold;">${r.nickname || 'ゲスト'}</div>
+        ${others.length>0 ? `<div class="muted" style="margin-top:4px;">他の参加店舗: ${others.join('、')}</div>` : ''}
+        <select onchange="setRegularBadge('${r.id}', this.value)" style="margin-top:8px;">
+          ${OWNER_BADGE_TEMPLATES.map(t=>`<option value="${t}" ${(r.owner_badge||'')===t?'selected':''}>${t || '(メモなし)'}</option>`).join('')}
+        </select>
+      </div>`;
+    }).join('')}
+  `;
+}
+async function setRegularBadge(id, badge){
+  const { error } = await sb.rpc('set_regular_badge', { p_membership_id: id, p_badge: badge });
+  if(error){ toast('更新できませんでした'); return; }
+  await loadStoreRegulars(state.currentStoreId);
+  toast('メモを更新しました');
   render();
 }
 function renderQrCode(){
@@ -824,6 +877,7 @@ function renderVisitorDetail(){
     <div style="margin:8px 0;"><span class="status-dot ${st==='open'?'open':'closed'}"></span>${statusLabel[st]} ・ ${store.hours}</div>
     ${store.find_hint ? `<div class="banner" style="margin-bottom:10px;">📍 見つけ方: ${store.find_hint}</div>` : ''}
     ${renderOwnerPicks(store.id)}
+    ${renderStoreMates(store)}
     <div class="banner notice">📸 これは、店主が過去に公開した1枚です。今の様子とは限りません。</div>
     ${posts.length===0 ? '<div class="muted">まだ投稿がありません。お店の様子はここに随時更新されます</div>' :
       Object.keys(groups).map(k=>`
@@ -850,6 +904,33 @@ async function reportSnapshot(id){
   await sb.from('reports').insert({post_id: id, reporter_id: state.user.id});
   closeModal();
   toast('報告を受け付けました。運営だけが確認します。');
+}
+function renderStoreMates(store){
+  const my = cache.memberships.find(m=>m.store_id===store.id && m.role==='regular' && m.user_id===state.user.id);
+  if(!my) return '';
+  const shown = my.show_nickname === true;
+  const mates = (cache.storeMates[store.id]||[]).filter(m=>m.id!==my.id);
+  return `
+    <div class="card">
+      <div class="row between">
+        <h3 style="margin:0;">顔なじみ</h3>
+        <button class="btn ${shown?'btn-secondary':'btn-primary'} btn-sm" onclick="toggleNicknameVisibility('${store.id}')">${shown?'ニックネームを見せています':'見せていません'}</button>
+      </div>
+      <div class="muted" style="margin-top:8px;">${mates.length>0 ? mates.map(m=>m.nickname).join('、') + ' さん' : 'まだ名乗っている方はいません'}</div>
+      <div class="muted" style="margin-top:6px;">見せる・見せないは、いつでも変えられます。連絡先の交換などはできません。</div>
+    </div>
+  `;
+}
+async function toggleNicknameVisibility(storeId){
+  const my = cache.memberships.find(m=>m.store_id===storeId && m.role==='regular' && m.user_id===state.user.id);
+  if(!my) return;
+  const next = !(my.show_nickname === true);
+  const { error } = await sb.rpc('update_my_nickname_visibility', { p_store_id: storeId, p_show: next });
+  if(error){ toast('更新できませんでした'); return; }
+  await reloadMemberships();
+  await loadStoreMates(storeId);
+  toast(next ? 'ニックネームを見せるようにしました' : '見せないようにしました');
+  render();
 }
 function renderOwnerPicks(storeId){
   const recs = (cache.recommendations||[]).filter(r=>r.to_store_id===storeId && r.status==='accepted');
@@ -883,7 +964,8 @@ function render(){
     camera: renderCamera, privacy: renderPrivacy, performer: renderPerformer,
     caption: renderCaption, confirm: renderConfirm, history: renderHistory, settings: renderSettings,
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
-    peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode
+    peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
+    regularNotes: renderRegularNotes
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
