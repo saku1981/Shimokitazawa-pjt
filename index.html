@@ -136,6 +136,7 @@ const COMPOSE_TEMPLATES = [
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null };
 let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{} };
+const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -210,7 +211,7 @@ function renderInvite(){
     <div class="muted" style="margin-bottom:12px;">下北沢プロジェクトは完全招待制です。お店から受け取った招待コードと、名乗りたいニックネームを入力してください。</div>
     <div class="card">
       <div class="muted" style="margin-bottom:6px;">招待コード</div>
-      <input type="text" id="inviteCode" placeholder="例: REG-0001" style="margin-bottom:12px;">
+      <input type="text" id="inviteCode" placeholder="例: REG-0001" value="${PREFILL_CODE}" style="margin-bottom:12px;">
       <div class="muted" style="margin-bottom:6px;">ニックネーム</div>
       <input type="text" id="inviteNickname" placeholder="例: たけし">
     </div>
