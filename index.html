@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="お店スナップショット">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#15161a">
+<title>お店スナップショット共有アプリ</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root{
+    --bg:#15161a; --panel:#1e2025; --panel2:#25272d; --accent:#e0a458; --accent-d:#b9803a;
+    --text:#f2ede4; --sub:#a7a49d; --danger:#d9645a; --ok:#6fae7d; --line:#33353b;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:#0b0c0e;color:var(--text);display:flex;justify-content:center;padding:20px 10px;}
+  .app-wrap{width:420px;max-width:100%;}
+  .role-tabs{display:flex;gap:8px;margin-bottom:10px;}
+  .role-tabs button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
+    color:var(--sub);font-size:14px;cursor:pointer;}
+  .role-tabs button.active{background:var(--accent);color:#1a1a1a;font-weight:bold;border-color:var(--accent);}
+  .role-tabs button:disabled{opacity:.35;cursor:not-allowed;}
+  .phone{background:var(--bg);border:1px solid var(--line);border-radius:26px;overflow:hidden;
+    box-shadow:0 10px 40px rgba(0,0,0,.5);min-height:640px;display:flex;flex-direction:column;}
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--line);}
+  .topbar .title{font-size:15px;font-weight:bold;}
+  .topbar .info-btn{background:none;border:1px solid var(--line);color:var(--sub);border-radius:50%;
+    width:28px;height:28px;cursor:pointer;font-size:13px;}
+  .screen{flex:1;padding:18px 16px 90px;overflow-y:auto;}
+  .btn{display:block;width:100%;padding:14px;border-radius:12px;border:none;font-size:15px;font-weight:bold;
+    cursor:pointer;margin-bottom:10px;text-align:center;}
+  .btn-primary{background:var(--accent);color:#1a1a1a;}
+  .btn-secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line);}
+  .btn-ghost{background:none;color:var(--sub);border:none;font-size:13px;text-decoration:underline;padding:6px;}
+  .btn-danger{background:var(--danger);color:#fff;}
+  .btn-sm{padding:8px 12px;font-size:13px;border-radius:8px;width:auto;display:inline-block;}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .muted{color:var(--sub);font-size:13px;line-height:1.6;}
+  .tag{display:inline-block;padding:3px 8px;border-radius:20px;font-size:11px;background:var(--panel2);color:var(--sub);
+    border:1px solid var(--line);margin-right:6px;}
+  .tag.ok{color:var(--ok);border-color:var(--ok);}
+  .tag.warn{color:var(--accent);border-color:var(--accent);}
+  .big-post-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:linear-gradient(160deg,var(--accent),var(--accent-d));color:#1a1a1a;border:none;border-radius:20px;
+    width:100%;padding:34px 10px;font-size:17px;font-weight:bold;cursor:pointer;margin:18px 0;}
+  .big-post-btn span.ic{font-size:34px;margin-bottom:6px;}
+  h2{font-size:17px;margin:0 0 10px;}
+  h3{font-size:14px;margin:0 0 8px;color:var(--accent);}
+  .row{display:flex;gap:10px;align-items:center;}
+  .row.between{justify-content:space-between;}
+  select, input[type=text]{width:100%;padding:10px;border-radius:8px;border:1px solid var(--line);
+    background:var(--panel2);color:var(--text);font-size:14px;}
+  .thumb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px;}
+  .thumb{width:100%;aspect-ratio:1/1;object-fit:cover;border-radius:8px;border:1px solid var(--line);}
+  .chip-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0;}
+  .chip{padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);
+    text-align:center;font-size:13px;cursor:pointer;}
+  .chip.selected{border-color:var(--accent);color:var(--accent);}
+  .banner{background:#2a2416;border:1px solid var(--accent);border-radius:10px;padding:10px 12px;font-size:13px;
+    margin-bottom:14px;line-height:1.6;}
+  .banner.notice{background:var(--panel2);border-color:var(--line);color:var(--sub);}
+  .post-row{display:flex;gap:10px;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+    padding:10px;margin-bottom:10px;align-items:center;}
+  .post-row img{width:56px;height:56px;object-fit:cover;border-radius:8px;flex-shrink:0;}
+  .post-row .meta{flex:1;font-size:12px;color:var(--sub);}
+  .post-row .meta .cap{color:var(--text);font-size:13px;margin-top:2px;}
+  .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
+  .status-dot.open{background:var(--ok);}
+  .status-dot.closed{background:var(--sub);}
+  .store-card{cursor:pointer;}
+  .radio-line{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14px;}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
+    z-index:50;padding:20px;}
+  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:380px;width:100%;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2b2d33;color:var(--text);
+    padding:10px 18px;border-radius:20px;font-size:13px;border:1px solid var(--line);z-index:60;opacity:0;
+    transition:opacity .25s;pointer-events:none;}
+  .toast.show{opacity:1;}
+  .footer-note{text-align:center;color:#5c5e64;font-size:11px;margin-top:16px;}
+  .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;}
+  .modal-detail-img{width:100%;border-radius:10px;margin-bottom:10px;}
+  .spinner{display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--sub);font-size:13px;}
+  @media (max-width: 480px){
+    body{padding:0;display:block;align-items:normal;}
+    .app-wrap{width:100%;max-width:100%;}
+    .role-tabs{padding:calc(env(safe-area-inset-top, 0px) + 10px) 10px 6px;margin-bottom:0;background:#0b0c0e;
+      position:sticky;top:0;z-index:40;}
+    .phone{border-radius:0;border:none;box-shadow:none;min-height:calc(100vh - 60px);}
+    .screen{padding-bottom:calc(100px + env(safe-area-inset-bottom, 0px));}
+    .footer-note{padding:0 14px 16px;}
+  }
+</style>
+</head>
+<body>
+<div class="app-wrap">
+  <div class="role-tabs">
+    <button id="tab-owner">🍶 店主モード</button>
+    <button id="tab-visitor">🚶 常連モード</button>
+  </div>
+  <div class="phone">
+    <div class="topbar">
+      <div class="title" id="topbar-title">お店スナップショット</div>
+      <button class="info-btn" id="info-btn">？</button>
+    </div>
+    <div class="screen" id="screen"><div class="spinner">読み込み中…</div></div>
+  </div>
+  <div class="footer-note">――これは検証利用のテスト運用プロトタイプです。写真はすべてダミー画像で、実在の人物・店舗とは無関係です。</div>
+</div>
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* ===================== 接続設定 ===================== */
+const SUPABASE_URL = 'https://mxnpeddextguwjmhcmvc.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im14bnBlZGRleHRndXdqbWhjbXZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc5NjI3NzAsImV4cCI6MjEwMzUzODc3MH0.8mroKh5Xb36qSmN-BeeW4NrX4wHSVpb90JJaKnVwDmI';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const CAPTION_TEMPLATES = {
+  bar: ['本日営業中です','静かな一杯をどうぞ','カウンター空いています','今夜も灯してます'],
+  karaoke: ['本日営業中です','今夜も賑わっています','新しい機材入りました','ご予約受付中'],
+  music: ['本日演奏あります','本日は演奏なしです','静かな一杯をどうぞ','緊急のお知らせは入店中']
+};
+const COMPOSE_TEMPLATES = [
+  {label:'カウンター店内のアップ', icon:'🍸'},
+  {label:'メニュー写真と説明', icon:'📄'},
+  {label:'マイクと手元だけ', icon:'✍'},
+  {label:'客席を背中から(遠景)', icon:'🌆'}
+];
+
+/* ===================== アプリ状態 ===================== */
+let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{} };
+
+function toast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(window.__toastTimer);
+  window.__toastTimer = setTimeout(()=>t.classList.remove('show'), 2200);
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+function showModal(html){ document.getElementById('modal-root').innerHTML =
+  `<div class="modal-bg" onclick="if(event.target===this) closeModal()"><div class="modal-box">${html}</div></div>`; }
+
+function ownerStoreIds(){ return cache.memberships.filter(m=>m.role==='owner').map(m=>m.store_id); }
+function isOwnerAnywhere(){ return ownerStoreIds().length > 0; }
+function storeById(id){ return cache.stores.find(s=>s.id===id); }
+
+/* ===================== 初期化 ===================== */
+async function init(){
+  let { data:{ session } } = await sb.auth.getSession();
+  if(!session){
+    const { error } = await sb.auth.signInAnonymously();
+    if(error){
+      document.getElementById('screen').innerHTML =
+        `<div class="banner" style="border-color:var(--danger);">接続エラー: ${error.message}<br><br>Supabaseの「Allow anonymous sign-ins」がONになっているか確認してください。</div>`;
+      return;
+    }
+  }
+  const { data:{ user } } = await sb.auth.getUser();
+  state.user = user;
+
+  const { data: stores } = await sb.from('stores').select('*').order('id');
+  cache.stores = stores || [];
+
+  await reloadMemberships();
+
+  if(cache.memberships.length === 0){
+    state.screen = 'invite';
+  } else {
+    state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
+    state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
+    state.screen = state.role === 'owner' ? 'home' : 'vlist';
+  }
+  render();
+}
+
+async function reloadMemberships(){
+  const { data } = await sb.from('memberships').select('*');
+  cache.memberships = data || [];
+}
+
+/* ===================== 招待コード ===================== */
+async function submitInvite(){
+  const code = document.getElementById('inviteCode').value.trim();
+  const nickname = document.getElementById('inviteNickname').value.trim() || 'ゲスト';
+  if(!code){ toast('招待コードを入力してください'); return; }
+  const { error } = await sb.rpc('redeem_invite', { p_code: code, p_nickname: nickname });
+  if(error){
+    toast('招待コードが無効か、使用済みです');
+    return;
+  }
+  await reloadMemberships();
+  state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
+  state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
+  state.screen = state.role === 'owner' ? 'home' : 'vlist';
+  toast('参加しました');
+  render();
+}
+function renderInvite(){
+  return `
+    <h2>🔑 招待コードで参加</h2>
+    <div class="muted" style="margin-bottom:12px;">下北沢プロジェクトは完全招待制です。お店から受け取った招待コードと、名乗りたいニックネームを入力してください。</div>
+    <div class="card">
+      <div class="muted" style="margin-bottom:6px;">招待コード</div>
+      <input type="text" id="inviteCode" placeholder="例: REG-0001" style="margin-bottom:12px;">
+      <div class="muted" style="margin-bottom:6px;">ニックネーム</div>
+      <input type="text" id="inviteNickname" placeholder="例: たけし">
+    </div>
+    <button class="btn btn-primary" onclick="submitInvite()">参加する</button>
+    <div class="muted" style="margin-top:10px;">※本名やメールアドレスの登録は不要です。この端末にだけ紐づく形で参加します。</div>
+  `;
+}
+
+/* ===================== ユーティリティ ===================== */
+function isOpenNow(store){
+  const now = new Date();
+  if(store.closed_day !== null && store.closed_day === now.getDay()) return 'closed';
+  const m = now.getHours()*60 + now.getMinutes();
+  const open = store.open_min, close = store.close_min;
+  let openNow;
+  if(close > 1440){ openNow = (m >= open) || (m < close-1440); }
+  else { openNow = (m >= open && m < close); }
+  return openNow ? 'open' : 'prep';
+}
+function relTime(ts){
+  const diff = Date.now() - new Date(ts).getTime();
+  const min = Math.floor(diff/60000), hr = Math.floor(diff/3600000), d = Math.floor(diff/86400000);
+  if(min < 60) return (min<=0?'たった今':min+'分前');
+  if(hr < 24) return hr+'時間前';
+  return d+'日前';
+}
+function absTime(ts){
+  const d = new Date(ts);
+  const p = n=>String(n).padStart(2,'0');
+  return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+function monthLabel(ts){ const d=new Date(ts); return `${d.getFullYear()}年${d.getMonth()+1}月`; }
+function placeholderImg(label, bg){
+  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>
+    <rect width='100%' height='100%' fill='${bg}'/>
+    <text x='50%' y='50%' font-size='20' fill='#eee6d8' text-anchor='middle' dominant-baseline='middle' font-family='sans-serif'>${label}</text>
+  </svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
+/* ===================== データ取得 ===================== */
+async function loadPosts(storeId){
+  const { data } = await sb.from('posts').select('*').eq('store_id', storeId).order('created_at', {ascending:false});
+  cache.posts[storeId] = data || [];
+  return cache.posts[storeId];
+}
+async function loadPerformers(storeId){
+  const { data } = await sb.from('performers').select('*').eq('store_id', storeId);
+  cache.performers[storeId] = data || [];
+  return cache.performers[storeId];
+}
+async function loadSettings(storeId){
+  const { data } = await sb.from('store_settings').select('*').eq('store_id', storeId).maybeSingle();
+  cache.settings[storeId] = data || { store_id: storeId, notif:'none', paused:false };
+  return cache.settings[storeId];
+}
+function myVisiblePosts(storeId){
+  return (cache.posts[storeId]||[]).filter(p=>p.visible && !p.draft);
+}
+
+/* ===================== 画面遷移 ===================== */
+async function go(screen){
+  state.screen = screen;
+  if(screen==='home' || screen==='history'){ await loadPosts(state.currentStoreId); }
+  if(screen==='settings'){ await loadSettings(state.currentStoreId); await loadPerformers(state.currentStoreId); }
+  if(screen==='vlist'){ for(const s of cache.stores){ await loadPosts(s.id); } }
+  if(screen==='vdetail'){ await loadPosts(state.currentStoreId); }
+  render();
+}
+async function setRole(role){
+  if(role==='owner' && !isOwnerAnywhere()){ toast('店主権限を持つ招待コードで参加していません'); return; }
+  state.role = role;
+  if(role==='owner'){ state.currentStoreId = ownerStoreIds()[0]; await go('home'); }
+  else { state.currentStoreId = cache.stores[0] && cache.stores[0].id; await go('vlist'); }
+}
+document.getElementById('tab-owner').onclick = ()=>setRole('owner');
+document.getElementById('tab-visitor').onclick = ()=>setRole('visitor');
+document.getElementById('info-btn').onclick = ()=>{
+  showModal(`
+    <h2>このアプリについて</h2>
+    <p class="muted">1. 投稿するかしないかは、常に店主の自由な判断です。ノルマも催促も、順位づけもされる仕組みはありません。</p>
+    <p class="muted">2. お客様含め出演者ご本人の同意がなく、顔が特定できてしまう写真は投稿を最優先で控えてください。</p>
+    <p class="muted">3. 投稿の多さや少なさで店舗を比較したり値付けしたりする意図は一切なく、非商用の個人プロジェクトです。</p>
+    <button class="btn btn-primary" onclick="closeModal()">閉じる</button>
+  `);
+};
+
+/* ===================== 店主：ホーム ===================== */
+function renderOwnerHome(){
+  const store = storeById(state.currentStoreId);
+  if(!store) return `<div class="muted">お店が選択されていません</div>`;
+  const set = cache.settings[store.id] || {paused:false};
+  const posts = cache.posts[store.id] || [];
+  const latest = posts.find(p=>p.visible && !p.draft);
+  const myStores = ownerStoreIds().map(storeById).filter(Boolean);
+  return `
+    <div class="row between" style="margin-bottom:10px;">
+      <select onchange="switchOwnerStore(this.value)">
+        ${myStores.map(s=>`<option value="${s.id}" ${s.id===store.id?'selected':''}>${s.name}</option>`).join('')}
+      </select>
+      <span class="tag">${store.type_label}</span>
+    </div>
+    <div class="card">
+      <div style="font-weight:bold;font-size:15px;">${store.name} さん、こんにちは</div>
+      <div class="muted" style="margin-top:6px;">
+        ${set.paused ? '⏸ 現在、投稿を一時的にお休み中です' :
+          (latest ? '前回の投稿: '+relTime(latest.created_at) : 'まだ投稿はありません。気が向いた時にどうぞ')}
+      </div>
+    </div>
+    ${set.paused ? `
+      <div class="banner notice">投稿はお休み中です。設定画面からいつでも再開できます。</div>
+      <button class="btn btn-secondary" onclick="go('settings')">設定を開く</button>
+    ` : `
+      <button class="big-post-btn" onclick="startPost()"><span class="ic">📷</span>今の様子を投稿する</button>
+    `}
+    <h3>最近の投稿</h3>
+    ${posts.filter(p=>p.visible&&!p.draft).length===0 ? '<div class="muted">まだ投稿がありません</div>' :
+      `<div class="thumb-grid">${posts.filter(p=>p.visible&&!p.draft).slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}">`).join('')}</div>`}
+    <div style="margin-top:16px;" class="row between">
+      <span class="btn-ghost" onclick="go('history')">投稿履歴を見る →</span>
+      <span class="btn-ghost" onclick="go('settings')">⚙ 設定</span>
+    </div>
+  `;
+}
+async function switchOwnerStore(id){ state.currentStoreId = id; await go('home'); }
+
+function startPost(){
+  state.tempPost = {storeId: state.currentStoreId, img:null, careBadge:false,
+    caption:'', performerId:null, isPerformanceShot:false};
+  go('preShoot');
+}
+function renderPreShoot(){
+  const store = storeById(state.tempPost.storeId);
+  const tips = {
+    bar: 'カウンター越しの会話は自然に距離が近くなりがちです。開店前や閉店後、お客様のいない空間を狙うのがおすすめです。',
+    karaoke: '盛り上がっている様子を伝えたいところですが、顔が映らない構図がおすすめです。歌う画面の様子を撮るのも一案です。',
+    music: '演奏中は演奏者が映る写真は、投稿前に演奏者の許諾確認が必須です。演奏者が映らない構図の様子を撮るのも一案です。'
+  };
+  return `
+    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <h2>📸 撮る前に、ちょっとだけ確認</h2>
+    <div class="banner">お客様の顔が、お客様の顔がそのままわかってしまう構図は避けてください。<br><br>💡 ${tips[store.type]}</div>
+    ${store.type==='music' ? `
+      <label class="radio-line"><input type="checkbox" id="perfShotChk"> これは演奏中の一枚ですか?(任意)</label>
+    ` : ''}
+    ${store.type==='karaoke' ? `<button class="btn btn-secondary" onclick="go('composeGuide')">構図ガイドを開く</button>` : ''}
+    <button class="btn btn-primary" onclick="confirmPreShoot()">わかった、撮影に進む</button>
+  `;
+}
+function confirmPreShoot(){
+  const chk = document.getElementById('perfShotChk');
+  if(chk) state.tempPost.isPerformanceShot = chk.checked;
+  go('camera');
+}
+function renderComposeGuide(){
+  return `
+    <span class="back-link" onclick="go('preShoot')">← 戻る</span>
+    <h2>誰でも迷わず撮れる構図の見本</h2>
+    <div class="chip-grid">${COMPOSE_TEMPLATES.map(t=>`<div class="chip">${t.icon}<br>${t.label}</div>`).join('')}</div>
+    <button class="btn btn-primary" onclick="go('camera')">この構図で撮る</button>
+    <button class="btn btn-ghost" onclick="go('camera')">ガイドなしで撮る</button>
+  `;
+}
+function renderCamera(){
+  return `
+    <span class="back-link" onclick="go('preShoot')">← 戻る</span>
+    <h2>撮影 / 写真を選択</h2>
+    <div class="card" style="text-align:center;">
+      <input type="file" accept="image/*" capture="environment" id="fileInput" style="display:none" onchange="onFilePicked(event)">
+      <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📷 写真を撮る/選択</button>
+      <button class="btn btn-secondary" onclick="useSampleImage()">🖼 サンプル画像で試す(デモ用)</button>
+      <div class="muted">――このプロトタイプでは実在の人物写真は使用しません。デモ用のダミー画像で操作感を確認できます。</div>
+    </div>
+  `;
+}
+function onFilePicked(e){
+  const f = e.target.files[0];
+  if(!f) return;
+  const reader = new FileReader();
+  reader.onload = ()=>{ state.tempPost.img = reader.result; go('privacy'); };
+  reader.readAsDataURL(f);
+}
+function useSampleImage(){
+  const store = storeById(state.tempPost.storeId);
+  state.tempPost.img = placeholderImg(store.name + ' / サンプル撮影', '#3a3126');
+  go('privacy');
+}
+function renderPrivacy(){
+  return `
+    <span class="back-link" onclick="retake()">← 撮り直す</span>
+    <h2>投稿前の目視確認</h2>
+    <img class="modal-detail-img" src="${state.tempPost.img}">
+    <div class="banner">👀 必ずご自身の目で確認してください。暗い場所では自動検知が見逃すこともあります。お客様や出演者の顔、個人が特定できる情景(名札・伝票・車のナンバーなど)が写っていませんか?</div>
+    <button class="btn btn-primary" onclick="privacyPass()">写っていない(このまま進む)</button>
+    <button class="btn btn-danger" onclick="retake()">写っている(撮り直す)</button>
+    <label class="radio-line"><input type="checkbox" id="careChk"> 🔒 店内のお客様に配慮した写真として表示する(任意)</label>
+  `;
+}
+function retake(){ state.tempPost.img=null; go('camera'); }
+function privacyPass(){
+  const chk = document.getElementById('careChk');
+  state.tempPost.careBadge = chk ? chk.checked : false;
+  const store = storeById(state.tempPost.storeId);
+  if(store.type==='music' && state.tempPost.isPerformanceShot){ go('performer'); }
+  else { go('caption'); }
+}
+function renderPerformer(){
+  const store = storeById(state.tempPost.storeId);
+  const list = cache.performers[store.id] || [];
+  const selId = state.tempPost.performerId || (list[0] && list[0].id);
+  state.tempPost.performerId = selId;
+  const sel = list.find(p=>p.id===selId);
+  const statusLabel = {A:'✓ 全面OK(顔含めて投稿可)', B:'△ 顔以外(横顔・後ろ姿など)のみ可', C:'✕ 投稿NG/未確認'};
+  return `
+    <span class="back-link" onclick="go('privacy')">← 戻る</span>
+    <h2>🎵 演奏者の確認</h2>
+    <div class="muted">この時間帯の演奏者・出演者は撮影・SNS掲載に同意していますか?</div>
+    <select onchange="state.tempPost.performerId=this.value; render();">
+      ${list.map(p=>`<option value="${p.id}" ${p.id===selId?'selected':''}>${p.name}</option>`).join('')}
+    </select>
+    <div class="card">同意状況: <b>${sel ? statusLabel[sel.status] : '未登録'}</b></div>
+    ${sel && sel.status==='A' ? `
+      <button class="btn btn-primary" onclick="go('caption')">確認済み→投稿へ進む</button>
+    ` : `
+      <div class="banner">同意が未確認、または顔が写らない構図のみ許可されている演奏者です。あるいは一度確認くださいませんか。</div>
+      <button class="btn btn-secondary" onclick="retake()">撮り直す</button>
+      <button class="btn btn-primary" onclick="saveDraft()">下書き保存して後で判断する</button>
+    `}
+  `;
+}
+function renderCaption(){
+  const store = storeById(state.tempPost.storeId);
+  const tpls = CAPTION_TEMPLATES[store.type] || [];
+  return `
+    <span class="back-link" onclick="go('privacy')">← 戻る</span>
+    <h2>ひとことを添える(任意)</h2>
+    <img class="modal-detail-img" src="${state.tempPost.img}">
+    <div class="chip-grid">
+      ${tpls.map(t=>`<div class="chip ${state.tempPost.caption===t?'selected':''}" onclick="pickCaption('${t}')">${t}</div>`).join('')}
+    </div>
+    <button class="btn btn-ghost" onclick="pickCaption('')">何もつけない</button>
+    <button class="btn btn-primary" onclick="go('confirm')">次へ(内容を確認)</button>
+  `;
+}
+function pickCaption(t){ state.tempPost.caption = t; render(); }
+function renderConfirm(){
+  return `
+    <span class="back-link" onclick="go('caption')">← 戻る</span>
+    <h2>公開前レビュー</h2>
+    <div class="muted">常連客にはこのように表示されます。</div>
+    <div class="card">
+      <img class="modal-detail-img" src="${state.tempPost.img}">
+      <div class="muted">📅 これは店主が投稿した1枚です。リアルタイムの画像ではありません。</div>
+      <div style="margin-top:8px;">🕐 ただいま 投稿予定</div>
+      ${state.tempPost.caption ? `<div style="margin-top:4px;">💬 ${state.tempPost.caption}</div>` : ''}
+      ${state.tempPost.careBadge ? `<div style="margin-top:4px;">🔒 店内のお客様に配慮した写真です</div>` : ''}
+    </div>
+    <button class="btn btn-primary" onclick="publish(true)">投稿する</button>
+    <button class="btn btn-secondary" onclick="publish(false)">下書きとして保存</button>
+    <button class="btn btn-ghost" onclick="go('home')">やめる</button>
+  `;
+}
+async function publish(isPublic){
+  const t = state.tempPost;
+  await sb.from('posts').insert({
+    store_id: t.storeId, author_id: state.user.id, image_data: t.img, caption: t.caption,
+    visible: isPublic, draft: !isPublic, care_badge: t.careBadge, performer_id: t.performerId
+  });
+  state.tempPost = null;
+  await loadPosts(t.storeId);
+  toast(isPublic ? '投稿しました' : '下書きに保存しました');
+  go('home');
+}
+async function saveDraft(){ await publish(false); }
+
+async function renderHistory(){
+  const posts = cache.posts[state.currentStoreId] || [];
+  return `
+    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <h2>投稿履歴</h2>
+    ${posts.length===0 ? '<div class="muted">まだ投稿がありません</div>' : posts.map(p=>`
+      <div class="post-row">
+        <img src="${p.image_data}">
+        <div class="meta">
+          <div>${absTime(p.created_at)} ${p.draft?'<span class="tag warn">下書き</span>':'<span class="tag ok">公開中</span>'}</div>
+          <div class="cap">${p.caption || '(コメントなし)'}</div>
+        </div>
+        <div>
+          ${p.draft?`<button class="btn btn-sm btn-primary" onclick="publishDraft('${p.id}')">公開する</button>`:''}
+          <button class="btn btn-sm btn-danger" onclick="askDelete('${p.id}')">削除</button>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+async function publishDraft(id){
+  await sb.from('posts').update({visible:true, draft:false, created_at:new Date().toISOString()}).eq('id', id);
+  await loadPosts(state.currentStoreId);
+  toast('公開しました');
+  render();
+}
+function askDelete(id){
+  showModal(`
+    <h2>この投稿を削除しますか?</h2>
+    <p class="muted">削除すると元に戻せません</p>
+    <button class="btn btn-danger" onclick="doDelete('${id}')">削除する</button>
+    <button class="btn btn-secondary" onclick="closeModal()">やめる</button>
+  `);
+}
+async function doDelete(id){
+  await sb.from('posts').delete().eq('id', id);
+  closeModal();
+  await loadPosts(state.currentStoreId);
+  toast('削除しました');
+  render();
+}
+
+async function renderSettings(){
+  const store = storeById(state.currentStoreId);
+  const set = cache.settings[store.id] || {notif:'none',paused:false};
+  const performers = cache.performers[store.id] || [];
+  return `
+    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <h2>設定 － ${store.name}</h2>
+    <h3>投稿リマインダー</h3>
+    <label class="radio-line"><input type="radio" name="notif" ${set.notif==='none'?'checked':''} onchange="setNotif('none')"> なし</label>
+    <label class="radio-line"><input type="radio" name="notif" ${set.notif==='monthly'?'checked':''} onchange="setNotif('monthly')"> 月1回だけ、控えめに知らせる</label>
+    <div class="muted" style="margin-bottom:14px;">深夜の営業時間中にはお知らせを送りません。催促目的は一切行いません。</div>
+    <h3>投稿の一時停止</h3>
+    <button class="btn ${set.paused?'btn-primary':'btn-secondary'}" onclick="togglePause()">
+      ${set.paused ? '▶ 投稿を再開する' : '⏸ 投稿を一時的にお休みする'}
+    </button>
+    ${store.type==='music' ? `
+      <h3 style="margin-top:16px;">出演者・演奏者の同意管理</h3>
+      ${performers.map(p=>`
+        <div class="row between" style="margin-bottom:6px;">
+          <span>${p.name}</span>
+          <select onchange="setPerformerStatus('${p.id}', this.value)">
+            <option value="A" ${p.status==='A'?'selected':''}>A: 全面OK</option>
+            <option value="B" ${p.status==='B'?'selected':''}>B: 顔以外可</option>
+            <option value="C" ${p.status==='C'?'selected':''}>C: NG/未確認</option>
+          </select>
+        </div>
+      `).join('')}
+      <div class="muted">未確認の演奏者は安全側で「C: NG」ということして扱われます。</div>
+    ` : ''}
+    <h3 style="margin-top:16px;">アカウント</h3>
+    <button class="btn btn-secondary" onclick="askLeave()">このお店の管理権限をリセットする(退会)</button>
+  `;
+}
+async function setNotif(v){
+  await sb.from('store_settings').update({notif:v}).eq('store_id', state.currentStoreId);
+  await loadSettings(state.currentStoreId); render();
+}
+async function togglePause(){
+  const s = cache.settings[state.currentStoreId];
+  await sb.from('store_settings').update({paused: !s.paused}).eq('store_id', state.currentStoreId);
+  await loadSettings(state.currentStoreId);
+  toast(cache.settings[state.currentStoreId].paused ? '投稿をお休みに設定しました' : '投稿を再開しました');
+  render();
+}
+async function setPerformerStatus(id, v){
+  await sb.from('performers').update({status:v}).eq('id', id);
+  await loadPerformers(state.currentStoreId); render();
+}
+function askLeave(){
+  showModal(`
+    <h2>管理権限をリセットしますか?</h2>
+    <p class="muted">この端末からこのお店の店主権限が失われます(投稿データ自体は残ります)。</p>
+    <button class="btn btn-danger" onclick="doLeave()">リセットする</button>
+    <button class="btn btn-secondary" onclick="closeModal()">やめる</button>
+  `);
+}
+async function doLeave(){
+  await sb.from('memberships').delete().eq('store_id', state.currentStoreId).eq('role','owner');
+  closeModal();
+  await reloadMemberships();
+  toast('リセットしました');
+  if(cache.memberships.length===0){ state.screen='invite'; } else { await setRole(isOwnerAnywhere()?'owner':'visitor'); }
+  render();
+}
+
+/* ===================== 常連：一覧・詳細 ===================== */
+function renderVisitorList(){
+  const statusLabel = {open:'営業中', prep:'準備中', closed:'本日定休'};
+  const dotClass = {open:'open', prep:'closed', closed:'closed'};
+  return `
+    <h2>このあたりのお店</h2>
+    <div class="muted" style="margin-bottom:12px;">全席エリアはオリエンタル定型です。投稿の多さで店舗は順位づけしません。</div>
+    ${cache.stores.map(s=>{
+      const st = isOpenNow(s);
+      const latest = myVisiblePosts(s.id)[0];
+      return `
+      <div class="card store-card" onclick="openStore('${s.id}')">
+        <div class="row between">
+          <div style="font-weight:bold;">${s.name}</div>
+          <span class="tag">${s.type_label}</span>
+        </div>
+        <div class="muted" style="margin:4px 0;">${s.description||''}</div>
+        <div><span class="status-dot ${dotClass[st]}"></span>${statusLabel[st]}
+          ${latest ? ' ・ '+relTime(latest.created_at)+'に投稿' : ' ・ 本日はまだ投稿なし'}</div>
+      </div>`;
+    }).join('')}
+  `;
+}
+async function openStore(id){ state.currentStoreId = id; await go('vdetail'); }
+function renderVisitorDetail(){
+  const store = storeById(state.currentStoreId);
+  const st = isOpenNow(store);
+  const statusLabel = {open:'営業中', prep:'準備中', closed:'本日定休'};
+  const posts = myVisiblePosts(store.id);
+  const groups = {};
+  posts.forEach(p=>{ const k=monthLabel(p.created_at); (groups[k]=groups[k]||[]).push(p); });
+  return `
+    <span class="back-link" onclick="go('vlist')">← 戻る</span>
+    <h2>${store.name}</h2>
+    <div class="muted">${store.type_label} ・ ${store.description||''}</div>
+    <div style="margin:8px 0;"><span class="status-dot ${st==='open'?'open':'closed'}"></span>${statusLabel[st]} ・ ${store.hours}</div>
+    <div class="banner notice">📸 ここに表示される写真は、店主が過去に公開した1枚です。リアルタイムの画像ではありません。</div>
+    ${posts.length===0 ? '<div class="muted">まだ投稿がありません。お店の様子はここに随時更新されます</div>' :
+      Object.keys(groups).map(k=>`
+        <h3>${k}</h3>
+        <div class="thumb-grid">
+          ${groups[k].map(p=>`<img class="thumb" src="${p.image_data}" onclick="openSnapshot('${p.id}','${store.id}')">`).join('')}
+        </div>
+      `).join('')}
+  `;
+}
+function openSnapshot(id, storeId){
+  const p = (cache.posts[storeId]||[]).find(x=>x.id===id);
+  showModal(`
+    <img class="modal-detail-img" src="${p.image_data}">
+    <div class="muted">📅 店主が過去に公開した1枚のスナップショットです。今の状況とは異なる場合があります。</div>
+    <div style="margin:8px 0;">🕐 ${relTime(p.created_at)}(${absTime(p.created_at)})</div>
+    ${p.caption ? `<div>💬 ${p.caption}</div>` : ''}
+    ${p.care_badge ? `<div style="margin-top:4px;">🔒 店内のお客様に配慮した写真です</div>` : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">閉じる</button>
+  `);
+}
+
+/* ===================== メイン描画 ===================== */
+function render(){
+  const hasOwner = isOwnerAnywhere();
+  const hasAny = cache.memberships.length > 0;
+  document.getElementById('tab-owner').classList.toggle('active', state.role==='owner');
+  document.getElementById('tab-visitor').classList.toggle('active', state.role==='visitor');
+  document.getElementById('tab-owner').disabled = !hasOwner;
+  document.getElementById('tab-visitor').disabled = !hasAny;
+  document.getElementById('tab-owner').style.display = state.screen==='invite' ? 'none' : '';
+  document.getElementById('tab-visitor').style.display = state.screen==='invite' ? 'none' : '';
+  document.getElementById('topbar-title').textContent =
+    state.screen==='invite' ? '参加する' : (state.role==='owner' ? '店主モード' : '常連モード');
+
+  const el = document.getElementById('screen');
+  const map = {
+    invite: renderInvite,
+    home: renderOwnerHome, preShoot: renderPreShoot, composeGuide: renderComposeGuide,
+    camera: renderCamera, privacy: renderPrivacy, performer: renderPerformer,
+    caption: renderCaption, confirm: renderConfirm, history: renderHistory, settings: renderSettings,
+    vlist: renderVisitorList, vdetail: renderVisitorDetail
+  };
+  const fn = map[state.screen] || renderInvite;
+  el.innerHTML = fn();
+}
+
+init();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('service-worker.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
