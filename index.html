@@ -558,7 +558,10 @@ function renderSettings(){
       `).join('')}
       <div class="muted">未確認の演奏者は安全側で「C: NG」ということして扱われます。</div>
     ` : ''}
-    <h3 style="margin-top:16px;">アカウント</h3>
+    <h3 style="margin-top:16px;">その他の招待コード</h3>
+    <button class="btn btn-secondary" onclick="go('invite')">＋ 別の招待コードを追加する</button>
+    <div class="muted" style="margin-bottom:12px;">他のお店の店主コードや、常連コードを同じ端末に追加登録できます。上のプルダウンでお店を切り替えられます。</div>
+    <h3>アカウント</h3>
     <button class="btn btn-secondary" onclick="askLeave()">このお店の管理権限をリセットする(退会)</button>
   `;
 }
