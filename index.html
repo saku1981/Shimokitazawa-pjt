@@ -487,7 +487,7 @@ async function publish(isPublic){
 }
 async function saveDraft(){ await publish(false); }
 
-async function renderHistory(){
+function renderHistory(){
   const posts = cache.posts[state.currentStoreId] || [];
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
@@ -529,7 +529,7 @@ async function doDelete(id){
   render();
 }
 
-async function renderSettings(){
+function renderSettings(){
   const store = storeById(state.currentStoreId);
   const set = cache.settings[store.id] || {notif:'none',paused:false};
   const performers = cache.performers[store.id] || [];
