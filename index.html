@@ -83,6 +83,9 @@
     transition:opacity .25s;pointer-events:none;}
   .toast.show{opacity:1;}
   .footer-note{text-align:center;color:#5c5e64;font-size:11px;margin-top:16px;}
+  .nav-list{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-top:16px;overflow:hidden;}
+  .nav-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);font-size:14px;}
+  .nav-row:last-child{border-bottom:none;}
   .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;}
   .modal-detail-img{width:100%;border-radius:10px;margin-bottom:10px;}
   .spinner{display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--sub);font-size:13px;}
@@ -110,7 +113,7 @@
     </div>
     <div class="screen" id="screen"><div class="spinner">読み込み中…</div></div>
   </div>
-  <div class="footer-note">――これは検証利用のテスト運用プロトタイプです。写真はすべてダミー画像で、実在の人物・店舗とは無関係です。</div>
+  <div class="footer-note">――テスト運用中のプロトタイプです。写真はすべてダミー画像です。</div>
 </div>
 <div id="modal-root"></div>
 <div class="toast" id="toast"></div>
@@ -147,7 +150,7 @@ const RECOMMEND_TEMPLATES = {
 
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null };
-let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, follows:[], recommendations:[], allSettings:[] };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[] };
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 
 function toast(msg){
@@ -188,7 +191,7 @@ async function init(){
     state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
     state.screen = state.role === 'owner' ? 'home' : 'vlist';
   }
-  render();
+  await go(state.screen);
 }
 
 async function reloadMemberships(){
@@ -219,8 +222,8 @@ async function submitInvite(){
 }
 function renderInvite(){
   return `
-    <h2>🔑 招待コードで参加</h2>
-    <div class="muted" style="margin-bottom:12px;">下北沢プロジェクトは完全招待制です。お店から受け取った招待コードと、名乗りたいニックネームを入力してください。</div>
+    <h2>招待コードで参加</h2>
+    <div class="muted" style="margin-bottom:12px;">招待制です。お店から受け取ったコードと、ニックネームを入れてください。</div>
     <div class="card">
       <div class="muted" style="margin-bottom:6px;">招待コード</div>
       <input type="text" id="inviteCode" placeholder="例: REG-0001" value="${PREFILL_CODE}" style="margin-bottom:12px;">
@@ -228,7 +231,7 @@ function renderInvite(){
       <input type="text" id="inviteNickname" placeholder="例: たけし">
     </div>
     <button class="btn btn-primary" onclick="submitInvite()">参加する</button>
-    <div class="muted" style="margin-top:10px;">※本名やメールアドレスの登録は不要です。この端末にだけ紐づく形で参加します。</div>
+    <div class="muted" style="margin-top:10px;">※本名やメールアドレスは不要です。この端末だけに紐づきます。</div>
   `;
 }
 
@@ -283,11 +286,6 @@ async function loadSettings(storeId){
 function myVisiblePosts(storeId){
   return (cache.posts[storeId]||[]).filter(p=>p.visible && !p.draft);
 }
-async function loadFollows(storeId){
-  const { data } = await sb.from('follows').select('*').eq('follower_store_id', storeId);
-  cache.follows = data || [];
-  return cache.follows;
-}
 async function loadRecommendations(){
   const { data } = await sb.from('recommendations').select('*');
   cache.recommendations = data || [];
@@ -309,7 +307,6 @@ async function go(screen){
   if(screen==='vdetail'){ await loadPosts(state.currentStoreId); await loadRecommendations(); }
   if(screen==='peers'){
     for(const s of cache.stores){ await loadPosts(s.id); }
-    await loadFollows(state.currentStoreId);
     await loadPeerSettings();
   }
   if(screen==='recommendRequests'){ await loadRecommendations(); }
@@ -326,10 +323,10 @@ document.getElementById('tab-visitor').onclick = ()=>setRole('visitor');
 document.getElementById('info-btn').onclick = ()=>{
   showModal(`
     <h2>このアプリについて</h2>
-    <p class="muted">1. 投稿するかしないかは、常に店主の自由な判断です。ノルマも催促も、順位づけもされる仕組みはありません。</p>
-    <p class="muted">2. お客様含め出演者ご本人の同意がなく、顔が特定できてしまう写真は投稿を最優先で控えてください。</p>
-    <p class="muted">3. 投稿の多さや少なさで店舗を比較したり値付けしたりする意図は一切なく、非商用の個人プロジェクトです。</p>
-    <p class="muted">4. 店主同士の「気になる登録」や「紹介する」も、比較やランキングのためではなく、お互いを尊重した緩やかなつながりのための仕組みです。紹介は相手の承諾があって初めて成立します。</p>
+    <p class="muted">1. 投稿は、いつでも自由です。ノルマも催促もありません。</p>
+    <p class="muted">2. お客様や出演者の顔が写る写真は、同意がない限り控えましょう。</p>
+    <p class="muted">3. 非商用の個人プロジェクトです。投稿の数でお店を比べることはしません。</p>
+    <p class="muted">4. 「紹介する」は、相手の承諾があって初めて成立する、ゆるやかなつながりです。</p>
     <button class="btn btn-primary" onclick="closeModal()">閉じる</button>
   `);
 };
@@ -366,16 +363,12 @@ function renderOwnerHome(){
     <h3>最近の投稿</h3>
     ${posts.filter(p=>p.visible&&!p.draft).length===0 ? '<div class="muted">まだ投稿がありません</div>' :
       `<div class="thumb-grid">${posts.filter(p=>p.visible&&!p.draft).slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}">`).join('')}</div>`}
-    <div style="margin-top:16px;display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:space-between;">
-      <span class="btn-ghost" onclick="go('history')">投稿履歴を見る →</span>
-      <span class="btn-ghost" onclick="go('peers')">🤝 参加店舗の様子 →</span>
-    </div>
-    <div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:10px 16px;justify-content:space-between;">
-      <span class="btn-ghost" onclick="go('recommendRequests')">📣 紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}件</span>`:''} →</span>
-      <span class="btn-ghost" onclick="go('qrCode')">📱 招待QRコードを表示 →</span>
-    </div>
-    <div style="margin-top:10px;" class="row between">
-      <span class="btn-ghost" onclick="go('settings')">⚙ 設定</span>
+    <div class="nav-list">
+      <div class="nav-row" onclick="go('history')"><span>投稿履歴</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('peers')"><span>参加店舗の様子</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('recommendRequests')"><span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('qrCode')"><span>招待QRコード</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('settings')"><span>設定</span><span class="muted">→</span></div>
     </div>
   `;
 }
@@ -391,11 +384,10 @@ function renderPeers(){
   const hiddenCount = others.length - visible.length;
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
-    <h2>🤝 参加店舗の様子</h2>
-    <div class="banner">他の参加店主の投稿を、気の向いた時に眺められる場所です。投稿数の比較やランキングは一切行いません。気になるお店があれば覗いてみてください。</div>
+    <h2>参加店舗の様子</h2>
+    <div class="banner">他の参加店主の投稿を、気が向いた時に眺める場所です。比較やランキングはありません。</div>
     ${visible.length===0 ? '<div class="muted">現在、閲覧できる参加店舗がありません。</div>' : visible.map(s=>{
       const posts = myVisiblePosts(s.id);
-      const following = (cache.follows||[]).some(f=>f.followed_store_id===s.id);
       return `
       <div class="card">
         <div class="row between">
@@ -407,28 +399,14 @@ function renderPeers(){
         </div>
         <div class="muted" style="margin:4px 0;">${s.description||''}</div>
         ${posts.length ? `<div class="thumb-grid">${posts.slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}">`).join('')}</div>` : '<div class="muted">まだ投稿がありません。</div>'}
-        <div class="row" style="margin-top:10px;gap:8px;">
-          <button class="btn ${following?'btn-secondary':'btn-primary'} btn-sm" onclick="toggleFollow('${s.id}')">${following ? '✓ 気になる登録中' : '🙋 気になる登録する'}</button>
-          <button class="btn btn-secondary btn-sm" onclick="openRecommendModal('${s.id}')">🎗 紹介する</button>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn btn-secondary btn-sm" onclick="openRecommendModal('${s.id}')">紹介する</button>
         </div>
       </div>`;
     }).join('')}
-    ${hiddenCount>0 ? `<div class="muted">※非公開設定にしている参加店舗があります(店名・件数は表示されません)。</div>` : ''}
-    <div class="footer-note" style="margin-top:20px;">「気になる」登録は控えめな仕組みで、プッシュ通知などは行いません。「紹介する」は、相手が承諾すると常連向け画面にお店のおすすめとして表示される、より踏み込んだ関係です。</div>
+    ${hiddenCount>0 ? `<div class="muted">※非公開にしている参加店舗があります。</div>` : ''}
+    <div class="footer-note" style="margin-top:20px;">「紹介する」は、相手が承諾したときだけ、常連向けに表示されます。</div>
   `;
-}
-async function toggleFollow(storeId){
-  const me = state.currentStoreId;
-  const existing = (cache.follows||[]).some(f=>f.followed_store_id===storeId);
-  if(existing){
-    await sb.from('follows').delete().eq('follower_store_id', me).eq('followed_store_id', storeId);
-    toast('気になる登録を解除しました');
-  } else {
-    await sb.from('follows').insert({follower_store_id: me, followed_store_id: storeId});
-    toast('気になる登録しました');
-  }
-  await loadFollows(me);
-  render();
 }
 function openRecommendModal(toStoreId){
   const me = state.currentStoreId;
@@ -437,7 +415,7 @@ function openRecommendModal(toStoreId){
   if(existing){
     showModal(`
       <h2>${target.name} への紹介</h2>
-      <p class="muted">${existing.status==='accepted' ? 'すでに紹介が成立しています(「'+existing.template+'」として常連向けに表示中)。' : 'すでに紹介を申し出ています。相手の承諾をお待ちください。'}</p>
+      <p class="muted">${existing.status==='accepted' ? 'すでに紹介中です(「'+existing.template+'」として表示中)。' : 'すでに申し出ています。返事をお待ちください。'}</p>
       <button class="btn btn-secondary" onclick="closeModal()">閉じる</button>
     `);
     return;
@@ -445,7 +423,7 @@ function openRecommendModal(toStoreId){
   const tpls = RECOMMEND_TEMPLATES[target.type] || RECOMMEND_TEMPLATES.bar;
   showModal(`
     <h2>${target.name} を紹介する</h2>
-    <p class="muted">${target.name}(${target.type_label})について、どんな人におすすめか選んでください。相手が承諾すると、あなたのお店の常連向け画面に表示されます。</p>
+    <p class="muted">どんな人におすすめか、選んでください。相手が承諾すると、常連向けに表示されます。</p>
     <div class="chip-grid">${tpls.map(t=>`<div class="chip" onclick="submitRecommend('${toStoreId}', '${t.replace(/'/g,"\\'")}')">${t}</div>`).join('')}</div>
     <button class="btn btn-ghost" onclick="closeModal()">やめる</button>
   `);
@@ -463,8 +441,8 @@ function renderRecommendRequests(){
   const outgoing = (cache.recommendations||[]).filter(r=>r.from_store_id===me && (r.status==='pending'||r.status==='accepted'));
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
-    <h2>📣 紹介の申し出</h2>
-    <div class="banner">他の参加店主から「紹介したい」と申し出があった場合、ここで確認・返答できます。承諾すると相手の常連向け画面に表示されます。見送っても理由を伝える必要はありません。</div>
+    <h2>紹介の申し出</h2>
+    <div class="banner">紹介の申し出には、ここで返事ができます。見送るときも、理由は要りません。</div>
     <h3>あなたへの申し出</h3>
     ${incoming.length===0 ? '<div class="muted">現在、届いている申し出はありません。</div>' : incoming.map(r=>{
       const from = storeById(r.from_store_id);
@@ -510,8 +488,8 @@ function renderQrCode(){
   const url = location.origin + location.pathname + (codeVal ? ('?code='+encodeURIComponent(codeVal)) : '');
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
-    <h2>📱 招待QRコードを表示</h2>
-    <div class="banner">招待コードを入力すると、スキャンした人がコード入力済みの状態でアプリを開けるQRコードを表示します。店内掲示や個別のご案内にお使いください。</div>
+    <h2>招待QRコード</h2>
+    <div class="banner">招待コードを入れると、QRコードができます。店内掲示や、個別のご案内にどうぞ。</div>
     <div class="muted" style="margin-bottom:6px;">招待コード</div>
     <input type="text" id="qrCodeInput" placeholder="例: REG-0002" value="${codeVal}" oninput="state._qrCodeInput=this.value;">
     <button class="btn btn-primary" style="margin-top:10px;" onclick="render()">QRコードを作成</button>
@@ -520,7 +498,7 @@ function renderQrCode(){
         <img src="https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}" alt="QRコード" style="width:220px;height:220px;background:#fff;padding:10px;border-radius:8px;">
         <div class="muted" style="margin-top:10px;word-break:break-all;">${url}</div>
       </div>
-      <div class="muted">※QR画像は外部の生成サービスを表示しているだけなので、通信環境がない場所では表示されないことがあります。実際にスマホのカメラで読み取ると、招待コードが入力された状態でこのアプリが開きます。</div>
+      <div class="muted">※通信環境がないと、QR画像が出ないことがあります。読み取ると、コード入力済みでアプリが開きます。</div>
     ` : ''}
   `;
 }
@@ -533,14 +511,14 @@ function startPost(){
 function renderPreShoot(){
   const store = storeById(state.tempPost.storeId);
   const tips = {
-    bar: 'カウンター越しの会話は自然に距離が近くなりがちです。開店前や閉店後、お客様のいない空間を狙うのがおすすめです。',
-    karaoke: '盛り上がっている様子を伝えたいところですが、顔が映らない構図がおすすめです。歌う画面の様子を撮るのも一案です。',
-    music: '演奏中は演奏者が映る写真は、投稿前に演奏者の許諾確認が必須です。演奏者が映らない構図の様子を撮るのも一案です。'
+    bar: 'カウンター越しは、距離が近くなりがちです。開店前や閉店後がおすすめです。',
+    karaoke: '盛り上がりは伝えたいけれど、顔が映らない構図で。画面の様子だけでも十分です。',
+    music: '演奏者が映る写真は、必ず本人の同意を確認してから。映らない構図も一案です。'
   };
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
-    <h2>📸 撮る前に、ちょっとだけ確認</h2>
-    <div class="banner">お客様の顔が、お客様の顔がそのままわかってしまう構図は避けてください。<br><br>💡 ${tips[store.type]}</div>
+    <h2>撮る前に、確認を</h2>
+    <div class="banner">お客様の顔がわかる構図は避けましょう。<br><br>${tips[store.type]}</div>
     ${store.type==='music' ? `
       <label class="radio-line"><input type="checkbox" id="perfShotChk"> これは演奏中の一枚ですか?(任意)</label>
     ` : ''}
@@ -570,7 +548,7 @@ function renderCamera(){
       <input type="file" accept="image/*" capture="environment" id="fileInput" style="display:none" onchange="onFilePicked(event)">
       <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📷 写真を撮る/選択</button>
       <button class="btn btn-secondary" onclick="useSampleImage()">🖼 サンプル画像で試す(デモ用)</button>
-      <div class="muted">――このプロトタイプでは実在の人物写真は使用しません。デモ用のダミー画像で操作感を確認できます。</div>
+      <div class="muted">――実在の人物写真は使いません。ダミー画像で試せます。</div>
     </div>
   `;
 }
@@ -591,7 +569,7 @@ function renderPrivacy(){
     <span class="back-link" onclick="retake()">← 撮り直す</span>
     <h2>投稿前の目視確認</h2>
     <img class="modal-detail-img" src="${state.tempPost.img}">
-    <div class="banner">👀 必ずご自身の目で確認してください。暗い場所では自動検知が見逃すこともあります。お客様や出演者の顔、個人が特定できる情景(名札・伝票・車のナンバーなど)が写っていませんか?</div>
+    <div class="banner">👀 ご自身の目で、もう一度だけ確認を。顔や、個人が特定できるもの(名札・伝票・車のナンバーなど)が写っていませんか?</div>
     <button class="btn btn-primary" onclick="privacyPass()">写っていない(このまま進む)</button>
     <button class="btn btn-danger" onclick="retake()">写っている(撮り直す)</button>
     <label class="radio-line"><input type="checkbox" id="careChk"> 🔒 店内のお客様に配慮した写真として表示する(任意)</label>
@@ -614,8 +592,8 @@ function renderPerformer(){
   const statusLabel = {A:'✓ 全面OK(顔含めて投稿可)', B:'△ 顔以外(横顔・後ろ姿など)のみ可', C:'✕ 投稿NG/未確認'};
   return `
     <span class="back-link" onclick="go('privacy')">← 戻る</span>
-    <h2>🎵 演奏者の確認</h2>
-    <div class="muted">この時間帯の演奏者・出演者は撮影・SNS掲載に同意していますか?</div>
+    <h2>演奏者の確認</h2>
+    <div class="muted">この時間帯の演奏者・出演者は、撮影とSNS掲載に同意していますか?</div>
     <select onchange="state.tempPost.performerId=this.value; render();">
       ${list.map(p=>`<option value="${p.id}" ${p.id===selId?'selected':''}>${p.name}</option>`).join('')}
     </select>
@@ -623,7 +601,7 @@ function renderPerformer(){
     ${sel && sel.status==='A' ? `
       <button class="btn btn-primary" onclick="go('caption')">確認済み→投稿へ進む</button>
     ` : `
-      <div class="banner">同意が未確認、または顔が写らない構図のみ許可されている演奏者です。あるいは一度確認くださいませんか。</div>
+      <div class="banner">同意が未確認か、顔以外のみ許可されている演奏者です。念のため、ご確認を。</div>
       <button class="btn btn-secondary" onclick="retake()">撮り直す</button>
       <button class="btn btn-primary" onclick="saveDraft()">下書き保存して後で判断する</button>
     `}
@@ -651,7 +629,7 @@ function renderConfirm(){
     <div class="muted">常連客にはこのように表示されます。</div>
     <div class="card">
       <img class="modal-detail-img" src="${state.tempPost.img}">
-      <div class="muted">📅 これは店主が投稿した1枚です。リアルタイムの画像ではありません。</div>
+      <div class="muted">📅 店主が投稿した1枚です。今の様子とは限りません。</div>
       <div style="margin-top:8px;">🕐 ただいま 投稿予定</div>
       ${state.tempPost.caption ? `<div style="margin-top:4px;">💬 ${state.tempPost.caption}</div>` : ''}
       ${state.tempPost.careBadge ? `<div style="margin-top:4px;">🔒 店内のお客様に配慮した写真です</div>` : ''}
@@ -726,7 +704,7 @@ function renderSettings(){
     <h3>投稿リマインダー</h3>
     <label class="radio-line"><input type="radio" name="notif" ${set.notif==='none'?'checked':''} onchange="setNotif('none')"> なし</label>
     <label class="radio-line"><input type="radio" name="notif" ${set.notif==='monthly'?'checked':''} onchange="setNotif('monthly')"> 月1回だけ、控えめに知らせる</label>
-    <div class="muted" style="margin-bottom:14px;">深夜の営業時間中にはお知らせを送りません。催促目的は一切行いません。</div>
+    <div class="muted" style="margin-bottom:14px;">深夜にはお知らせしません。催促のためではありません。</div>
     <h3>投稿の一時停止</h3>
     <button class="btn ${set.paused?'btn-primary':'btn-secondary'}" onclick="togglePause()">
       ${set.paused ? '▶ 投稿を再開する' : '⏸ 投稿を一時的にお休みする'}
@@ -743,20 +721,20 @@ function renderSettings(){
           </select>
         </div>
       `).join('')}
-      <div class="muted">未確認の演奏者は安全側で「C: NG」ということして扱われます。</div>
+      <div class="muted">未確認の演奏者は、安全のため「C: NG」として扱います。</div>
     ` : ''}
     <h3 style="margin-top:16px;">参加店主間での公開</h3>
     <button class="btn ${set.share_with_peers===false?'btn-secondary':'btn-primary'}" onclick="togglePeerShare()">
       ${set.share_with_peers===false ? '🔒 非公開中(他の店主からは見えません)' : '👁 参加店主に公開中'}
     </button>
-    <div class="muted" style="margin-bottom:14px;">オンにすると、他の参加店主が「参加店舗の様子」画面であなたのお店の投稿を眺められるようになります。ランキングや比較、通知は一切ありません。</div>
+    <div class="muted" style="margin-bottom:14px;">オンにすると、他の店主にも投稿が見えます。比較や通知はありません。</div>
     <h3>お店の見つけ方(常連向け)</h3>
-    <div class="muted" style="margin-bottom:6px;">路面店ではない場所のため、常連さんにやさしく伝わる見つけ方のヒントを書けます(例:「雑居ビル2階、青い看板が目印です」)。ここで書いた文章だけが常連向けに表示されます。</div>
+    <div class="muted" style="margin-bottom:6px;">見つけにくい場所なら、やさしいヒントを一言。この文章だけが常連さんに見えます。</div>
     <textarea id="findHintInput" placeholder="例: 本多劇場裏の路地を入って突き当り、木の扉が目印です">${store.find_hint || ''}</textarea>
-    <button class="btn btn-secondary" style="margin:8px 0 16px;" onclick="saveFindHint()">この内容で保存する</button>
+    <button class="btn btn-secondary" style="margin:8px 0 16px;" onclick="saveFindHint()">保存する</button>
     <h3 style="margin-top:16px;">その他の招待コード</h3>
     <button class="btn btn-secondary" onclick="go('invite')">＋ 別の招待コードを追加する</button>
-    <div class="muted" style="margin-bottom:12px;">他のお店の店主コードや、常連コードを同じ端末に追加登録できます。上のプルダウンでお店を切り替えられます。</div>
+    <div class="muted" style="margin-bottom:12px;">他のコードも、この端末にまとめて追加できます。</div>
     <h3>アカウント</h3>
     <button class="btn btn-secondary" onclick="askLeave()">このお店の管理権限をリセットする(退会)</button>
   `;
@@ -794,7 +772,7 @@ async function saveFindHint(){
 function askLeave(){
   showModal(`
     <h2>管理権限をリセットしますか?</h2>
-    <p class="muted">この端末からこのお店の店主権限が失われます(投稿データ自体は残ります)。</p>
+    <p class="muted">この端末での店主権限がなくなります(投稿は残ります)。</p>
     <button class="btn btn-danger" onclick="doLeave()">リセットする</button>
     <button class="btn btn-secondary" onclick="closeModal()">やめる</button>
   `);
@@ -814,7 +792,7 @@ function renderVisitorList(){
   const dotClass = {open:'open', prep:'closed', closed:'closed'};
   return `
     <h2>このあたりのお店</h2>
-    <div class="muted" style="margin-bottom:12px;">全席エリアはオリエンタル定型です。投稿の多さで店舗は順位づけしません。</div>
+    <div class="muted" style="margin-bottom:12px;">投稿の多さで、お店を比べることはしません。</div>
     ${cache.stores.map(s=>{
       const st = isOpenNow(s);
       const latest = myVisiblePosts(s.id)[0];
@@ -846,7 +824,7 @@ function renderVisitorDetail(){
     <div style="margin:8px 0;"><span class="status-dot ${st==='open'?'open':'closed'}"></span>${statusLabel[st]} ・ ${store.hours}</div>
     ${store.find_hint ? `<div class="banner" style="margin-bottom:10px;">📍 見つけ方: ${store.find_hint}</div>` : ''}
     ${renderOwnerPicks(store.id)}
-    <div class="banner notice">📸 ここに表示される写真は、店主が過去に公開した1枚です。リアルタイムの画像ではありません。</div>
+    <div class="banner notice">📸 これは、店主が過去に公開した1枚です。今の様子とは限りません。</div>
     ${posts.length===0 ? '<div class="muted">まだ投稿がありません。お店の様子はここに随時更新されます</div>' :
       Object.keys(groups).map(k=>`
         <h3>${k}</h3>
@@ -860,18 +838,18 @@ function openSnapshot(id, storeId){
   const p = (cache.posts[storeId]||[]).find(x=>x.id===id);
   showModal(`
     <img class="modal-detail-img" src="${p.image_data}">
-    <div class="muted">📅 店主が過去に公開した1枚のスナップショットです。今の状況とは異なる場合があります。</div>
+    <div class="muted">📅 過去に公開された1枚です。今とは違うことがあります。</div>
     <div style="margin:8px 0;">🕐 ${relTime(p.created_at)}(${absTime(p.created_at)})</div>
     ${p.caption ? `<div>💬 ${p.caption}</div>` : ''}
     ${p.care_badge ? `<div style="margin-top:4px;">🔒 店内のお客様に配慮した写真です</div>` : ''}
     <button class="btn btn-ghost" onclick="closeModal()">閉じる</button>
-    <button class="btn btn-ghost" style="color:#c77;margin-top:4px;" onclick="reportSnapshot('${id}')">⚑ 気になる点を報告(運営のみに送信)</button>
+    <button class="btn btn-ghost" style="color:#c77;margin-top:4px;" onclick="reportSnapshot('${id}')">⚑ 気になる点を報告(運営だけに届きます)</button>
   `);
 }
 async function reportSnapshot(id){
   await sb.from('reports').insert({post_id: id, reporter_id: state.user.id});
   closeModal();
-  toast('報告を受け付けました。運営のみが内容を確認します。');
+  toast('報告を受け付けました。運営だけが確認します。');
 }
 function renderOwnerPicks(storeId){
   const recs = (cache.recommendations||[]).filter(r=>r.to_store_id===storeId && r.status==='accepted');
