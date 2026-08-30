@@ -150,7 +150,7 @@ const RECOMMEND_TEMPLATES = {
 
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null };
-let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[] };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{} };
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 
@@ -356,6 +356,13 @@ async function loadStoreRegulars(storeId){
   cache.storeRegulars[storeId] = cache.regularNetwork.filter(m=>m.store_id===storeId);
   return cache.storeRegulars[storeId];
 }
+async function loadFindVideoUrl(storeId){
+  const store = storeById(storeId);
+  if(!store || !store.find_video_path){ cache.findVideoUrls[storeId] = null; return null; }
+  const { data, error } = await sb.storage.from('store-videos').createSignedUrl(store.find_video_path, 3600);
+  cache.findVideoUrls[storeId] = (!error && data) ? data.signedUrl : null;
+  return cache.findVideoUrls[storeId];
+}
 function otherStoresFor(userId, excludeStoreId){
   return (cache.regularNetwork||[])
     .filter(m=>m.user_id===userId && m.store_id!==excludeStoreId)
@@ -371,7 +378,7 @@ async function go(screen){
   if(screen==='home'){ await loadRecommendations(); await loadSettings(state.currentStoreId); }
   if(screen==='settings'){ await loadSettings(state.currentStoreId); await loadPerformers(state.currentStoreId); }
   if(screen==='vlist'){ for(const s of cache.stores){ await loadPosts(s.id); } await loadPeerSettings(); }
-  if(screen==='vdetail'){ await loadPosts(state.currentStoreId); await loadRecommendations(); await loadStoreMates(state.currentStoreId); await loadPeerSettings(); }
+  if(screen==='vdetail'){ await loadPosts(state.currentStoreId); await loadRecommendations(); await loadStoreMates(state.currentStoreId); await loadPeerSettings(); await loadFindVideoUrl(state.currentStoreId); }
   if(screen==='peers'){
     for(const s of cache.stores){ await loadPosts(s.id); }
     await loadPeerSettings();
@@ -937,6 +944,16 @@ function renderSettings(){
     <textarea id="findHintInput" placeholder="例: 本多劇場裏の路地を入って突き当り、木の扉が目印です">${store.find_hint || ''}</textarea>
     <button class="btn btn-secondary" style="margin:8px 0 16px;" onclick="saveFindHint()">保存する</button>
 
+    <h3>お店までの道のり動画(常連向け・15秒程度)</h3>
+    <div class="muted" style="margin-bottom:6px;">路面から路地裏や階段を上がって、ドアを開けて1秒ほど、までの短い動画です。常連さんだけに表示されます。</div>
+    ${store.find_video_path ? `<div class="muted" style="margin-bottom:6px;">現在の状態: 設定済み ✅</div>` : ''}
+    <label class="btn btn-secondary" style="display:inline-block;">
+      ${store.find_video_path ? '動画を撮り直す・選び直す' : '動画を追加する'}
+      <input type="file" accept="video/*" style="display:none;" onchange="uploadFindVideo(event)">
+    </label>
+    ${store.find_video_path ? ` <button class="btn btn-ghost" style="color:#c77;" onclick="removeFindVideo()">削除する</button>` : ''}
+    <div id="findVideoStatus" class="muted" style="margin:6px 0 16px;"></div>
+
     <h3>常連の定義</h3>
     <div class="muted" style="margin-bottom:6px;">どんな方を常連と考えるか、お店の言葉で(常連さんにも見えます)。</div>
     <textarea id="regularDefInput" placeholder="例: 月に1回以上、顔を見せてくださる方">${store.regular_definition || ''}</textarea>
@@ -989,6 +1006,36 @@ async function saveFindHint(){
   await sb.from('stores').update({find_hint: val}).eq('id', state.currentStoreId);
   await loadStores();
   toast('見つけ方のヒントを保存しました');
+  render();
+}
+async function uploadFindVideo(e){
+  const file = e.target.files[0];
+  if(!file) return;
+  if(file.size > 80*1024*1024){ toast('動画サイズが大きすぎます(80MB以下にしてください)'); e.target.value=''; return; }
+  const statusEl = document.getElementById('findVideoStatus');
+  if(statusEl) statusEl.textContent = 'アップロード中…しばらくお待ちください';
+  const ext = (file.name.split('.').pop() || 'mp4').toLowerCase();
+  const path = `${state.currentStoreId}/find.${ext}`;
+  const { error: upErr } = await sb.storage.from('store-videos').upload(path, file, { upsert: true, contentType: file.type || 'video/mp4' });
+  if(upErr){ if(statusEl) statusEl.textContent=''; toast('アップロードに失敗しました: '+upErr.message); return; }
+  // 拡張子が変わった場合に前のファイルが残らないよう、旧パスと異なるときだけ掃除する
+  const store = storeById(state.currentStoreId);
+  if(store.find_video_path && store.find_video_path !== path){
+    await sb.storage.from('store-videos').remove([store.find_video_path]);
+  }
+  await sb.from('stores').update({ find_video_path: path }).eq('id', state.currentStoreId);
+  await loadStores();
+  if(statusEl) statusEl.textContent = '';
+  toast('道のり動画を保存しました');
+  render();
+}
+async function removeFindVideo(){
+  const store = storeById(state.currentStoreId);
+  if(!store || !store.find_video_path) return;
+  await sb.storage.from('store-videos').remove([store.find_video_path]);
+  await sb.from('stores').update({ find_video_path: null }).eq('id', state.currentStoreId);
+  await loadStores();
+  toast('動画を削除しました');
   render();
 }
 function askLeave(){
@@ -1060,6 +1107,11 @@ function renderVisitorDetail(){
     ${set.welcome_drink_on ? `<div class="banner">🥂 ${set.welcome_drink_text || 'ネットワークの常連さんにはウェルカムドリンクをご用意します'}</div>` : ''}
     ${set.notice_on && set.notice_text ? `<div class="banner notice">📌 ${set.notice_text}</div>` : ''}
     ${store.find_hint ? `<div class="banner" style="margin-bottom:10px;">📍 見つけ方: ${store.find_hint}</div>` : ''}
+    ${cache.findVideoUrls[store.id] ? `
+      <div class="banner" style="padding:0;overflow:hidden;margin-bottom:10px;">
+        <video src="${cache.findVideoUrls[store.id]}" controls playsinline preload="metadata" style="width:100%;display:block;"></video>
+        <div class="muted" style="padding:8px;">📍 お店までの道のり(店主撮影・約15秒)</div>
+      </div>` : ''}
     ${store.regular_definition ? `<div class="muted" style="margin-bottom:10px;">このお店が考える「常連」: ${store.regular_definition}</div>` : ''}
     ${renderOwnerPicks(store.id)}
     ${renderStoreMates(store)}
