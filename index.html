@@ -196,11 +196,13 @@ async function init(){
 }
 
 async function reloadMemberships(){
-  const { data } = await sb.from('memberships').select('*');
+  const { data, error } = await sb.from('memberships').select('*');
+  if(error) toast('[診断] memberships読み込みエラー: ' + error.message);
   cache.memberships = data || [];
 }
 async function loadStores(){
-  const { data } = await sb.from('stores').select('*').order('id');
+  const { data, error } = await sb.from('stores').select('*').order('id');
+  if(error) toast('[診断] stores読み込みエラー: ' + error.message);
   cache.stores = data || [];
 }
 
