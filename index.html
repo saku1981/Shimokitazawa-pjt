@@ -304,6 +304,7 @@ function settingsFor(storeId){
 }
 function isVacantToday(set){ return !!(set && set.vacancy_on && set.vacancy_date === todayStr()); }
 function vacancyLevel(set){ return isVacantToday(set) ? (set.vacancy_level || 'normal') : null; }
+function detailDisclosureOn(set){ return !(set && set.detail_disclosure_on === false); }
 function isRainSpecialToday(set){ return !!(set && set.rain_special_on && set.rain_special_date === todayStr()); }
 function placeholderImg(label, bg){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>
@@ -890,6 +891,12 @@ function renderSettings(){
     <textarea id="descriptionInput" placeholder="例: 隠れ家的な一軒。落ち着いた雰囲気でゆっくり過ごせます">${store.description || ''}</textarea>
     <button class="btn btn-secondary" style="margin:8px 0 16px;" onclick="saveDescription()">保存する</button>
 
+    <h3>常連への詳細情報の開示</h3>
+    <div class="muted" style="margin-bottom:6px;">紹介文・見つけ方のヒント・道のり動画・常連の定義をまとめて、常連さんに見せる/見せないを切り替えられます。内容は消えず、表示だけ止められます。</div>
+    <button class="btn ${detailDisclosureOn(set)?'btn-primary':'btn-secondary'}" style="margin-bottom:16px;" onclick="toggleDetailDisclosure()">
+      ${detailDisclosureOn(set) ? '👁 常連さんに開示中' : '🔒 非公開中(常連さんには表示されません)'}
+    </button>
+
     <h3>投稿リマインダー</h3>
     <label class="radio-line"><input type="radio" name="notif" ${set.notif==='none'?'checked':''} onchange="setNotif('none')"> なし</label>
     <label class="radio-line"><input type="radio" name="notif" ${set.notif==='monthly'?'checked':''} onchange="setNotif('monthly')"> 月1回だけ、控えめに知らせる</label>
@@ -994,6 +1001,14 @@ async function togglePeerShare(){
   toast(cache.settings[state.currentStoreId].share_with_peers===false ? '非公開に設定しました' : '参加店主に公開しました');
   render();
 }
+async function toggleDetailDisclosure(){
+  const set = cache.settings[state.currentStoreId] || {};
+  const curVal = detailDisclosureOn(set);
+  await sb.from('store_settings').update({ detail_disclosure_on: !curVal }).eq('store_id', state.currentStoreId);
+  await loadSettings(state.currentStoreId);
+  toast(detailDisclosureOn(cache.settings[state.currentStoreId]) ? '常連さんに開示しました' : '非公開にしました');
+  render();
+}
 async function saveDescription(){
   const val = document.getElementById('descriptionInput').value;
   await sb.from('stores').update({description: val}).eq('id', state.currentStoreId);
@@ -1075,7 +1090,7 @@ function renderVisitorList(){
           <div style="font-weight:bold;">${s.name}</div>
           <span class="tag">${s.type_label}</span>
         </div>
-        <div class="muted" style="margin:4px 0;">${s.description||''}</div>
+        ${detailDisclosureOn(set) ? `<div class="muted" style="margin:4px 0;">${s.description||''}</div>` : ''}
         <div><span class="status-dot ${dotClass[st]}"></span>${statusLabel[st]}
           ${latest ? ' ・ '+relTime(latest.created_at)+'に投稿' : ' ・ 本日はまだ投稿なし'}</div>
         ${vLevel || rain ? `<div style="margin-top:6px;">
@@ -1099,20 +1114,20 @@ function renderVisitorDetail(){
   return `
     <span class="back-link" onclick="go('vlist')">← 戻る</span>
     <h2>${store.name}</h2>
-    <div class="muted">${store.type_label} ・ ${store.description||''}</div>
+    <div class="muted">${store.type_label}${detailDisclosureOn(set) ? ' ・ '+(store.description||'') : ''}</div>
     <div style="margin:8px 0;"><span class="status-dot ${st==='open'?'open':'closed'}"></span>${statusLabel[st]} ・ ${store.hours}</div>
     ${vacancyLevel(set)==='spacious' ? `<div class="banner notice">🟢 今ならゆったり楽しめます。</div>` : ''}
     ${vacancyLevel(set)==='normal' ? `<div class="banner notice">🟢 今なら入れます。ゆっくり楽しめます。</div>` : ''}
     ${isRainSpecialToday(set) ? `<div class="banner notice">☔ ${set.rain_special_text || '本日は雨の日特典があります'}</div>` : ''}
     ${set.welcome_drink_on ? `<div class="banner">🥂 ${set.welcome_drink_text || 'ネットワークの常連さんにはウェルカムドリンクをご用意します'}</div>` : ''}
     ${set.notice_on && set.notice_text ? `<div class="banner notice">📌 ${set.notice_text}</div>` : ''}
-    ${store.find_hint ? `<div class="banner" style="margin-bottom:10px;">📍 見つけ方: ${store.find_hint}</div>` : ''}
-    ${cache.findVideoUrls[store.id] ? `
+    ${detailDisclosureOn(set) && store.find_hint ? `<div class="banner" style="margin-bottom:10px;">📍 見つけ方: ${store.find_hint}</div>` : ''}
+    ${detailDisclosureOn(set) && cache.findVideoUrls[store.id] ? `
       <div class="banner" style="padding:0;overflow:hidden;margin-bottom:10px;">
         <video src="${cache.findVideoUrls[store.id]}" controls playsinline preload="metadata" style="width:100%;display:block;"></video>
         <div class="muted" style="padding:8px;">📍 お店までの道のり(店主撮影・約15秒)</div>
       </div>` : ''}
-    ${store.regular_definition ? `<div class="muted" style="margin-bottom:10px;">このお店が考える「常連」: ${store.regular_definition}</div>` : ''}
+    ${detailDisclosureOn(set) && store.regular_definition ? `<div class="muted" style="margin-bottom:10px;">このお店が考える「常連」: ${store.regular_definition}</div>` : ''}
     ${renderOwnerPicks(store.id)}
     ${renderStoreMates(store)}
     <div class="banner notice">📸 これは、店主が過去に公開した1枚です。今の様子とは限りません。</div>
