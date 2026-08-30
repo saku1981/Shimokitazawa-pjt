@@ -869,6 +869,12 @@ function renderSettings(){
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
     <h2>設定 － ${store.name}</h2>
+
+    <h3>お店の紹介文</h3>
+    <div class="muted" style="margin-bottom:6px;">常連さん一覧などに表示される、お店の紹介文です。いつでも書き換えられます。</div>
+    <textarea id="descriptionInput" placeholder="例: 隠れ家的な一軒。落ち着いた雰囲気でゆっくり過ごせます">${store.description || ''}</textarea>
+    <button class="btn btn-secondary" style="margin:8px 0 16px;" onclick="saveDescription()">保存する</button>
+
     <h3>投稿リマインダー</h3>
     <label class="radio-line"><input type="radio" name="notif" ${set.notif==='none'?'checked':''} onchange="setNotif('none')"> なし</label>
     <label class="radio-line"><input type="radio" name="notif" ${set.notif==='monthly'?'checked':''} onchange="setNotif('monthly')"> 月1回だけ、控えめに知らせる</label>
@@ -958,6 +964,13 @@ async function togglePeerShare(){
   await sb.from('store_settings').update({share_with_peers: !curVal}).eq('store_id', state.currentStoreId);
   await loadSettings(state.currentStoreId);
   toast(cache.settings[state.currentStoreId].share_with_peers===false ? '非公開に設定しました' : '参加店主に公開しました');
+  render();
+}
+async function saveDescription(){
+  const val = document.getElementById('descriptionInput').value;
+  await sb.from('stores').update({description: val}).eq('id', state.currentStoreId);
+  await loadStores();
+  toast('紹介文を保存しました');
   render();
 }
 async function saveFindHint(){
