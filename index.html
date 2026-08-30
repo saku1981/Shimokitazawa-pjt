@@ -89,6 +89,10 @@
   .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;}
   .modal-detail-img{width:100%;border-radius:10px;margin-bottom:10px;}
   .spinner{display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--sub);font-size:13px;}
+  @keyframes gachaShake{
+    0%,100%{transform:rotate(-8deg) translateY(0);}
+    50%{transform:rotate(8deg) translateY(-4px);}
+  }
   @media (max-width: 480px){
     body{padding:0;display:block;align-items:normal;}
     .app-wrap{width:100%;max-width:100%;}
@@ -1170,8 +1174,52 @@ function renderStoreMates(store){
       </div>
       <div class="muted" style="margin-top:8px;">${mates.length>0 ? mates.map(m=>m.nickname).join('、') + ' さん' : 'まだ名乗っている方はいません'}</div>
       <div class="muted" style="margin-top:6px;">見せる・見せないは、いつでも変えられます。連絡先の交換などはできません。</div>
+      ${renderGachaBlock(store, my, shown)}
     </div>
   `;
+}
+function renderGachaBlock(store, my, shown){
+  if(my.gacha_claimed){
+    return `
+      <div class="banner" style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:28px;">${store.gacha_item_emoji || '🎁'}</span>
+        <div>
+          <div style="font-weight:bold;">${store.gacha_item_label || '記念キーホルダー'}</div>
+          <div class="muted">顔なじみ記念に獲得済みです</div>
+        </div>
+      </div>`;
+  }
+  if(shown){
+    return `
+      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="playGacha('${store.id}')">
+        🎁 顔なじみ記念ガチャを回す
+      </button>`;
+  }
+  return `<div class="muted" style="margin-top:10px;">ニックネームを見せると、顔なじみ記念のガチャが回せます。</div>`;
+}
+async function playGacha(storeId){
+  showModal(`
+    <div style="text-align:center;padding:20px 0;">
+      <div id="gachaCapsule" style="font-size:56px;animation:gachaShake 0.4s infinite;">🎰</div>
+      <div class="muted" style="margin-top:10px;">回しています…</div>
+    </div>
+  `);
+  const { error } = await sb.rpc('claim_gacha', { p_store_id: storeId });
+  await new Promise(r=>setTimeout(r, 900));
+  if(error){ closeModal(); toast('ガチャを回せませんでした: '+error.message); return; }
+  await reloadMemberships();
+  const store = storeById(storeId);
+  const my = cache.memberships.find(m=>m.store_id===storeId && m.role==='regular' && m.user_id===state.user.id);
+  if(!my || !my.gacha_claimed){ closeModal(); toast('ガチャを回せませんでした'); return; }
+  showModal(`
+    <div style="text-align:center;padding:12px 0;">
+      <div style="font-size:64px;">${store.gacha_item_emoji || '🎁'}</div>
+      <h2 style="margin:12px 0 4px;">${store.gacha_item_label || '記念キーホルダー'}</h2>
+      <div class="muted">${store.name}の顔なじみになった記念に獲得しました</div>
+      <button class="btn btn-primary" style="margin-top:16px;" onclick="closeModal()">閉じる</button>
+    </div>
+  `);
+  render();
 }
 async function toggleNicknameVisibility(storeId){
   const my = cache.memberships.find(m=>m.store_id===storeId && m.role==='regular' && m.user_id===state.user.id);
