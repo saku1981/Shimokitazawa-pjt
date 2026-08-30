@@ -303,6 +303,7 @@ function settingsFor(storeId){
   return (cache.allSettings||[]).find(s=>s.store_id===storeId) || {};
 }
 function isVacantToday(set){ return !!(set && set.vacancy_on && set.vacancy_date === todayStr()); }
+function vacancyLevel(set){ return isVacantToday(set) ? (set.vacancy_level || 'normal') : null; }
 function isRainSpecialToday(set){ return !!(set && set.rain_special_on && set.rain_special_date === todayStr()); }
 function placeholderImg(label, bg){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>
@@ -396,7 +397,7 @@ document.getElementById('info-btn').onclick = ()=>{
     <p class="muted">4. 「紹介する」は、相手の承諾があって初めて成立する、ゆるやかなつながりです。</p>
     <p class="muted">5. 常連同士も、ニックネームを見せ合うかどうかは自分で選べます。連絡先の交換などはできません。</p>
     <p class="muted">6. 店主は常連ごとに、管理用の簡単なメモを残すことがあります(ご本人には表示されません)。また、同じ常連さんが他の参加店舗にもいる場合、店舗名が店主同士でわかることがあります。トラブル時の連携や、ゆるやかな信頼関係のためです。</p>
-    <p class="muted">7. 「今空いてます」「雨の日特典」「ウェルカムドリンク」は、店主が気の向いた時にオン/オフする、季節や日々のちょっとしたお知らせです。</p>
+    <p class="muted">7. 「今なら楽しめます」「今ならゆったり楽しめます」「雨の日特典」「ウェルカムドリンク」は、店主が気の向いた時にオン/オフする、季節や日々のちょっとしたお知らせです。</p>
     <button class="btn btn-primary" onclick="closeModal()">閉じる</button>
   `);
 };
@@ -411,7 +412,7 @@ function renderOwnerHome(){
   const latest = posts.find(p=>p.visible && !p.draft);
   const myStores = ownerStoreIds().map(storeById).filter(Boolean);
   const pendingCount = (cache.recommendations||[]).filter(r=>r.to_store_id===store.id && r.status==='pending').length;
-  const vacantToday = isVacantToday(set);
+  const vLevel = vacancyLevel(set);
   return `
     <div class="row between" style="margin-bottom:10px;">
       <select onchange="switchOwnerStore(this.value)">
@@ -426,8 +427,11 @@ function renderOwnerHome(){
           (latest ? '前回の投稿: '+relTime(latest.created_at) : 'まだ投稿はありません。気が向いた時にどうぞ')}
       </div>
     </div>
-    <button class="btn ${vacantToday?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:12px;" onclick="toggleVacancy()">
-      ${vacantToday ? '🟢 「今空いてます」を表示中(常連さんに見えています)' : '＋「今空いてます」を表示する'}
+    <button class="btn ${vLevel==='normal'?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:6px;" onclick="toggleVacancy('normal')">
+      ${vLevel==='normal' ? '🟢 「今なら楽しめます」を表示中(常連さんに見えています)' : '＋「今なら楽しめます」を表示する'}
+    </button>
+    <button class="btn ${vLevel==='spacious'?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:12px;" onclick="toggleVacancy('spacious')">
+      ${vLevel==='spacious' ? '🟢 「今ならゆったり楽しめます」を表示中(常連さんに見えています)' : '＋「今ならゆったり楽しめます」を表示する'}
     </button>
     ${set.paused ? `
       <div class="banner notice">投稿はお休み中です。設定画面からいつでも再開できます。</div>
@@ -449,15 +453,19 @@ function renderOwnerHome(){
   `;
 }
 async function switchOwnerStore(id){ state.currentStoreId = id; await go('home'); }
-async function toggleVacancy(){
+async function toggleVacancy(level){
   const set = cache.settings[state.currentStoreId] || {};
-  const turningOn = !isVacantToday(set);
+  const currentLevel = vacancyLevel(set);
+  const turningOn = currentLevel !== level;
   await sb.from('store_settings').update({
     vacancy_on: turningOn,
-    vacancy_date: turningOn ? todayStr() : set.vacancy_date
+    vacancy_date: turningOn ? todayStr() : set.vacancy_date,
+    vacancy_level: turningOn ? level : set.vacancy_level
   }).eq('store_id', state.currentStoreId);
   await loadSettings(state.currentStoreId);
-  toast(turningOn ? '「今空いてます」を表示しました。日付が変わると自動で消えます' : '表示をやめました');
+  toast(turningOn
+    ? (level==='spacious' ? '「今ならゆったり楽しめます」を表示しました。日付が変わると自動で消えます' : '「今なら楽しめます」を表示しました。日付が変わると自動で消えます')
+    : '表示をやめました');
   render();
 }
 async function toggleRainSpecial(){
@@ -864,7 +872,7 @@ function renderSettings(){
   const store = storeById(state.currentStoreId);
   const set = cache.settings[store.id] || {notif:'none',paused:false};
   const performers = cache.performers[store.id] || [];
-  const vacantToday = isVacantToday(set);
+  const vLevel = vacancyLevel(set);
   const rainToday = isRainSpecialToday(set);
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
@@ -904,8 +912,11 @@ function renderSettings(){
     <div class="muted" style="margin-bottom:14px;">オンにすると、他の店主にも投稿が見えます。比較や通知はありません。</div>
 
     <h3 style="margin-top:16px;">常連さんへのアピール</h3>
-    <button class="btn ${vacantToday?'btn-primary':'btn-secondary'}" onclick="toggleVacancy()">
-      ${vacantToday ? '🟢 「今空いてます」を表示中' : '「今空いてます」を表示する'}
+    <button class="btn ${vLevel==='normal'?'btn-primary':'btn-secondary'}" style="margin-bottom:6px;" onclick="toggleVacancy('normal')">
+      ${vLevel==='normal' ? '🟢 「今なら楽しめます」を表示中' : '「今なら楽しめます」を表示する'}
+    </button>
+    <button class="btn ${vLevel==='spacious'?'btn-primary':'btn-secondary'}" onclick="toggleVacancy('spacious')">
+      ${vLevel==='spacious' ? '🟢 「今ならゆったり楽しめます」を表示中' : '「今ならゆったり楽しめます」を表示する'}
     </button>
     <div class="muted" style="margin:6px 0 14px;">日付が変わると、自動的に表示が消えます。</div>
 
@@ -1009,7 +1020,7 @@ function renderVisitorList(){
       const st = isOpenNow(s);
       const latest = myVisiblePosts(s.id)[0];
       const set = settingsFor(s.id);
-      const vacant = isVacantToday(set);
+      const vLevel = vacancyLevel(set);
       const rain = isRainSpecialToday(set);
       return `
       <div class="card store-card" onclick="openStore('${s.id}')">
@@ -1020,8 +1031,9 @@ function renderVisitorList(){
         <div class="muted" style="margin:4px 0;">${s.description||''}</div>
         <div><span class="status-dot ${dotClass[st]}"></span>${statusLabel[st]}
           ${latest ? ' ・ '+relTime(latest.created_at)+'に投稿' : ' ・ 本日はまだ投稿なし'}</div>
-        ${vacant || rain ? `<div style="margin-top:6px;">
-          ${vacant ? `<span class="tag ok">🟢 今なら入れます</span>` : ''}
+        ${vLevel || rain ? `<div style="margin-top:6px;">
+          ${vLevel==='spacious' ? `<span class="tag ok">🟢 今ならゆったり楽しめます</span>` : ''}
+          ${vLevel==='normal' ? `<span class="tag ok">🟢 今なら入れます</span>` : ''}
           ${rain ? `<span class="tag" style="margin-left:6px;">☔ ${set.rain_special_text || '雨の日特典'}</span>` : ''}
         </div>` : ''}
       </div>`;
@@ -1042,7 +1054,8 @@ function renderVisitorDetail(){
     <h2>${store.name}</h2>
     <div class="muted">${store.type_label} ・ ${store.description||''}</div>
     <div style="margin:8px 0;"><span class="status-dot ${st==='open'?'open':'closed'}"></span>${statusLabel[st]} ・ ${store.hours}</div>
-    ${isVacantToday(set) ? `<div class="banner notice">🟢 今なら入れます。常連さんはお気軽にどうぞ。</div>` : ''}
+    ${vacancyLevel(set)==='spacious' ? `<div class="banner notice">🟢 今ならゆったり楽しめます。</div>` : ''}
+    ${vacancyLevel(set)==='normal' ? `<div class="banner notice">🟢 今なら入れます。ゆっくり楽しめます。</div>` : ''}
     ${isRainSpecialToday(set) ? `<div class="banner notice">☔ ${set.rain_special_text || '本日は雨の日特典があります'}</div>` : ''}
     ${set.welcome_drink_on ? `<div class="banner">🥂 ${set.welcome_drink_text || 'ネットワークの常連さんにはウェルカムドリンクをご用意します'}</div>` : ''}
     ${set.notice_on && set.notice_text ? `<div class="banner notice">📌 ${set.notice_text}</div>` : ''}
