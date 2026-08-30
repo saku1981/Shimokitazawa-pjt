@@ -381,7 +381,8 @@ document.getElementById('info-btn').onclick = ()=>{
 /* ===================== 店主：ホーム ===================== */
 function renderOwnerHome(){
   const store = storeById(state.currentStoreId);
-  if(!store) return `<div class="muted">お店が選択されていません</div>`;
+  if(!store) return `<div class="muted">お店が選択されていません<br><br>
+    <span style="font-size:11px;opacity:0.6;">[診断] currentStoreId=${state.currentStoreId||'(なし)'} / 読み込めたお店の数=${cache.stores.length} / あなたのオーナー店舗=${JSON.stringify(ownerStoreIds())} / 全メンバーシップ数=${cache.memberships.length}</span></div>`;
   const set = cache.settings[store.id] || {paused:false};
   const posts = cache.posts[store.id] || [];
   const latest = posts.find(p=>p.visible && !p.draft);
@@ -966,6 +967,7 @@ function renderVisitorList(){
   const dotClass = {open:'open', prep:'closed', closed:'closed'};
   return `
     <h2>このあたりのお店</h2>
+    <div class="muted" style="font-size:11px;opacity:0.6;">[診断] お店の数=${cache.stores.length} / メンバーシップ数=${cache.memberships.length} / role=${state.role}</div>
     <div class="muted" style="margin-bottom:12px;">投稿の多さで、お店を比べることはしません。</div>
     ${cache.stores.map(s=>{
       const st = isOpenNow(s);
