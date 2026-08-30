@@ -207,33 +207,54 @@ async function loadStores(){
 }
 
 /* ===================== 招待コード ===================== */
+let inviteSubmitting = false;
 async function submitInvite(){
+  if(inviteSubmitting) return;
   const code = document.getElementById('inviteCode').value.trim();
   const nickname = document.getElementById('inviteNickname').value.trim() || 'ゲスト';
   if(!code){ toast('招待コードを入力してください'); return; }
 
-  const master = await sb.rpc('redeem_master_key', { p_code: code });
-  if(!master.error){
+  inviteSubmitting = true;
+  const btn = document.getElementById('inviteSubmitBtn');
+  if(btn){ btn.disabled = true; btn.textContent = '処理中…'; }
+
+  try {
+    const master = await sb.rpc('redeem_master_key', { p_code: code });
+    if(!master.error){
+      await loadStores();
+      await reloadMemberships();
+      state.role = 'owner';
+      state.currentStoreId = ownerStoreIds()[0];
+      toast('マスターアクセスを有効にしました');
+      await go('home');
+      return;
+    }
+
+    const { error } = await sb.rpc('redeem_invite', { p_code: code, p_nickname: nickname });
+    if(error){
+      // 二重タップ等で実際には成功している場合があるため、念のため再確認する
+      await loadStores();
+      await reloadMemberships();
+      if(cache.memberships.length > 0){
+        state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
+        state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
+        toast('参加しました');
+        await go(state.role === 'owner' ? 'home' : 'vlist');
+        return;
+      }
+      toast('招待コードが無効か、使用済みです');
+      return;
+    }
     await loadStores();
     await reloadMemberships();
-    state.role = 'owner';
-    state.currentStoreId = ownerStoreIds()[0];
-    toast('マスターアクセスを有効にしました');
-    await go('home');
-    return;
+    state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
+    state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
+    toast('参加しました');
+    await go(state.role === 'owner' ? 'home' : 'vlist');
+  } finally {
+    inviteSubmitting = false;
+    if(btn){ btn.disabled = false; btn.textContent = '参加する'; }
   }
-
-  const { error } = await sb.rpc('redeem_invite', { p_code: code, p_nickname: nickname });
-  if(error){
-    toast('招待コードが無効か、使用済みです');
-    return;
-  }
-  await loadStores();
-  await reloadMemberships();
-  state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
-  state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
-  toast('参加しました');
-  await go(state.role === 'owner' ? 'home' : 'vlist');
 }
 function renderInvite(){
   return `
@@ -245,7 +266,7 @@ function renderInvite(){
       <div class="muted" style="margin-bottom:6px;">ニックネーム</div>
       <input type="text" id="inviteNickname" placeholder="例: たけし">
     </div>
-    <button class="btn btn-primary" onclick="submitInvite()">参加する</button>
+    <button class="btn btn-primary" id="inviteSubmitBtn" onclick="submitInvite()">参加する</button>
     <div class="muted" style="margin-top:10px;">※本名やメールアドレスは不要です。この端末だけに紐づきます。</div>
   `;
 }
