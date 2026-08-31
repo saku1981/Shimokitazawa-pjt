@@ -357,9 +357,8 @@ function truncateText(text, n){
 function networkPulseData(){
   const settingsById = {};
   (cache.allSettings||[]).forEach(s=>{ settingsById[s.store_id] = s; });
-  const networkStores = cache.stores.filter(s => (settingsById[s.id]||{}).share_with_peers !== false);
-  let allPosts = [];
-  networkStores.forEach(s=>{ allPosts = allPosts.concat(myVisiblePosts(s.id)||[]); });
+  const networkStoreIds = new Set(cache.stores.filter(s => (settingsById[s.id]||{}).share_with_peers !== false).map(s=>s.id));
+  const allPosts = (cache.pulseFeed||[]).filter(p => networkStoreIds.has(p.store_id));
   if(allPosts.length===0){
     return { speed:'slow', phrases:['🌌 今日はネットワーク全体が、静かな一日のようです。'] };
   }
@@ -394,8 +393,10 @@ function placeholderImg(label, bg){
 }
 
 /* ===================== データ取得 ===================== */
-async function loadPosts(storeId){
-  const { data } = await sb.from('posts').select('*').eq('store_id', storeId).order('created_at', {ascending:false});
+async function loadPosts(storeId, limit){
+  let q = sb.from('posts').select('*').eq('store_id', storeId).order('created_at', {ascending:false});
+  if(limit) q = q.limit(limit);
+  const { data } = await q;
   cache.posts[storeId] = data || [];
   return cache.posts[storeId];
 }
@@ -421,6 +422,14 @@ async function loadPeerSettings(){
   const { data } = await sb.from('store_settings').select('*');
   cache.allSettings = data || [];
   return cache.allSettings;
+}
+async function loadNetworkPulseFeed(){
+  // 画像本体(image_data)は含めない軽いクエリ。ホーム画面の「気配」表示専用。
+  const { data } = await sb.from('posts').select('store_id, created_at, visible, draft')
+    .eq('visible', true).eq('draft', false)
+    .order('created_at', {ascending:false}).limit(200);
+  cache.pulseFeed = data || [];
+  return cache.pulseFeed;
 }
 async function loadMurmurs(){
   const { data, error } = await sb.from('owner_murmurs').select('*').order('created_at', {ascending:false}).limit(100);
@@ -465,13 +474,12 @@ async function go(screen){
     await Promise.all([
       loadRecommendations(),
       loadSettings(state.currentStoreId),
-      Promise.all(cache.stores.map(s=>loadPosts(s.id))),
       loadPeerSettings(),
-      loadMurmurs()
+      loadNetworkPulseFeed()
     ]);
   }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
-  if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id))), loadPeerSettings()]); }
+  if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
   if(screen==='vdetail'){
     await Promise.all([
       loadPosts(state.currentStoreId),
@@ -481,7 +489,7 @@ async function go(screen){
       loadFindVideoUrl(state.currentStoreId)
     ]);
   }
-  if(screen==='peers'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id))), loadPeerSettings()]); }
+  if(screen==='peers'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
   if(screen==='recommendRequests'){ await loadRecommendations(); }
   if(screen==='regularNotes'){ await loadStoreRegulars(state.currentStoreId); }
   if(screen==='murmurs'){ await loadMurmurs(); }
@@ -521,7 +529,7 @@ function renderOwnerHome(){
   const pendingCount = (cache.recommendations||[]).filter(r=>r.to_store_id===store.id && r.status==='pending').length;
   const vLevel = vacancyLevel(set);
   const pulse = networkPulseData();
-  const latestMurmur = (cache.murmurs||[])[0];
+  const visiblePosts = posts.filter(p=>p.visible&&!p.draft);
   return `
     <div class="row between" style="margin-bottom:10px;">
       <select onchange="switchOwnerStore(this.value)">
@@ -529,7 +537,10 @@ function renderOwnerHome(){
       </select>
       <span class="tag">${store.type_label}</span>
     </div>
-    <div class="card">
+    <h3 style="margin-top:0;">最近の投稿</h3>
+    ${visiblePosts.length===0 ? '<div class="muted">まだ投稿がありません</div>' :
+      `<div class="thumb-grid">${visiblePosts.slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}">`).join('')}</div>`}
+    <div class="card" style="margin-top:12px;">
       <div style="font-weight:bold;font-size:15px;">${store.name} さん、こんにちは</div>
       <div class="muted" style="margin-top:6px;">
         ${set.paused ? '⏸ 現在、投稿を一時的にお休み中です' :
@@ -554,18 +565,10 @@ function renderOwnerHome(){
     ` : `
       <button class="big-post-btn" onclick="startPost()"><span class="ic">📷</span>今の様子を投稿する</button>
     `}
-    <h3>最近の投稿</h3>
-    ${posts.filter(p=>p.visible&&!p.draft).length===0 ? '<div class="muted">まだ投稿がありません</div>' :
-      `<div class="thumb-grid">${posts.filter(p=>p.visible&&!p.draft).slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}">`).join('')}</div>`}
     <div class="nav-list">
       <div class="nav-row" onclick="go('history')"><span>投稿履歴</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('peers')"><span>参加店舗の様子</span><span class="muted">→</span></div>
-      <div class="nav-row nav-row-stack" onclick="go('murmurs')">
-        <div class="row between" style="width:100%;">
-          <span>店主のつぶやき</span><span class="muted">→</span>
-        </div>
-        ${latestMurmur ? `<div class="muted nav-row-sub">${storeById(latestMurmur.store_id) ? storeById(latestMurmur.store_id).name : ''}: 「${truncateText(latestMurmur.body, 14)}」・${relTime(latestMurmur.created_at)}</div>` : ''}
-      </div>
+      <div class="nav-row" onclick="go('murmurs')"><span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('recommendRequests')"><span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('qrCode')"><span>招待QRコード</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('regularNotes')"><span>常連メモ</span><span class="muted">→</span></div>
