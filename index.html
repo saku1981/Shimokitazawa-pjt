@@ -114,6 +114,9 @@
   .nav-list{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-top:16px;overflow:hidden;}
   .nav-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);font-size:14px;}
   .nav-row:last-child{border-bottom:none;}
+  .nav-row.nav-row-stack{display:block;}
+  .nav-row-sub{margin-top:4px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .murmur-card{padding:12px 14px;}
   .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;}
   .modal-detail-img{width:100%;border-radius:10px;margin-bottom:10px;}
   .spinner{display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--sub);font-size:13px;}
@@ -181,8 +184,8 @@ const RECOMMEND_TEMPLATES = {
 };
 
 /* ===================== アプリ状態 ===================== */
-let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null };
-let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{} };
+let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[] };
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 const STORE_SYMBOL_ICONS = [
@@ -347,6 +350,10 @@ function isVacantToday(set){ return !!(set && set.vacancy_on && set.vacancy_date
 function vacancyLevel(set){ return isVacantToday(set) ? (set.vacancy_level || 'normal') : null; }
 function detailDisclosureOn(set){ return !(set && set.detail_disclosure_on === false); }
 function isRainSpecialToday(set){ return !!(set && set.rain_special_on && set.rain_special_date === todayStr()); }
+function truncateText(text, n){
+  if(!text) return '';
+  return text.length > n ? text.slice(0, n) + '…' : text;
+}
 function networkPulseData(){
   const settingsById = {};
   (cache.allSettings||[]).forEach(s=>{ settingsById[s.store_id] = s; });
@@ -415,6 +422,12 @@ async function loadPeerSettings(){
   cache.allSettings = data || [];
   return cache.allSettings;
 }
+async function loadMurmurs(){
+  const { data, error } = await sb.from('owner_murmurs').select('*').order('created_at', {ascending:false}).limit(100);
+  if(error){ cache.murmurs = []; return cache.murmurs; }
+  cache.murmurs = data || [];
+  return cache.murmurs;
+}
 async function loadStoreMates(storeId){
   const { data } = await sb.from('memberships').select('*').eq('store_id', storeId).eq('role','regular').eq('show_nickname', true);
   cache.storeMates[storeId] = data || [];
@@ -452,6 +465,7 @@ async function go(screen){
     await loadRecommendations(); await loadSettings(state.currentStoreId);
     for(const s of cache.stores){ await loadPosts(s.id); }
     await loadPeerSettings();
+    await loadMurmurs();
   }
   if(screen==='settings'){ await loadSettings(state.currentStoreId); await loadPerformers(state.currentStoreId); }
   if(screen==='vlist'){ for(const s of cache.stores){ await loadPosts(s.id); } await loadPeerSettings(); }
@@ -462,6 +476,7 @@ async function go(screen){
   }
   if(screen==='recommendRequests'){ await loadRecommendations(); }
   if(screen==='regularNotes'){ await loadStoreRegulars(state.currentStoreId); }
+  if(screen==='murmurs'){ await loadMurmurs(); }
   render();
 }
 async function setRole(role){
@@ -498,6 +513,7 @@ function renderOwnerHome(){
   const pendingCount = (cache.recommendations||[]).filter(r=>r.to_store_id===store.id && r.status==='pending').length;
   const vLevel = vacancyLevel(set);
   const pulse = networkPulseData();
+  const latestMurmur = (cache.murmurs||[])[0];
   return `
     <div class="row between" style="margin-bottom:10px;">
       <select onchange="switchOwnerStore(this.value)">
@@ -536,6 +552,12 @@ function renderOwnerHome(){
     <div class="nav-list">
       <div class="nav-row" onclick="go('history')"><span>投稿履歴</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('peers')"><span>参加店舗の様子</span><span class="muted">→</span></div>
+      <div class="nav-row nav-row-stack" onclick="go('murmurs')">
+        <div class="row between" style="width:100%;">
+          <span>店主のつぶやき</span><span class="muted">→</span>
+        </div>
+        ${latestMurmur ? `<div class="muted nav-row-sub">${storeById(latestMurmur.store_id) ? storeById(latestMurmur.store_id).name : ''}: 「${truncateText(latestMurmur.body, 14)}」・${relTime(latestMurmur.created_at)}</div>` : ''}
+      </div>
       <div class="nav-row" onclick="go('recommendRequests')"><span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('qrCode')"><span>招待QRコード</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('regularNotes')"><span>常連メモ</span><span class="muted">→</span></div>
@@ -736,6 +758,72 @@ async function setRegularBadge(id, badge){
   if(error){ toast('更新できませんでした'); return; }
   await loadStoreRegulars(state.currentStoreId);
   toast('メモを更新しました');
+  render();
+}
+const MURMUR_MAX = 140;
+function renderMurmurs(){
+  const myStores = ownerStoreIds().map(storeById).filter(Boolean);
+  const draft = state._murmurDraft || '';
+  const postingAs = state._murmurStoreId && myStores.find(s=>s.id===state._murmurStoreId)
+    ? state._murmurStoreId : (myStores[0] && myStores[0].id);
+  const remaining = MURMUR_MAX - draft.length;
+  return `
+    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <h2>店主のつぶやき</h2>
+    <div class="banner">同じネットワークに参加する店主同士だけに見える、気軽な近況の場です。営業のお知らせでも、ちょっとしたひとことでも、自由にどうぞ。</div>
+    <div class="card">
+      ${myStores.length>1 ? `
+        <div class="muted" style="margin-bottom:6px;">投稿するお店</div>
+        <select onchange="state._murmurStoreId=this.value;">
+          ${myStores.map(s=>`<option value="${s.id}" ${s.id===postingAs?'selected':''}>${s.name}</option>`).join('')}
+        </select>
+        <div style="height:8px;"></div>
+      ` : ''}
+      <textarea id="murmurInput" maxlength="${MURMUR_MAX}" placeholder="例: 今日は仕込みが早く終わったので、少し早めに開けます"
+        oninput="state._murmurDraft=this.value; document.getElementById('murmurCount').textContent = (${MURMUR_MAX} - this.value.length);">${draft}</textarea>
+      <div class="row between" style="margin-top:6px;align-items:center;">
+        <span class="muted" style="font-size:12px;">残り<span id="murmurCount">${remaining}</span>文字</span>
+        <button class="btn btn-primary btn-sm" style="margin:0;" onclick="postMurmur('${postingAs||''}')">つぶやく</button>
+      </div>
+    </div>
+    <h3 style="margin-top:18px;">みんなのつぶやき</h3>
+    ${(cache.murmurs||[]).length===0 ? '<div class="muted">まだつぶやきがありません。最初のひとことをどうぞ。</div>' :
+      (cache.murmurs||[]).map(m=>{
+        const s = storeById(m.store_id);
+        const mine = ownerStoreIds().includes(m.store_id);
+        return `
+        <div class="card murmur-card">
+          <div class="row between">
+            <div style="font-weight:bold;">${s ? s.name : '(退会した店舗)'}</div>
+            <div class="muted" style="font-size:12px;">${relTime(m.created_at)}</div>
+          </div>
+          <div style="margin-top:6px;white-space:pre-wrap;">${escapeHtml(m.body)}</div>
+          ${mine ? `<div class="row" style="margin-top:8px;"><button class="btn btn-ghost" style="margin:0;padding:2px 0;" onclick="deleteMurmur(${m.id})">削除する</button></div>` : ''}
+        </div>`;
+      }).join('')}
+  `;
+}
+function escapeHtml(text){
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
+async function postMurmur(storeId){
+  const text = (state._murmurDraft || '').trim();
+  if(!text){ toast('ひとこと入力してください'); return; }
+  if(!storeId){ toast('投稿するお店を選んでください'); return; }
+  const { error } = await sb.from('owner_murmurs').insert({ store_id: storeId, body: text.slice(0, MURMUR_MAX) });
+  if(error){ toast('投稿できませんでした'); return; }
+  state._murmurDraft = '';
+  await loadMurmurs();
+  toast('つぶやきました');
+  render();
+}
+async function deleteMurmur(id){
+  const { error } = await sb.from('owner_murmurs').delete().eq('id', id);
+  if(error){ toast('削除できませんでした'); return; }
+  await loadMurmurs();
+  toast('削除しました');
   render();
 }
 function renderQrCode(){
@@ -1351,7 +1439,7 @@ function render(){
     caption: renderCaption, confirm: renderConfirm, history: renderHistory, settings: renderSettings,
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
-    regularNotes: renderRegularNotes
+    regularNotes: renderRegularNotes, murmurs: renderMurmurs
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
