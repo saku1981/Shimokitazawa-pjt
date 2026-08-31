@@ -90,6 +90,9 @@
   .store-photo-flash{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;}
   .store-card-caption{padding:10px 14px 12px;}
   .store-card-caption .name{font-weight:bold;font-size:15px;}
+  .latest-post-hero{border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-bottom:6px;}
+  .latest-post-hero img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--panel2);}
+  .latest-post-caption{padding:8px 12px;background:var(--panel);font-size:13px;}
   .network-pulse{padding:10px 14px;margin-bottom:10px;}
   .pulse-row{display:flex;align-items:center;gap:9px;}
   .pulse-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0;}
@@ -186,6 +189,9 @@ const RECOMMEND_TEMPLATES = {
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null };
 let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[] };
+// 「ネットワークの気配」機能は速度を優先していったんオフにしています。
+// 復帰させたい場合は、この値を true に戻すだけで有効になります(コード本体は削除していません)。
+const NETWORK_PULSE_ENABLED = false;
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 const STORE_SYMBOL_ICONS = [
@@ -469,14 +475,12 @@ function otherStoresFor(userId, excludeStoreId){
 /* ===================== 画面遷移 ===================== */
 async function go(screen){
   state.screen = screen;
-  if(screen==='home' || screen==='history'){ await loadPosts(state.currentStoreId); }
+  if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
+  if(screen==='history'){ await loadPosts(state.currentStoreId); }
   if(screen==='home'){
-    await Promise.all([
-      loadRecommendations(),
-      loadSettings(state.currentStoreId),
-      loadPeerSettings(),
-      loadNetworkPulseFeed()
-    ]);
+    const homeLoads = [ loadRecommendations(), loadSettings(state.currentStoreId) ];
+    if(NETWORK_PULSE_ENABLED){ homeLoads.push(loadPeerSettings(), loadNetworkPulseFeed()); }
+    await Promise.all(homeLoads);
   }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
   if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
@@ -528,8 +532,7 @@ function renderOwnerHome(){
   const myStores = ownerStoreIds().map(storeById).filter(Boolean);
   const pendingCount = (cache.recommendations||[]).filter(r=>r.to_store_id===store.id && r.status==='pending').length;
   const vLevel = vacancyLevel(set);
-  const pulse = networkPulseData();
-  const visiblePosts = posts.filter(p=>p.visible&&!p.draft);
+  const pulse = NETWORK_PULSE_ENABLED ? networkPulseData() : null;
   return `
     <div class="row between" style="margin-bottom:10px;">
       <select onchange="switchOwnerStore(this.value)">
@@ -537,9 +540,16 @@ function renderOwnerHome(){
       </select>
       <span class="tag">${store.type_label}</span>
     </div>
-    <h3 style="margin-top:0;">最近の投稿</h3>
-    ${visiblePosts.length===0 ? '<div class="muted">まだ投稿がありません</div>' :
-      `<div class="thumb-grid">${visiblePosts.slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}">`).join('')}</div>`}
+    <h3 style="margin-top:0;">最新の投稿</h3>
+    ${latest ? `
+      <div class="latest-post-hero">
+        <img src="${latest.image_data}">
+        <div class="latest-post-caption">
+          ${latest.caption ? escapeHtml(latest.caption) : ''}
+          <span class="muted" style="display:block;margin-top:2px;">${relTime(latest.created_at)}</span>
+        </div>
+      </div>
+    ` : '<div class="muted">まだ投稿がありません</div>'}
     <div class="card" style="margin-top:12px;">
       <div style="font-weight:bold;font-size:15px;">${store.name} さん、こんにちは</div>
       <div class="muted" style="margin-top:6px;">
@@ -547,12 +557,14 @@ function renderOwnerHome(){
           (latest ? '前回の投稿: '+relTime(latest.created_at) : 'まだ投稿はありません。気が向いた時にどうぞ')}
       </div>
     </div>
+    ${NETWORK_PULSE_ENABLED ? `
     <div class="card network-pulse">
       <div class="pulse-row">
         <span class="pulse-dot pulse-${pulse.speed}"></span>
         <span class="muted" id="pulsePhrase">${pulse.phrases[0]}</span>
       </div>
     </div>
+    ` : ''}
     <button class="btn ${vLevel==='normal'?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:6px;" onclick="toggleVacancy('normal')">
       ${vLevel==='normal' ? '🟢 「今なら楽しめます」を表示中(常連さんに見えています)' : '＋「今なら楽しめます」を表示する'}
     </button>
@@ -1455,7 +1467,7 @@ function render(){
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
   if(pulseIntervalId){ clearInterval(pulseIntervalId); pulseIntervalId = null; }
-  if(state.screen==='home'){ startNetworkPulse(); }
+  if(state.screen==='home' && NETWORK_PULSE_ENABLED){ startNetworkPulse(); }
 }
 let pulseIntervalId = null;
 function startNetworkPulse(){
