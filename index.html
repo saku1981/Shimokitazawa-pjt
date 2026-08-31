@@ -462,18 +462,26 @@ async function go(screen){
   state.screen = screen;
   if(screen==='home' || screen==='history'){ await loadPosts(state.currentStoreId); }
   if(screen==='home'){
-    await loadRecommendations(); await loadSettings(state.currentStoreId);
-    for(const s of cache.stores){ await loadPosts(s.id); }
-    await loadPeerSettings();
-    await loadMurmurs();
+    await Promise.all([
+      loadRecommendations(),
+      loadSettings(state.currentStoreId),
+      Promise.all(cache.stores.map(s=>loadPosts(s.id))),
+      loadPeerSettings(),
+      loadMurmurs()
+    ]);
   }
-  if(screen==='settings'){ await loadSettings(state.currentStoreId); await loadPerformers(state.currentStoreId); }
-  if(screen==='vlist'){ for(const s of cache.stores){ await loadPosts(s.id); } await loadPeerSettings(); }
-  if(screen==='vdetail'){ await loadPosts(state.currentStoreId); await loadRecommendations(); await loadStoreMates(state.currentStoreId); await loadPeerSettings(); await loadFindVideoUrl(state.currentStoreId); }
-  if(screen==='peers'){
-    for(const s of cache.stores){ await loadPosts(s.id); }
-    await loadPeerSettings();
+  if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
+  if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id))), loadPeerSettings()]); }
+  if(screen==='vdetail'){
+    await Promise.all([
+      loadPosts(state.currentStoreId),
+      loadRecommendations(),
+      loadStoreMates(state.currentStoreId),
+      loadPeerSettings(),
+      loadFindVideoUrl(state.currentStoreId)
+    ]);
   }
+  if(screen==='peers'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id))), loadPeerSettings()]); }
   if(screen==='recommendRequests'){ await loadRecommendations(); }
   if(screen==='regularNotes'){ await loadStoreRegulars(state.currentStoreId); }
   if(screen==='murmurs'){ await loadMurmurs(); }
