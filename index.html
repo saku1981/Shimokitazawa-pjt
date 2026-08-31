@@ -74,6 +74,19 @@
   .status-dot.open{background:var(--ok);}
   .status-dot.closed{background:var(--sub);}
   .store-card{cursor:pointer;}
+  .store-card.photo-card{padding:0;overflow:hidden;}
+  .store-photo-wrap{position:relative;width:100%;aspect-ratio:4/3;background:var(--panel2);overflow:hidden;}
+  .store-photo-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
+  .store-photo-wrap .no-photo{display:flex;align-items:center;justify-content:center;height:100%;
+    color:var(--sub);font-size:12px;text-align:center;padding:10px;}
+  .store-photo-badges{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;
+    align-items:flex-start;pointer-events:none;}
+  .pill{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;background:rgba(20,21,24,.72);
+    color:#fff;backdrop-filter:blur(2px);}
+  .pill.ok{color:#bdeecb;}
+  .store-photo-flash{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;}
+  .store-card-caption{padding:10px 14px 12px;}
+  .store-card-caption .name{font-weight:bold;font-size:15px;}
   .radio-line{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14px;}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
     z-index:50;padding:20px;}
@@ -1077,10 +1090,9 @@ async function doLeave(){
 /* ===================== 常連：一覧・詳細 ===================== */
 function renderVisitorList(){
   const statusLabel = {open:'営業中', prep:'準備中', closed:'本日定休'};
-  const dotClass = {open:'open', prep:'closed', closed:'closed'};
+  const statusIcon = {open:'🟢', prep:'⚪', closed:'⚫'};
   return `
     <h2>このあたりのお店</h2>
-    <div class="muted" style="font-size:11px;opacity:0.6;">[診断] お店の数=${cache.stores.length} / メンバーシップ数=${cache.memberships.length} / role=${state.role}</div>
     <div class="muted" style="margin-bottom:12px;">投稿の多さで、お店を比べることはしません。</div>
     ${cache.stores.map(s=>{
       const st = isOpenNow(s);
@@ -1089,19 +1101,23 @@ function renderVisitorList(){
       const vLevel = vacancyLevel(set);
       const rain = isRainSpecialToday(set);
       return `
-      <div class="card store-card" onclick="openStore('${s.id}')">
-        <div class="row between">
-          <div style="font-weight:bold;">${s.name}</div>
-          <span class="tag">${s.type_label}</span>
+      <div class="card store-card photo-card" onclick="openStore('${s.id}')">
+        <div class="store-photo-wrap">
+          ${latest ? `<img src="${latest.image_data}">` : `<div class="no-photo">📷 まだ投稿がありません</div>`}
+          <div class="store-photo-badges">
+            <span class="pill">${statusIcon[st]} ${statusLabel[st]}</span>
+            <span class="pill">${s.type_label}</span>
+          </div>
+          ${vLevel || rain ? `<div class="store-photo-flash">
+            ${vLevel==='spacious' ? `<span class="pill ok">🟢 今ならゆったり楽しめます</span>` : ''}
+            ${vLevel==='normal' ? `<span class="pill ok">🟢 今なら入れます</span>` : ''}
+            ${rain ? `<span class="pill">☔ ${set.rain_special_text || '雨の日特典'}</span>` : ''}
+          </div>` : ''}
         </div>
-        ${detailDisclosureOn(set) ? `<div class="muted" style="margin:4px 0;">${s.description||''}</div>` : ''}
-        <div><span class="status-dot ${dotClass[st]}"></span>${statusLabel[st]}
-          ${latest ? ' ・ '+relTime(latest.created_at)+'に投稿' : ' ・ 本日はまだ投稿なし'}</div>
-        ${vLevel || rain ? `<div style="margin-top:6px;">
-          ${vLevel==='spacious' ? `<span class="tag ok">🟢 今ならゆったり楽しめます</span>` : ''}
-          ${vLevel==='normal' ? `<span class="tag ok">🟢 今なら入れます</span>` : ''}
-          ${rain ? `<span class="tag" style="margin-left:6px;">☔ ${set.rain_special_text || '雨の日特典'}</span>` : ''}
-        </div>` : ''}
+        <div class="store-card-caption">
+          <div class="name">${s.name}</div>
+          <div class="muted" style="margin-top:2px;">${latest ? relTime(latest.created_at)+'に投稿' : '本日はまだ投稿なし'}</div>
+        </div>
       </div>`;
     }).join('')}
   `;
