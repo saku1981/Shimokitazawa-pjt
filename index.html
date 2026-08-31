@@ -93,18 +93,6 @@
   .latest-post-hero{border-radius:14px;overflow:hidden;border:1px solid var(--line);margin-bottom:6px;}
   .latest-post-hero img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--panel2);}
   .latest-post-caption{padding:8px 12px;background:var(--panel);font-size:13px;}
-  .network-pulse{padding:10px 14px;margin-bottom:10px;}
-  .pulse-row{display:flex;align-items:center;gap:9px;}
-  .pulse-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0;}
-  .pulse-dot.pulse-fast{animation:pulseGlow 1.7s ease-in-out infinite;}
-  .pulse-dot.pulse-medium{animation:pulseGlow 3.2s ease-in-out infinite;}
-  .pulse-dot.pulse-slow{animation:pulseGlow 5.5s ease-in-out infinite;opacity:.65;}
-  @keyframes pulseGlow{
-    0%{box-shadow:0 0 0 0 rgba(224,164,88,.55);}
-    70%{box-shadow:0 0 0 9px rgba(224,164,88,0);}
-    100%{box-shadow:0 0 0 0 rgba(224,164,88,0);}
-  }
-  #pulsePhrase{transition:opacity .35s ease;}
   .radio-line{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14px;}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
     z-index:50;padding:20px;}
@@ -189,9 +177,6 @@ const RECOMMEND_TEMPLATES = {
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null };
 let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[] };
-// 「ネットワークの気配」機能は速度を優先していったんオフにしています。
-// 復帰させたい場合は、この値を true に戻すだけで有効になります(コード本体は削除していません)。
-const NETWORK_PULSE_ENABLED = false;
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 const STORE_SYMBOL_ICONS = [
@@ -360,36 +345,6 @@ function truncateText(text, n){
   if(!text) return '';
   return text.length > n ? text.slice(0, n) + '…' : text;
 }
-function networkPulseData(){
-  const settingsById = {};
-  (cache.allSettings||[]).forEach(s=>{ settingsById[s.store_id] = s; });
-  const networkStoreIds = new Set(cache.stores.filter(s => (settingsById[s.id]||{}).share_with_peers !== false).map(s=>s.id));
-  const allPosts = (cache.pulseFeed||[]).filter(p => networkStoreIds.has(p.store_id));
-  if(allPosts.length===0){
-    return { speed:'slow', phrases:['🌌 今日はネットワーク全体が、静かな一日のようです。'] };
-  }
-  allPosts.sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
-  const latest = allPosts[0];
-  const now = Date.now();
-  const last3h = allPosts.filter(p => now - new Date(p.created_at).getTime() <= 3*3600*1000).length;
-  const last24h = allPosts.filter(p => now - new Date(p.created_at).getTime() <= 24*3600*1000).length;
-  if(last3h >= 3){
-    return { speed:'fast', phrases:[
-      '🌆 今、ネットワークのあちこちで賑わいが感じられます。',
-      `✨ 最後の動きから ${relTime(latest.created_at)}。`
-    ]};
-  }
-  if(last24h >= 1){
-    return { speed:'medium', phrases:[
-      '🌙 今日もネットワークのどこかで、灯りがともっています。',
-      `☕ 最後の動きから ${relTime(latest.created_at)}。`
-    ]};
-  }
-  return { speed:'slow', phrases:[
-    '🌌 今日はネットワーク全体が、静かな一日のようです。',
-    `最後の動きから ${relTime(latest.created_at)}。`
-  ]};
-}
 function placeholderImg(label, bg){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>
     <rect width='100%' height='100%' fill='${bg}'/>
@@ -428,14 +383,6 @@ async function loadPeerSettings(){
   const { data } = await sb.from('store_settings').select('*');
   cache.allSettings = data || [];
   return cache.allSettings;
-}
-async function loadNetworkPulseFeed(){
-  // 画像本体(image_data)は含めない軽いクエリ。ホーム画面の「気配」表示専用。
-  const { data } = await sb.from('posts').select('store_id, created_at, visible, draft')
-    .eq('visible', true).eq('draft', false)
-    .order('created_at', {ascending:false}).limit(200);
-  cache.pulseFeed = data || [];
-  return cache.pulseFeed;
 }
 async function loadMurmurs(){
   const { data, error } = await sb.from('owner_murmurs').select('*').order('created_at', {ascending:false}).limit(100);
@@ -478,9 +425,7 @@ async function go(screen){
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
   if(screen==='history'){ await loadPosts(state.currentStoreId); }
   if(screen==='home'){
-    const homeLoads = [ loadRecommendations(), loadSettings(state.currentStoreId) ];
-    if(NETWORK_PULSE_ENABLED){ homeLoads.push(loadPeerSettings(), loadNetworkPulseFeed()); }
-    await Promise.all(homeLoads);
+    await Promise.all([ loadRecommendations(), loadSettings(state.currentStoreId) ]);
   }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
   if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
@@ -532,7 +477,6 @@ function renderOwnerHome(){
   const myStores = ownerStoreIds().map(storeById).filter(Boolean);
   const pendingCount = (cache.recommendations||[]).filter(r=>r.to_store_id===store.id && r.status==='pending').length;
   const vLevel = vacancyLevel(set);
-  const pulse = NETWORK_PULSE_ENABLED ? networkPulseData() : null;
   return `
     <div class="row between" style="margin-bottom:10px;">
       <select onchange="switchOwnerStore(this.value)">
@@ -557,14 +501,6 @@ function renderOwnerHome(){
           (latest ? '前回の投稿: '+relTime(latest.created_at) : 'まだ投稿はありません。気が向いた時にどうぞ')}
       </div>
     </div>
-    ${NETWORK_PULSE_ENABLED ? `
-    <div class="card network-pulse">
-      <div class="pulse-row">
-        <span class="pulse-dot pulse-${pulse.speed}"></span>
-        <span class="muted" id="pulsePhrase">${pulse.phrases[0]}</span>
-      </div>
-    </div>
-    ` : ''}
     <button class="btn ${vLevel==='normal'?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:6px;" onclick="toggleVacancy('normal')">
       ${vLevel==='normal' ? '🟢 「今なら楽しめます」を表示中(常連さんに見えています)' : '＋「今なら楽しめます」を表示する'}
     </button>
@@ -1466,21 +1402,6 @@ function render(){
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
-  if(pulseIntervalId){ clearInterval(pulseIntervalId); pulseIntervalId = null; }
-  if(state.screen==='home' && NETWORK_PULSE_ENABLED){ startNetworkPulse(); }
-}
-let pulseIntervalId = null;
-function startNetworkPulse(){
-  const data = networkPulseData();
-  if(!data.phrases || data.phrases.length <= 1) return;
-  let i = 0;
-  pulseIntervalId = setInterval(()=>{
-    const elp = document.getElementById('pulsePhrase');
-    if(!elp){ clearInterval(pulseIntervalId); pulseIntervalId = null; return; }
-    i = (i+1) % data.phrases.length;
-    elp.style.opacity = 0;
-    setTimeout(()=>{ elp.textContent = data.phrases[i]; elp.style.opacity = 1; }, 350);
-  }, 4800);
 }
 
 init();
