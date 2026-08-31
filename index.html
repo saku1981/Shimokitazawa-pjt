@@ -90,6 +90,18 @@
   .store-photo-flash{position:absolute;left:8px;right:8px;bottom:8px;display:flex;gap:6px;flex-wrap:wrap;pointer-events:none;}
   .store-card-caption{padding:10px 14px 12px;}
   .store-card-caption .name{font-weight:bold;font-size:15px;}
+  .network-pulse{padding:10px 14px;margin-bottom:10px;}
+  .pulse-row{display:flex;align-items:center;gap:9px;}
+  .pulse-dot{width:9px;height:9px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+  .pulse-dot.pulse-fast{animation:pulseGlow 1.7s ease-in-out infinite;}
+  .pulse-dot.pulse-medium{animation:pulseGlow 3.2s ease-in-out infinite;}
+  .pulse-dot.pulse-slow{animation:pulseGlow 5.5s ease-in-out infinite;opacity:.65;}
+  @keyframes pulseGlow{
+    0%{box-shadow:0 0 0 0 rgba(224,164,88,.55);}
+    70%{box-shadow:0 0 0 9px rgba(224,164,88,0);}
+    100%{box-shadow:0 0 0 0 rgba(224,164,88,0);}
+  }
+  #pulsePhrase{transition:opacity .35s ease;}
   .radio-line{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14px;}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
     z-index:50;padding:20px;}
@@ -335,6 +347,37 @@ function isVacantToday(set){ return !!(set && set.vacancy_on && set.vacancy_date
 function vacancyLevel(set){ return isVacantToday(set) ? (set.vacancy_level || 'normal') : null; }
 function detailDisclosureOn(set){ return !(set && set.detail_disclosure_on === false); }
 function isRainSpecialToday(set){ return !!(set && set.rain_special_on && set.rain_special_date === todayStr()); }
+function networkPulseData(){
+  const settingsById = {};
+  (cache.allSettings||[]).forEach(s=>{ settingsById[s.store_id] = s; });
+  const networkStores = cache.stores.filter(s => (settingsById[s.id]||{}).share_with_peers !== false);
+  let allPosts = [];
+  networkStores.forEach(s=>{ allPosts = allPosts.concat(myVisiblePosts(s.id)||[]); });
+  if(allPosts.length===0){
+    return { speed:'slow', phrases:['🌌 今日はネットワーク全体が、静かな一日のようです。'] };
+  }
+  allPosts.sort((a,b)=> new Date(b.created_at) - new Date(a.created_at));
+  const latest = allPosts[0];
+  const now = Date.now();
+  const last3h = allPosts.filter(p => now - new Date(p.created_at).getTime() <= 3*3600*1000).length;
+  const last24h = allPosts.filter(p => now - new Date(p.created_at).getTime() <= 24*3600*1000).length;
+  if(last3h >= 3){
+    return { speed:'fast', phrases:[
+      '🌆 今、ネットワークのあちこちで賑わいが感じられます。',
+      `✨ 最後の動きから ${relTime(latest.created_at)}。`
+    ]};
+  }
+  if(last24h >= 1){
+    return { speed:'medium', phrases:[
+      '🌙 今日もネットワークのどこかで、灯りがともっています。',
+      `☕ 最後の動きから ${relTime(latest.created_at)}。`
+    ]};
+  }
+  return { speed:'slow', phrases:[
+    '🌌 今日はネットワーク全体が、静かな一日のようです。',
+    `最後の動きから ${relTime(latest.created_at)}。`
+  ]};
+}
 function placeholderImg(label, bg){
   const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'>
     <rect width='100%' height='100%' fill='${bg}'/>
@@ -405,7 +448,11 @@ function otherStoresFor(userId, excludeStoreId){
 async function go(screen){
   state.screen = screen;
   if(screen==='home' || screen==='history'){ await loadPosts(state.currentStoreId); }
-  if(screen==='home'){ await loadRecommendations(); await loadSettings(state.currentStoreId); }
+  if(screen==='home'){
+    await loadRecommendations(); await loadSettings(state.currentStoreId);
+    for(const s of cache.stores){ await loadPosts(s.id); }
+    await loadPeerSettings();
+  }
   if(screen==='settings'){ await loadSettings(state.currentStoreId); await loadPerformers(state.currentStoreId); }
   if(screen==='vlist'){ for(const s of cache.stores){ await loadPosts(s.id); } await loadPeerSettings(); }
   if(screen==='vdetail'){ await loadPosts(state.currentStoreId); await loadRecommendations(); await loadStoreMates(state.currentStoreId); await loadPeerSettings(); await loadFindVideoUrl(state.currentStoreId); }
@@ -450,6 +497,7 @@ function renderOwnerHome(){
   const myStores = ownerStoreIds().map(storeById).filter(Boolean);
   const pendingCount = (cache.recommendations||[]).filter(r=>r.to_store_id===store.id && r.status==='pending').length;
   const vLevel = vacancyLevel(set);
+  const pulse = networkPulseData();
   return `
     <div class="row between" style="margin-bottom:10px;">
       <select onchange="switchOwnerStore(this.value)">
@@ -462,6 +510,12 @@ function renderOwnerHome(){
       <div class="muted" style="margin-top:6px;">
         ${set.paused ? '⏸ 現在、投稿を一時的にお休み中です' :
           (latest ? '前回の投稿: '+relTime(latest.created_at) : 'まだ投稿はありません。気が向いた時にどうぞ')}
+      </div>
+    </div>
+    <div class="card network-pulse">
+      <div class="pulse-row">
+        <span class="pulse-dot pulse-${pulse.speed}"></span>
+        <span class="muted" id="pulsePhrase">${pulse.phrases[0]}</span>
       </div>
     </div>
     <button class="btn ${vLevel==='normal'?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:6px;" onclick="toggleVacancy('normal')">
@@ -1301,6 +1355,21 @@ function render(){
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
+  if(pulseIntervalId){ clearInterval(pulseIntervalId); pulseIntervalId = null; }
+  if(state.screen==='home'){ startNetworkPulse(); }
+}
+let pulseIntervalId = null;
+function startNetworkPulse(){
+  const data = networkPulseData();
+  if(!data.phrases || data.phrases.length <= 1) return;
+  let i = 0;
+  pulseIntervalId = setInterval(()=>{
+    const elp = document.getElementById('pulsePhrase');
+    if(!elp){ clearInterval(pulseIntervalId); pulseIntervalId = null; return; }
+    i = (i+1) % data.phrases.length;
+    elp.style.opacity = 0;
+    setTimeout(()=>{ elp.textContent = data.phrases[i]; elp.style.opacity = 1; }, 350);
+  }, 4800);
 }
 
 init();
