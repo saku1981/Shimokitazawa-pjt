@@ -1110,6 +1110,14 @@ function renderSettings(){
     <textarea id="regularDefInput" placeholder="例: 月に1回以上、顔を見せてくださる方">${store.regular_definition || ''}</textarea>
     <button class="btn btn-secondary" style="margin:8px 0 16px;" onclick="saveRegularDefinition()">保存する</button>
 
+    <h3>外部リンク(Instagram / ホームページ)</h3>
+    <div class="muted" style="margin-bottom:6px;">営業時間の細かい変更や期間限定メニューなど、公開情報はこちらに任せて大丈夫です。設定すると、常連さんの画面に「見に行く」リンクが小さく表示されます(アプリの中身がIG側に出ることはありません)。</div>
+    <div class="muted" style="margin-bottom:4px;">Instagramのリンク</div>
+    <input type="text" id="instagramUrlInput" placeholder="例: https://instagram.com/お店のアカウント" value="${store.instagram_url || ''}">
+    <div class="muted" style="margin:10px 0 4px;">ホームページのリンク</div>
+    <input type="text" id="websiteUrlInput" placeholder="例: https://お店のサイト.com" value="${store.website_url || ''}">
+    <button class="btn btn-secondary" style="margin:8px 0 16px;" onclick="saveExternalLinks()">保存する</button>
+
     <h3>常連さん向けお知らせ</h3>
     <div class="muted" style="margin-bottom:6px;">臨時休業など、常連さんに伝えたいこと。空欄にして更新すると消えます。</div>
     <textarea id="noticeInput" placeholder="例: 今週土曜は貸切のためお休みです">${set.notice_text || ''}</textarea>
@@ -1165,6 +1173,20 @@ async function saveFindHint(){
   await sb.from('stores').update({find_hint: val}).eq('id', state.currentStoreId);
   await loadStores();
   toast('見つけ方のヒントを保存しました');
+  render();
+}
+function normalizeUrl(val){
+  const trimmed = (val || '').trim();
+  if(!trimmed) return '';
+  if(!/^https?:\/\//i.test(trimmed)) return 'https://' + trimmed;
+  return trimmed;
+}
+async function saveExternalLinks(){
+  const ig = normalizeUrl(document.getElementById('instagramUrlInput').value);
+  const web = normalizeUrl(document.getElementById('websiteUrlInput').value);
+  await sb.from('stores').update({ instagram_url: ig || null, website_url: web || null }).eq('id', state.currentStoreId);
+  await loadStores();
+  toast('外部リンクを保存しました');
   render();
 }
 async function uploadFindVideo(e){
@@ -1267,6 +1289,10 @@ function renderVisitorDetail(){
     <h2>${store.name}</h2>
     <div class="muted">${store.type_label}${detailDisclosureOn(set) ? ' ・ '+(store.description||'') : ''}</div>
     <div style="margin:8px 0;"><span class="status-dot ${st==='open'?'open':'closed'}"></span>${statusLabel[st]} ・ ${store.hours}</div>
+    ${(store.instagram_url || store.website_url) ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      ${store.instagram_url ? `<a class="btn btn-secondary btn-sm" style="margin:0;text-decoration:none;" href="${store.instagram_url}" target="_blank" rel="noopener noreferrer">📷 Instagramを見る</a>` : ''}
+      ${store.website_url ? `<a class="btn btn-secondary btn-sm" style="margin:0;text-decoration:none;" href="${store.website_url}" target="_blank" rel="noopener noreferrer">🌐 ホームページを見る</a>` : ''}
+    </div>` : ''}
     ${vacancyLevel(set)==='spacious' ? `<div class="banner notice">🟢 今ならゆったり楽しめます。</div>` : ''}
     ${vacancyLevel(set)==='normal' ? `<div class="banner notice">🟢 今なら入れます。ゆっくり楽しめます。</div>` : ''}
     ${isRainSpecialToday(set) ? `<div class="banner notice">☔ ${set.rain_special_text || '本日は雨の日特典があります'}</div>` : ''}
