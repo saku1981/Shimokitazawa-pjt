@@ -82,8 +82,10 @@
   .store-card.photo-card{padding:0;overflow:hidden;}
   .store-photo-wrap{position:relative;width:100%;aspect-ratio:4/3;background:var(--panel2);overflow:hidden;}
   .store-photo-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
-  .store-photo-wrap .no-photo{display:flex;align-items:center;justify-content:center;height:100%;
-    color:var(--sub);font-size:12px;text-align:center;padding:10px;}
+  .no-photo-cover{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;height:100%;
+    background:linear-gradient(160deg, var(--accent-d), #2a2320);}
+  .no-photo-cover .no-photo-icon{font-size:34px;opacity:.9;}
+  .no-photo-cover .no-photo-name{color:#f2ede4;font-weight:bold;font-size:15px;letter-spacing:.02em;}
   .store-photo-badges{position:absolute;top:8px;left:8px;right:8px;display:flex;justify-content:space-between;
     align-items:flex-start;pointer-events:none;}
   .store-photo-badges .right-group{display:flex;align-items:center;gap:5px;}
@@ -1229,7 +1231,7 @@ function renderVisitorList(){
       return `
       <div class="card store-card photo-card" onclick="openStore('${s.id}')">
         <div class="store-photo-wrap">
-          ${latest ? `<img src="${latest.image_data}">` : `<div class="no-photo">📷 まだ投稿がありません</div>`}
+          ${latest ? `<img src="${latest.image_data}">` : `<div class="no-photo-cover"><span class="no-photo-icon">🏮</span><span class="no-photo-name">${s.name}</span></div>`}
           <div class="store-photo-badges">
             <span class="pill">${statusIcon[st]} ${statusLabel[st]}</span>
             <span class="right-group">
@@ -1245,7 +1247,7 @@ function renderVisitorList(){
         </div>
         <div class="store-card-caption">
           <div class="name">${s.name}</div>
-          <div class="muted" style="margin-top:2px;">${latest ? relTime(latest.created_at)+'に投稿' : '本日はまだ投稿なし'}</div>
+          ${latest ? `<div class="muted" style="margin-top:2px;">${relTime(latest.created_at)}に投稿</div>` : ''}
         </div>
       </div>`;
     }).join('')}
