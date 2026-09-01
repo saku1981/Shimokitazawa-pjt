@@ -22,7 +22,9 @@
   .app-wrap{width:420px;max-width:100%;}
   .role-tabs{display:flex;gap:8px;margin-bottom:10px;}
   .role-tabs button{flex:1;padding:10px;border-radius:10px;border:1px solid var(--line);background:var(--panel);
-    color:var(--sub);font-size:14px;cursor:pointer;}
+    color:var(--sub);font-size:14px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+    transition:transform .08s,background .08s;}
+  .role-tabs button:active:not(:disabled){transform:scale(.96);background:var(--panel2);}
   .role-tabs button.active{background:var(--accent);color:#1a1a1a;font-weight:bold;border-color:var(--accent);}
   .role-tabs button:disabled{opacity:.35;cursor:not-allowed;}
   .phone{background:var(--bg);border:1px solid var(--line);border-radius:26px;overflow:hidden;
@@ -33,7 +35,9 @@
     width:28px;height:28px;cursor:pointer;font-size:13px;}
   .screen{flex:1;padding:18px 16px 90px;overflow-y:auto;}
   .btn{display:block;width:100%;padding:14px;border-radius:12px;border:none;font-size:15px;font-weight:bold;
-    cursor:pointer;margin-bottom:10px;text-align:center;}
+    cursor:pointer;margin-bottom:10px;text-align:center;touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+    transition:transform .08s,opacity .08s;}
+  .btn:active{transform:scale(.97);opacity:.85;}
   .btn-primary{background:var(--accent);color:#1a1a1a;}
   .btn-secondary{background:var(--panel2);color:var(--text);border:1px solid var(--line);}
   .btn-ghost{background:none;color:var(--sub);border:none;font-size:13px;text-decoration:underline;padding:6px;}
@@ -73,7 +77,8 @@
   .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;}
   .status-dot.open{background:var(--ok);}
   .status-dot.closed{background:var(--sub);}
-  .store-card{cursor:pointer;}
+  .store-card{cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:opacity .08s;}
+  .store-card:active{opacity:.75;}
   .store-card.photo-card{padding:0;overflow:hidden;}
   .store-photo-wrap{position:relative;width:100%;aspect-ratio:4/3;background:var(--panel2);overflow:hidden;}
   .store-photo-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
@@ -103,12 +108,18 @@
   .toast.show{opacity:1;}
   .footer-note{text-align:center;color:#5c5e64;font-size:11px;margin-top:16px;}
   .nav-list{background:var(--panel);border:1px solid var(--line);border-radius:14px;margin-top:16px;overflow:hidden;}
-  .nav-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);font-size:14px;}
+  .nav-row{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;border-bottom:1px solid var(--line);font-size:14px;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .08s;}
+  .nav-row:active{background:var(--panel2);}
+  .nav-row .nav-label{display:flex;align-items:center;gap:10px;}
+  .nav-row .nav-icon{font-size:17px;width:22px;text-align:center;flex-shrink:0;}
   .nav-row:last-child{border-bottom:none;}
   .nav-row.nav-row-stack{display:block;}
   .nav-row-sub{margin-top:4px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .murmur-card{padding:12px 14px;}
-  .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;}
+  .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;
+    touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:4px 0;}
+  .back-link:active{opacity:.6;}
   .modal-detail-img{width:100%;border-radius:10px;margin-bottom:10px;}
   .spinner{display:flex;align-items:center;justify-content:center;padding:60px 0;color:var(--sub);font-size:13px;}
   @keyframes gachaShake{
@@ -119,7 +130,7 @@
     body{padding:0;display:block;align-items:normal;}
     .app-wrap{width:100%;max-width:100%;}
     .role-tabs{padding:calc(env(safe-area-inset-top, 0px) + 10px) 10px 6px;margin-bottom:0;background:#0b0c0e;
-      position:sticky;top:0;z-index:40;}
+      position:sticky;top:0;z-index:100;transform:translateZ(0);-webkit-transform:translateZ(0);will-change:transform;}
     .phone{border-radius:0;border:none;box-shadow:none;min-height:calc(100vh - 60px);}
     .screen{padding-bottom:calc(100px + env(safe-area-inset-bottom, 0px));}
     .footer-note{padding:0 14px 16px;}
@@ -422,6 +433,7 @@ function otherStoresFor(userId, excludeStoreId){
 /* ===================== 画面遷移 ===================== */
 async function go(screen){
   state.screen = screen;
+  render(); // まず今あるデータで即座に画面を切り替え、後から新しいデータで更新する(反応を速く感じさせるため)
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
   if(screen==='history'){ await loadPosts(state.currentStoreId); }
   if(screen==='home'){
@@ -514,13 +526,13 @@ function renderOwnerHome(){
       <button class="big-post-btn" onclick="startPost()"><span class="ic">📷</span>今の様子を投稿する</button>
     `}
     <div class="nav-list">
-      <div class="nav-row" onclick="go('history')"><span>投稿履歴</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('peers')"><span>参加店舗の様子</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('murmurs')"><span>店主のつぶやき</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('recommendRequests')"><span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('qrCode')"><span>招待QRコード</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('regularNotes')"><span>常連メモ</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('settings')"><span>設定</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('history')"><span class="nav-label"><span class="nav-icon">🗂️</span>投稿履歴</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('peers')"><span class="nav-label"><span class="nav-icon">🏮</span>参加店舗の様子</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('recommendRequests')"><span class="nav-label"><span class="nav-icon">🤝</span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('qrCode')"><span class="nav-label"><span class="nav-icon">📱</span>招待QRコード</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('regularNotes')"><span class="nav-label"><span class="nav-icon">📝</span>常連メモ</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">→</span></div>
     </div>
   `;
 }
