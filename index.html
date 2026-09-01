@@ -119,6 +119,10 @@
   .nav-row.nav-row-stack{display:block;}
   .nav-row-sub{margin-top:4px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   .murmur-card{padding:12px 14px;}
+  .murmur-teaser{margin-top:10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .08s;}
+  .murmur-teaser:active{background:var(--panel2);}
+  .murmur-teaser-body{font-size:13px;line-height:1.4em;min-height:2.8em;
+    display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
   .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;
     touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:4px 0;}
   .back-link:active{opacity:.6;}
@@ -439,7 +443,7 @@ async function go(screen){
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
   if(screen==='history'){ await loadPosts(state.currentStoreId); }
   if(screen==='home'){
-    await Promise.all([ loadRecommendations(), loadSettings(state.currentStoreId) ]);
+    await Promise.all([ loadRecommendations(), loadSettings(state.currentStoreId), loadMurmurs() ]);
   }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
   if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
@@ -508,6 +512,7 @@ function renderOwnerHome(){
         </div>
       </div>
     ` : '<div class="muted">まだ投稿がありません</div>'}
+    ${renderMurmurTeaser()}
     <div class="card" style="margin-top:12px;">
       <div style="font-weight:bold;font-size:15px;">${store.name} さん、こんにちは</div>
       <div class="muted" style="margin-top:6px;">
@@ -734,6 +739,22 @@ async function setRegularBadge(id, badge){
   render();
 }
 const MURMUR_MAX = 140;
+function renderMurmurTeaser(){
+  const latest = (cache.murmurs||[])[0];
+  const s = latest ? storeById(latest.store_id) : null;
+  return `
+    <div class="card murmur-teaser" onclick="go('murmurs')">
+      <div class="row between" style="margin-bottom:4px;">
+        <span class="muted" style="font-size:12px;">💬 店主のつぶやき</span>
+        <span class="muted" style="font-size:12px;">→</span>
+      </div>
+      <div class="murmur-teaser-body">
+        ${latest ? `<strong>${s ? s.name : ''}</strong>: ${escapeHtml(latest.body)}` : 'まだつぶやきがありません。最初のひとことをどうぞ。'}
+      </div>
+      ${latest ? `<div class="muted" style="font-size:11px;margin-top:4px;">${relTime(latest.created_at)}</div>` : ''}
+    </div>
+  `;
+}
 function renderMurmurs(){
   const myStores = ownerStoreIds().map(storeById).filter(Boolean);
   const draft = state._murmurDraft || '';
