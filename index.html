@@ -1054,8 +1054,8 @@ function renderCamera(){
     <span class="back-link" onclick="go('preShoot')">← 戻る</span>
     <h2>撮影 / 写真を選択</h2>
     <div class="card" style="text-align:center;">
-      <input type="file" accept="image/*" capture="environment" id="fileInput" style="display:none" onchange="onFilePicked(event)">
-      <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📷 写真を撮る/選択</button>
+      <input type="file" accept="image/*" id="fileInput" style="display:none" onchange="onFilePicked(event)">
+      <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">📷 写真を撮る / 📁 保存済みの写真から選ぶ</button>
       <button class="btn btn-secondary" onclick="useSampleImage()">🖼 サンプル画像で試す(デモ用)</button>
       <div class="muted">――実在の人物写真は使いません。ダミー画像で試せます。</div>
     </div>
