@@ -824,6 +824,48 @@ const GACHA_TOPIC_CARDS = [
   '最近、地味に助かった道具や工夫は?',
   '今日のBGMは何にしましたか?'
 ];
+// 各店舗の「お店の色」が出るお題カード。マッチしない店舗は共通のGACHA_TOPIC_CARDSから出る。
+const STORE_TOPIC_DECKS = [
+  { match: /invader/i, label: 'クラフトジン雑学', icon: '🍸', cards: [
+    'ジンの主な香りのもと、ジュニパーベリーは実は「実」ではなく球果(松ぼっくりの仲間)です',
+    '「ジン」の語源はオランダ語で杜松(ジュニパー)を指す"ジュネヴァ"という言葉から',
+    'クラフトジンは蒸溜所ごとに10〜20種類ほどのボタニカルを独自配合するのが個性の分かれ目',
+    'ロンドンドライジンは製法・スタイルの名前で、実は産地を指す言葉ではありません',
+    '18世紀ロンドンでは安価な粗悪ジンが社会問題になり、"ジン・クレイズ"と呼ばれました',
+    '柑橘の皮・カルダモン・胡椒なども、ジンのボタニカルとしては定番の顔ぶれ',
+    'ジンはもともとオランダの薬用酒がルーツ、後にイギリスで大衆酒として広まりました',
+    '近年は日本の柚子や山椒を使った"ジャパニーズクラフトジン"も世界的に人気です',
+    'ジンは基本的に無色透明。樽で寝かせて色付けするものは"樽熟成ジン"という別ジャンル',
+    '同じレシピでも、蒸溜のたびに気温や湿度で香りが微妙に変わるのもクラフトジンの面白さ'
+  ] },
+  { match: /civetta/i, label: 'グラッパ豆知識', icon: '🍇', cards: [
+    'グラッパはワインを搾った後に残る"搾りかす(マール)"から造られる蒸溜酒です',
+    '"グラッパ"という名前は、ブドウの房の軸を意味する言葉が語源とされています',
+    '北イタリアの山岳地帯が伝統的な産地で、寒い土地の食後酒として発展しました',
+    'グラッパという呼び方はイタリア産だけの特権、他国産は"マール"などと呼ばれます',
+    '単一のブドウ品種だけで造る"モノヴィティーニョ"は香りの個性がくっきり出るタイプ',
+    '食後のエスプレッソにひとたらしする"カフェ・コレット"という飲み方もイタリアの定番',
+    '樽で熟成させた"グラッパ・ヴェッキア"は木の香りが移り、まろやかな琥珀色になります',
+    'もともとは搾りかすを無駄にしない"もったいない精神"から生まれたお酒とも言われます',
+    'アルコール度数は40%前後が主流ですが、蒸溜所によっては50%を超えるものも',
+    '香りを引き立てるための専用グラス"トゥリップグラス"は、細長い形が特徴です'
+  ] },
+  { match: /u7/i, label: '燻製カクテル集', icon: '🔥', cards: [
+    '燻製カクテルの香りづけには、スモークガンやスモークチップを使う方法が定番です',
+    '定番の燻製素材はヒッコリー・チェリー・オークなど、木の種類ごとに香りの個性が違います',
+    'グラスやハーブに軽く煙をまとわせる"スモーク・リンス"という技法も人気です',
+    'スコッチウイスキーの"ピート香"も、実は大麦を燻すことで生まれる燻製香の一種',
+    '燻製カクテルは香りが主役。ひと口目の前に"香りを吸う"時間も楽しみ方のひとつです',
+    'オールドファッションドを燻製で仕上げる"スモーキー・オールドファッションド"は定番人気',
+    '燻製塩を使ったリムのカクテルは、香ばしさと塩気のバランスが魅力です',
+    '燻製の香りは強すぎると素材本来の味を消してしまうため、"香り一瞬"がプロの技',
+    '提供時にグラスへ煙を閉じ込める演出は、香りだけでなく見た目の楽しさもポイントです',
+    'U7では木材の種類を変えることで、同じベースでも違う香りの燻製カクテルに仕上げます'
+  ] }
+];
+function storeTopicDeck(store){
+  return STORE_TOPIC_DECKS.find(d=>d.match.test(store.name)) || null;
+}
 const GACHA_CHEER_MESSAGES = [
   { emoji: '🍶', send: 'に乾杯を届けよう', receive: 'から🍶 乾杯が届きました' },
   { emoji: '⭐️', send: 'にお疲れさまを伝えよう', receive: 'から⭐️ お疲れさまが届きました' },
@@ -877,6 +919,7 @@ async function playGachaCard(){
   const others = cache.stores.filter(s=>s.id!==store.id);
   const isCheer = others.length>0 && Math.random() < 0.45;
   let card_type, card_text, receiver_text = null, target_store_id = null;
+  let specialDeck = null, specialTrivia = null;
   if(isCheer){
     const target = others[Math.floor(Math.random()*others.length)];
     const msg = GACHA_CHEER_MESSAGES[Math.floor(Math.random()*GACHA_CHEER_MESSAGES.length)];
@@ -886,7 +929,14 @@ async function playGachaCard(){
     target_store_id = target.id;
   } else {
     card_type = 'topic';
-    card_text = GACHA_TOPIC_CARDS[Math.floor(Math.random()*GACHA_TOPIC_CARDS.length)];
+    const deck = storeTopicDeck(store);
+    if(deck && Math.random() < 0.75){
+      specialDeck = deck;
+      specialTrivia = deck.cards[Math.floor(Math.random()*deck.cards.length)];
+      card_text = `[${deck.label}] ${specialTrivia}`;
+    } else {
+      card_text = GACHA_TOPIC_CARDS[Math.floor(Math.random()*GACHA_TOPIC_CARDS.length)];
+    }
   }
   showModal(`
     <div style="text-align:center;padding:10px 0 4px;">
@@ -910,6 +960,14 @@ async function playGachaCard(){
   const distinctCount = new Set((todayRows||[]).map(r=>r.store_id)).size;
   if(distinctCount >= GACHA_NETWORK_STORE_COUNT){
     await sb.from('owner_gacha_pulls').update({ rare: true }).eq('id', data.id);
+  }
+  // お店の色が出たお題を引いたときは、他の店主にもつぶやきでお知らせ
+  if(specialDeck){
+    await sb.from('owner_murmurs').insert({
+      store_id: store.id,
+      body: `${specialDeck.icon} ${store.name}が「${specialDeck.label}」を引きました:「${specialTrivia}」`
+    });
+    await loadMurmurs();
   }
   await loadGachaToday();
   closeModal();
