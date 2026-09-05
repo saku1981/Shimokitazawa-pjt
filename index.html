@@ -165,7 +165,8 @@
   .card-visual-xl{width:86%;max-width:300px;aspect-ratio:5/7;margin:4px auto 0;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
-    overflow-y:auto;animation:gachaCurtainOpen .55s ease-out both;text-align:center;}
+    overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
+  .gacha-details-delayed{opacity:0;pointer-events:none;animation:gachaDetailsFadeIn .5s ease-out 6s both;}
   .gacha-full-reveal.rarity-bg-normal{background:radial-gradient(circle at 50% 38%, #2c2e33, #0b0c0e 72%);}
   .gacha-full-reveal.rarity-bg-holo{background:radial-gradient(circle at 50% 34%, #3d3660, #0b0c0e 74%);}
   .gacha-full-reveal.rarity-bg-ultra{background:radial-gradient(circle at 50% 30%, #55420f, #0b0c0e 76%);}
@@ -191,6 +192,10 @@
     60%{transform:scale(1.06) rotateY(0deg);opacity:1;}
     80%{transform:scale(.97);}
     100%{transform:scale(1);}
+  }
+  @keyframes gachaDetailsFadeIn{
+    0%{opacity:0;pointer-events:none;}
+    100%{opacity:1;pointer-events:auto;}
   }
   .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;}
   .card-visual{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);background:var(--panel2);}
@@ -1318,7 +1323,7 @@ async function playGachaCard(){
   const { data, error } = await sb.from('owner_gacha_pulls').insert({
     store_id: store.id, pulled_date: todayStr(), card_type, card_text, receiver_text, target_store_id
   }).select().maybeSingle();
-  await new Promise(r=>setTimeout(r, 1000));
+  await new Promise(r=>setTimeout(r, 5000));
   if(error){
     closeModal();
     toast(error.code==='23505' ? '今日はもう回しています' : 'ガチャを回せませんでした');
@@ -1363,13 +1368,15 @@ async function playGachaCard(){
     <div class="gacha-full-reveal rarity-bg-${rarityDef.key}">
       <div class="gacha-full-reveal-inner">
         <div class="gacha-get-tag">🎉 カードゲット!</div>
-        <div style="animation:gachaCardBurstIn .6s cubic-bezier(.34,1.56,.64,1) both;">
+        <div style="animation:gachaCardBurstIn 3s cubic-bezier(.34,1.56,.64,1) both;">
           ${renderCardVisual(revealCard, {size:'xl'})}
         </div>
-        <div class="gacha-comment-bubble">${escapeHtml(card_text)}</div>
-        <div style="width:100%;margin-top:18px;">
-          <button class="btn btn-primary" style="width:100%;" onclick="closeModal(); go('cardCollection');">🎴 集めたカードを見る</button>
-          <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="closeModal();">閉じる</button>
+        <div class="gacha-details-delayed">
+          <div class="gacha-comment-bubble">${escapeHtml(card_text)}</div>
+          <div style="width:100%;margin-top:18px;">
+            <button class="btn btn-primary" style="width:100%;" onclick="closeModal(); go('cardCollection');">🎴 集めたカードを見る</button>
+            <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="closeModal();">閉じる</button>
+          </div>
         </div>
       </div>
     </div>
