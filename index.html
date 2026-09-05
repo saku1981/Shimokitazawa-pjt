@@ -134,24 +134,31 @@
     background:radial-gradient(circle at 35% 28%, rgba(255,255,255,.28), rgba(255,255,255,0) 55%), var(--panel2);
     border:2px solid var(--accent-d);border-radius:48px 48px 16px 16px/58px 58px 16px 16px;
     overflow:hidden;animation:gachaSway 1s ease-in-out infinite;}
+  .gacha-orbit{position:absolute;inset:0;animation:gachaOrbit 1.1s linear infinite;}
+  .gacha-orbit-in{position:absolute;inset:8px;animation:gachaOrbitIn 1.6s linear infinite reverse;}
   .gacha-ball{position:absolute;width:15px;height:15px;border-radius:50%;
     box-shadow:inset -2px -2px 3px rgba(0,0,0,.3), inset 2px 2px 2px rgba(255,255,255,.35);}
-  .gacha-ball:nth-child(1){top:6px;left:10px;background:var(--accent);}
-  .gacha-ball:nth-child(2){top:4px;left:38px;background:var(--danger);}
-  .gacha-ball:nth-child(3){top:8px;left:64px;background:var(--ok);}
-  .gacha-ball:nth-child(4){top:28px;left:18px;background:#e8c27a;}
-  .gacha-ball:nth-child(5){top:32px;left:46px;background:var(--sub);}
-  .gacha-ball:nth-child(6){top:26px;left:70px;background:var(--accent-d);}
+  .gacha-orbit .gacha-ball:nth-child(1){top:6px;left:14px;background:var(--accent);}
+  .gacha-orbit .gacha-ball:nth-child(2){top:4px;left:56px;background:var(--danger);}
+  .gacha-orbit .gacha-ball:nth-child(3){top:30px;left:34px;background:var(--ok);}
+  .gacha-orbit-in .gacha-ball:nth-child(1){top:8px;left:26px;background:#e8c27a;}
+  .gacha-orbit-in .gacha-ball:nth-child(2){top:18px;left:4px;background:var(--sub);}
+  .gacha-orbit-in .gacha-ball:nth-child(3){top:20px;left:48px;background:var(--accent-d);}
   .gacha-neck{width:24px;height:9px;margin:0 auto;background:var(--accent-d);}
   .gacha-cabinet{position:relative;width:84px;height:42px;margin:0 auto;
     background:linear-gradient(180deg,var(--accent-d),#7a5424);border-radius:8px;box-shadow:0 4px 10px rgba(0,0,0,.35);}
   .gacha-window{position:absolute;left:9px;top:8px;width:32px;height:20px;background:rgba(0,0,0,.28);border-radius:4px;}
   .gacha-knob{position:absolute;right:11px;top:12px;width:17px;height:17px;border-radius:50%;
     background:var(--accent);border:2px solid rgba(255,255,255,.25);animation:gachaKnobTurn 1s linear infinite;}
-  .gacha-chute{position:relative;width:28px;height:26px;margin:0 auto;overflow:hidden;}
-  .gacha-capsule{position:absolute;left:6px;top:-18px;width:15px;height:15px;border-radius:50%;
-    background:linear-gradient(180deg,#fff 0 50%, var(--accent) 50% 100%);
-    box-shadow:0 1px 2px rgba(0,0,0,.4);animation:gachaCapsuleDrop 1s ease-in infinite;}
+  .gacha-pop{font-size:38px;font-weight:900;color:var(--accent);text-shadow:2px 2px 0 rgba(0,0,0,.25);
+    animation:gachaPopIn .5s cubic-bezier(.34,1.56,.64,1);}
+  .gacha-comment-bubble{background:var(--panel2);border:1px solid var(--line);border-radius:14px;
+    padding:12px 16px;margin:16px auto 0;max-width:300px;font-size:13px;line-height:1.5em;position:relative;}
+  .gacha-comment-bubble::before{content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);
+    border-left:8px solid transparent;border-right:8px solid transparent;border-bottom:8px solid var(--panel2);}
+  .gacha-reveal-bg{padding:14px;}
+  .gacha-reveal-box{width:100%;max-width:340px;text-align:center;}
+  .card-visual-lg{width:80%;max-width:260px;aspect-ratio:5/7;margin:10px auto 0;}
   .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;}
   .card-visual{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);background:var(--panel2);}
   .card-visual-md{width:150px;height:210px;margin:6px auto 0;}
@@ -192,12 +199,18 @@
     from{transform:rotate(0deg);}
     to{transform:rotate(360deg);}
   }
-  @keyframes gachaCapsuleDrop{
-    0%{top:-18px;opacity:0;}
-    12%{opacity:1;}
-    68%{top:22px;opacity:1;}
-    85%{top:22px;opacity:0;}
-    100%{top:-18px;opacity:0;}
+  @keyframes gachaOrbit{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+  }
+  @keyframes gachaOrbitIn{
+    from{transform:rotate(0deg);}
+    to{transform:rotate(360deg);}
+  }
+  @keyframes gachaPopIn{
+    0%{transform:scale(0) rotate(-8deg);opacity:0;}
+    60%{transform:scale(1.15) rotate(3deg);opacity:1;}
+    100%{transform:scale(1) rotate(0deg);opacity:1;}
   }
   @media (max-width: 480px){
     body{padding:0;display:block;align-items:normal;}
@@ -282,6 +295,8 @@ function toast(msg){
 function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
 function showModal(html){ document.getElementById('modal-root').innerHTML =
   `<div class="modal-bg" onclick="if(event.target===this) closeModal()"><div class="modal-box">${html}</div></div>`; }
+function showFullModal(html){ document.getElementById('modal-root').innerHTML =
+  `<div class="modal-bg gacha-reveal-bg" onclick="if(event.target===this) closeModal()">${html}</div>`; }
 
 function ownerStoreIds(){ return cache.memberships.filter(m=>m.role==='owner').map(m=>m.store_id); }
 function isOwnerAnywhere(){ return ownerStoreIds().length > 0; }
@@ -1166,12 +1181,15 @@ function gachaMachineHtml(){
   return `
     <div class="gacha-machine">
       <div class="gacha-dome">
-        <span class="gacha-ball"></span><span class="gacha-ball"></span><span class="gacha-ball"></span>
-        <span class="gacha-ball"></span><span class="gacha-ball"></span><span class="gacha-ball"></span>
+        <div class="gacha-orbit">
+          <span class="gacha-ball"></span><span class="gacha-ball"></span><span class="gacha-ball"></span>
+        </div>
+        <div class="gacha-orbit-in">
+          <span class="gacha-ball"></span><span class="gacha-ball"></span><span class="gacha-ball"></span>
+        </div>
       </div>
       <div class="gacha-neck"></div>
       <div class="gacha-cabinet"><div class="gacha-window"></div><div class="gacha-knob"></div></div>
-      <div class="gacha-chute"><div class="gacha-capsule"></div></div>
     </div>
   `;
 }
@@ -1272,13 +1290,15 @@ async function playGachaCard(){
   await loadMyCards();
   await loadGachaToday();
   render();
+  showModal(`<div style="text-align:center;padding:44px 0;"><div class="gacha-pop">ガチャッ!</div></div>`);
+  await new Promise(r=>setTimeout(r, 550));
   closeModal();
-  showModal(`
-    <div style="text-align:center;">
-      <div class="card-flip-in">${renderCardVisual(cardRow || newCard, {size:'md'})}</div>
-      <div class="muted" style="margin:12px 0 4px;">${escapeHtml(card_text)}</div>
-      <button class="btn btn-primary" style="margin-top:10px;" onclick="closeModal(); go('cardCollection');">🎴 集めたカードを見る</button>
-      <button class="btn btn-secondary" onclick="closeModal();">閉じる</button>
+  showFullModal(`
+    <div class="gacha-reveal-box">
+      <div class="card-flip-in">${renderCardVisual(cardRow || newCard, {size:'lg'})}</div>
+      <div class="gacha-comment-bubble">${escapeHtml(card_text)}</div>
+      <button class="btn btn-primary" style="margin-top:16px;width:100%;" onclick="closeModal(); go('cardCollection');">🎴 集めたカードを見る</button>
+      <button class="btn btn-secondary" style="width:100%;" onclick="closeModal();">閉じる</button>
     </div>
   `);
 }
@@ -1966,6 +1986,8 @@ async function playGacha(storeId){
   const store = storeById(storeId);
   const my = cache.memberships.find(m=>m.store_id===storeId && m.role==='regular' && m.user_id===state.user.id);
   if(!my || !my.gacha_claimed){ closeModal(); toast('ガチャを回せませんでした'); return; }
+  showModal(`<div style="text-align:center;padding:44px 0;"><div class="gacha-pop">ガチャッ!</div></div>`);
+  await new Promise(r=>setTimeout(r, 550));
   showModal(`
     <div style="text-align:center;padding:12px 0;">
       <div style="font-size:64px;">${store.gacha_item_emoji || '🎁'}</div>
