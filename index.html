@@ -457,9 +457,24 @@ function absTime(ts){
   return `${d.getFullYear()}/${p(d.getMonth()+1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
 }
 function monthLabel(ts){ const d=new Date(ts); return `${d.getFullYear()}年${d.getMonth()+1}月`; }
-function todayStr(){
-  const d = new Date();
+function dateStr(d){
   return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function todayStr(){
+  return dateStr(new Date());
+}
+// ガチャは1日2回、15時と22時に復活する。0:00〜14:59はまだ「昨夜22時に復活した回」の続き。
+function currentGachaSlot(){
+  const now = new Date();
+  const h = now.getHours();
+  if(h>=15 && h<22){
+    return { slotKey: dateStr(now)+'_day', label:'午後のガチャ', resetLabel:'22:00' };
+  }
+  if(h>=22){
+    return { slotKey: dateStr(now)+'_night', label:'夜のガチャ', resetLabel:'15:00' };
+  }
+  const y = new Date(now.getTime() - 24*60*60*1000);
+  return { slotKey: dateStr(y)+'_night', label:'夜のガチャ', resetLabel:'15:00' };
 }
 function settingsFor(storeId){
   return (cache.allSettings||[]).find(s=>s.store_id===storeId) || {};
@@ -518,7 +533,7 @@ async function loadMurmurs(){
   return cache.murmurs;
 }
 async function loadGachaToday(){
-  const { data } = await sb.from('owner_gacha_pulls').select('*').eq('store_id', state.currentStoreId).eq('pulled_date', todayStr()).maybeSingle();
+  const { data } = await sb.from('owner_gacha_pulls').select('*').eq('store_id', state.currentStoreId).eq('pulled_date', currentGachaSlot().slotKey).maybeSingle();
   cache.gachaToday[state.currentStoreId] = data || null;
   return cache.gachaToday[state.currentStoreId];
 }
@@ -1571,6 +1586,7 @@ function gachaMachineHtml(){
 function renderGachaCard(){
   const today = cache.gachaToday[state.currentStoreId];
   const cheers = cache.receivedCheers || [];
+  const slot = currentGachaSlot();
   return `
     <div class="card gacha-card">
       <div class="row between" style="margin-bottom:4px;">
@@ -1581,10 +1597,11 @@ function renderGachaCard(){
           ${today.card_type==='cheer' ? `<span class="gacha-result-icon">💌</span>` : `<span class="gacha-result-icon">💭</span>`}
           <span>${escapeHtml(today.card_text)}</span>
         </div>
-        ${today.rare ? `<div class="banner notice" style="margin-top:8px;">🎉 今日は3店舗そろってガチャを回した日でした</div>` : ''}
+        ${today.rare ? `<div class="banner notice" style="margin-top:8px;">🎉 3店舗そろってガチャを回した回でした</div>` : ''}
+        <div class="muted" style="font-size:12px;margin-top:8px;">次は${slot.resetLabel}に復活します</div>
       ` : `
-        <button class="btn btn-primary" style="margin:6px 0 0;" onclick="playGachaCard()">🎁 今日のガチャを回す</button>
-        <div class="muted" style="font-size:12px;margin-top:6px;">1日1回だけ回せます。お題やエールに加えて、キャラカードが1枚もらえます。</div>
+        <button class="btn btn-primary" style="margin:6px 0 0;" onclick="playGachaCard()">🎁 ${slot.label}を回す</button>
+        <div class="muted" style="font-size:12px;margin-top:6px;">1日2回、15時と22時に復活します。お題やエールに加えて、キャラカードが1枚もらえます。</div>
       `}
       <div class="muted" style="font-size:12px;margin-top:8px;cursor:pointer;" onclick="go('cardCollection')">🎴 集めたカード ${(cache.myCards||[]).length}枚 →</div>
     </div>
@@ -1598,6 +1615,7 @@ function renderGachaCard(){
 }
 async function playGachaCard(){
   const store = storeById(state.currentStoreId);
+  const slotKey = currentGachaSlot().slotKey;
   const others = cache.stores.filter(s=>s.id!==store.id);
   const isCheer = others.length>0 && Math.random() < 0.45;
   let card_type, card_text, receiver_text = null, target_store_id = null;
@@ -1627,18 +1645,18 @@ async function playGachaCard(){
     </div>
   `);
   const { data, error } = await sb.from('owner_gacha_pulls').insert({
-    store_id: store.id, pulled_date: todayStr(), card_type, card_text, receiver_text, target_store_id
+    store_id: store.id, pulled_date: slotKey, card_type, card_text, receiver_text, target_store_id
   }).select().maybeSingle();
   await new Promise(r=>setTimeout(r, 5000));
   if(error){
     closeModal();
-    toast(error.code==='23505' ? '今日はもう回しています' : 'ガチャを回せませんでした');
+    toast(error.code==='23505' ? 'この回はもう回しています' : 'ガチャを回せませんでした');
     await loadGachaToday();
     render();
     return;
   }
-  // 3店舗そろったかチェックして、レアボーナスを付与
-  const { data: todayRows } = await sb.from('owner_gacha_pulls').select('store_id').eq('pulled_date', todayStr());
+  // 3店舗そろったかチェックして、レアボーナスを付与(同じ回=同じslotKeyの中で判定)
+  const { data: todayRows } = await sb.from('owner_gacha_pulls').select('store_id').eq('pulled_date', slotKey);
   const distinctCount = new Set((todayRows||[]).map(r=>r.store_id)).size;
   if(distinctCount >= GACHA_NETWORK_STORE_COUNT){
     await sb.from('owner_gacha_pulls').update({ rare: true }).eq('id', data.id);
