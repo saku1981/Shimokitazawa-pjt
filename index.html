@@ -534,7 +534,7 @@ async function go(screen){
   }
   if(screen==='cardCollection'){ await loadMyCards(); }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
-  if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
+  if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 1))), loadPeerSettings()]); }
   if(screen==='vdetail'){
     await Promise.all([
       loadPosts(state.currentStoreId),
@@ -544,7 +544,7 @@ async function go(screen){
       loadFindVideoUrl(state.currentStoreId)
     ]);
   }
-  if(screen==='peers'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
+  if(screen==='peers'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 3))), loadPeerSettings()]); }
   if(screen==='recommendRequests'){ await loadRecommendations(); }
   if(screen==='regularNotes'){ await loadStoreRegulars(state.currentStoreId); }
   if(screen==='murmurs'){ await loadMurmurs(); }
@@ -593,7 +593,7 @@ function renderOwnerHome(){
     <h3 style="margin-top:0;">最新の投稿</h3>
     ${latest ? `
       <div class="latest-post-hero">
-        <img src="${latest.image_data}">
+        <img src="${latest.image_data}" decoding="async">
         <div class="latest-post-caption">
           ${latest.caption ? escapeHtml(latest.caption) : ''}
           <span class="muted" style="display:block;margin-top:2px;">${relTime(latest.created_at)}</span>
@@ -716,7 +716,7 @@ function renderPeers(){
           </div>
         </div>
         <div class="muted" style="margin:4px 0;">${s.description||''}</div>
-        ${posts.length ? `<div class="thumb-grid">${posts.slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}">`).join('')}</div>` : '<div class="muted">まだ投稿がありません。</div>'}
+        ${posts.length ? `<div class="thumb-grid">${posts.slice(0,3).map(p=>`<img class="thumb" src="${p.image_data}" loading="lazy" decoding="async">`).join('')}</div>` : '<div class="muted">まだ投稿がありません。</div>'}
         <div class="row" style="margin-top:10px;">
           <button class="btn btn-secondary btn-sm" onclick="openRecommendModal('${s.id}')">紹介する</button>
         </div>
@@ -1267,11 +1267,44 @@ function renderCamera(){
     </div>
   `;
 }
+function compressImage(dataUrl, maxSize, quality){
+  return new Promise((resolve, reject)=>{
+    const img = new Image();
+    img.onload = ()=>{
+      let width = img.naturalWidth, height = img.naturalHeight;
+      if(width > maxSize || height > maxSize){
+        if(width >= height){ height = Math.round(height * (maxSize / width)); width = maxSize; }
+        else { width = Math.round(width * (maxSize / height)); height = maxSize; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      try{ resolve(canvas.toDataURL('image/jpeg', quality)); }
+      catch(err){ reject(err); }
+    };
+    img.onerror = ()=>reject(new Error('image load failed'));
+    img.src = dataUrl;
+  });
+}
 function onFilePicked(e){
   const f = e.target.files[0];
   if(!f) return;
   const reader = new FileReader();
-  reader.onload = ()=>{ state.tempPost.img = reader.result; go('privacy'); };
+  reader.onload = ()=>{
+    showModal(`<div class="spinner">写真を準備しています…</div>`);
+    // 写真をそのまま(数MBの原寸)保存すると、一覧画面の表示がとても遅くなるため、
+    // 表示に十分なサイズ(長辺1280px)・画質まで小さくしてから保存する。
+    compressImage(reader.result, 1280, 0.72).then(compressed=>{
+      state.tempPost.img = compressed;
+      closeModal();
+      go('privacy');
+    }).catch(()=>{
+      state.tempPost.img = reader.result;
+      closeModal();
+      go('privacy');
+    });
+  };
   reader.readAsDataURL(f);
 }
 function useSampleImage(){
@@ -1374,7 +1407,7 @@ function renderHistory(){
     <h2>投稿履歴</h2>
     ${posts.length===0 ? '<div class="muted">まだ投稿がありません</div>' : posts.map(p=>`
       <div class="post-row">
-        <img src="${p.image_data}">
+        <img src="${p.image_data}" loading="lazy" decoding="async">
         <div class="meta">
           <div>${absTime(p.created_at)} ${p.draft?'<span class="tag warn">下書き</span>':'<span class="tag ok">公開中</span>'}</div>
           <div class="cap">${p.caption || '(コメントなし)'}</div>
@@ -1642,7 +1675,7 @@ function renderVisitorList(){
       return `
       <div class="card store-card photo-card" onclick="openStore('${s.id}')">
         <div class="store-photo-wrap">
-          ${latest ? `<img src="${latest.image_data}">` : `<div class="no-photo-cover"><span class="no-photo-icon">🏮</span><span class="no-photo-name">${s.name}</span></div>`}
+          ${latest ? `<img src="${latest.image_data}" loading="lazy" decoding="async">` : `<div class="no-photo-cover"><span class="no-photo-icon">🏮</span><span class="no-photo-name">${s.name}</span></div>`}
           <div class="store-photo-badges">
             <span class="pill">${statusIcon[st]} ${statusLabel[st]}</span>
             <span class="right-group">
@@ -1701,7 +1734,7 @@ function renderVisitorDetail(){
       Object.keys(groups).map(k=>`
         <h3>${k}</h3>
         <div class="thumb-grid">
-          ${groups[k].map(p=>`<img class="thumb" src="${p.image_data}" onclick="openSnapshot('${p.id}','${store.id}')">`).join('')}
+          ${groups[k].map(p=>`<img class="thumb" src="${p.image_data}" loading="lazy" decoding="async" onclick="openSnapshot('${p.id}','${store.id}')">`).join('')}
         </div>
       `).join('')}
   `;
