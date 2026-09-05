@@ -152,6 +152,35 @@
   .gacha-capsule{position:absolute;left:6px;top:-18px;width:15px;height:15px;border-radius:50%;
     background:linear-gradient(180deg,#fff 0 50%, var(--accent) 50% 100%);
     box-shadow:0 1px 2px rgba(0,0,0,.4);animation:gachaCapsuleDrop 1s ease-in infinite;}
+  .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;}
+  .card-visual{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--scene-bg, var(--panel2));}
+  .card-visual-md{width:150px;height:210px;margin:6px auto 0;padding:14px 10px 10px;}
+  .card-visual-sm{width:100%;aspect-ratio:5/7;padding:8px 6px 6px;}
+  .card-visual-char{width:56%;aspect-ratio:1/1;object-fit:contain;border-radius:50%;
+    background:rgba(255,255,255,.12);box-shadow:0 2px 6px rgba(0,0,0,.35);}
+  .card-visual-badge{position:absolute;top:8px;right:8px;font-size:16px;filter:drop-shadow(0 1px 2px rgba(0,0,0,.5));}
+  .card-visual-foot{margin-top:auto;text-align:center;color:#fff;}
+  .card-visual-name{font-size:12px;font-weight:bold;text-shadow:0 1px 2px rgba(0,0,0,.6);}
+  .card-visual-sub{font-size:9px;opacity:.85;margin-top:1px;text-shadow:0 1px 2px rgba(0,0,0,.6);}
+  .card-visual-rarity{font-size:9px;margin-top:3px;padding:1px 6px;border-radius:8px;display:inline-block;
+    background:rgba(0,0,0,.35);}
+  .card-visual.rarity-holo{border:2px solid transparent;
+    background-image:var(--scene-bg), linear-gradient(120deg,#e0a458,#7ad0e0,#e07ad0,#e0a458);
+    background-origin:border-box;background-clip:content-box, border-box;position:relative;}
+  .card-visual.rarity-holo::before{content:'';position:absolute;inset:0;pointer-events:none;
+    background:linear-gradient(115deg, transparent 30%, rgba(255,255,255,.35) 45%, transparent 60%);
+    background-size:220% 220%;animation:holoSheen 2.6s linear infinite;}
+  .card-visual.rarity-ultra{border:2px solid #f0c85a;box-shadow:0 0 14px rgba(240,200,90,.55);
+    animation:ultraPulse 1.6s ease-in-out infinite;}
+  .card-sparkle{position:absolute;width:8px;height:8px;pointer-events:none;
+    background:radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 70%);
+    animation:sparkleTwinkle 1.4s ease-in-out infinite;}
+  .card-flip-in{animation:cardFlipIn .55s ease-out;}
+  @keyframes holoSheen{0%{background-position:0% 0%;}100%{background-position:200% 200%;}}
+  @keyframes ultraPulse{0%,100%{box-shadow:0 0 10px rgba(240,200,90,.45);}50%{box-shadow:0 0 20px rgba(240,200,90,.85);}}
+  @keyframes sparkleTwinkle{0%,100%{opacity:0;transform:scale(.4);}50%{opacity:1;transform:scale(1.1);}}
+  @keyframes cardFlipIn{from{transform:rotateY(90deg) scale(.9);opacity:0;}to{transform:rotateY(0deg) scale(1);opacity:1;}}
   .back-link{color:var(--sub);font-size:13px;cursor:pointer;margin-bottom:10px;display:inline-block;
     touch-action:manipulation;-webkit-tap-highlight-color:transparent;padding:4px 0;}
   .back-link:active{opacity:.6;}
@@ -233,7 +262,7 @@ const RECOMMEND_TEMPLATES = {
 
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null };
-let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[], gachaToday:{}, receivedCheers:[] };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[], gachaToday:{}, receivedCheers:[], myCards:[] };
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 const STORE_SYMBOL_ICONS = [
@@ -459,6 +488,12 @@ async function loadReceivedCheers(){
   cache.receivedCheers = error ? [] : (data || []);
   return cache.receivedCheers;
 }
+async function loadMyCards(){
+  const { data, error } = await sb.from('owner_gacha_cards').select('*')
+    .eq('store_id', state.currentStoreId).order('created_at', {ascending:false}).limit(200);
+  cache.myCards = error ? [] : (data || []);
+  return cache.myCards;
+}
 async function loadStoreMates(storeId){
   const { data } = await sb.from('memberships').select('*').eq('store_id', storeId).eq('role','regular').eq('show_nickname', true);
   cache.storeMates[storeId] = data || [];
@@ -495,8 +530,9 @@ async function go(screen){
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
   if(screen==='history'){ await loadPosts(state.currentStoreId); }
   if(screen==='home'){
-    await Promise.all([ loadRecommendations(), loadSettings(state.currentStoreId), loadMurmurs(), loadGachaToday(), loadReceivedCheers() ]);
+    await Promise.all([ loadRecommendations(), loadSettings(state.currentStoreId), loadMurmurs(), loadGachaToday(), loadReceivedCheers(), loadMyCards() ]);
   }
+  if(screen==='cardCollection'){ await loadMyCards(); }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
   if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 6))), loadPeerSettings()]); }
   if(screen==='vdetail'){
@@ -589,6 +625,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('history')"><span class="nav-label"><span class="nav-icon">🗂️</span>投稿履歴</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('peers')"><span class="nav-label"><span class="nav-icon">🏮</span>参加店舗の様子</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('recommendRequests')"><span class="nav-label"><span class="nav-icon">🤝</span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('qrCode')"><span class="nav-label"><span class="nav-icon">📱</span>招待QRコード</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('regularNotes')"><span class="nav-label"><span class="nav-icon">📝</span>常連メモ</span><span class="muted">→</span></div>
@@ -874,6 +911,97 @@ const GACHA_CHEER_MESSAGES = [
   { emoji: '☕️', send: 'に一息ついてねを伝えよう', receive: 'から☕️「一息ついてね」が届きました' },
   { emoji: '🔥', send: 'に今日も頑張ってを伝えよう', receive: 'から🔥「今日も頑張って」が届きました' }
 ];
+
+/* ===================== 店主：集めたカード(キャラカード図鑑) ===================== */
+// キャラは各店舗のキーホルダー画像をそのまま使い、「場面」と「装い」の組み合わせで見た目を少しずつ変える。
+const CARD_SCENES = [
+  { key:'counter',  label:'カウンターの一枚',   bg:'linear-gradient(160deg,#2b2118,#4a3520)' },
+  { key:'night',    label:'閉店後の静けさ',     bg:'linear-gradient(160deg,#0d1420,#1c2a3d)' },
+  { key:'lantern',  label:'灯りがともる夜',     bg:'linear-gradient(160deg,#3a1f12,#7a3e1d)' },
+  { key:'festival', label:'お祝いの日',         bg:'linear-gradient(160deg,#3a1030,#7a2f5a)' },
+  { key:'morning',  label:'開店前のひととき',   bg:'linear-gradient(160deg,#1a2b22,#2f5c42)' }
+];
+const CARD_COSTUMES = [
+  { key:'plain',  label:'ふだんの装い',   badge:'' },
+  { key:'bowtie', label:'蝶ネクタイ',     badge:'🎀' },
+  { key:'scarf',  label:'マフラー姿',     badge:'🧣' },
+  { key:'shades', label:'サングラス',     badge:'🕶️' },
+  { key:'sash',   label:'祝いのタスキ',   badge:'🎉' }
+];
+const CARD_RARITIES = [
+  { key:'normal', label:'ノーマル',           weight:70 },
+  { key:'holo',   label:'キラキラ',           weight:25 },
+  { key:'ultra',  label:'超レアキラキラ',     weight:5 }
+];
+function rollCardRarity(force){
+  if(force) return force;
+  const total = CARD_RARITIES.reduce((a,r)=>a+r.weight,0);
+  let n = Math.random()*total;
+  for(const r of CARD_RARITIES){ if(n < r.weight) return r.key; n -= r.weight; }
+  return 'normal';
+}
+function rollCard(forceRarity){
+  const chars = cache.stores.filter(s=>storeSymbolIcon(s));
+  const pool = chars.length>0 ? chars : cache.stores;
+  const character = pool[Math.floor(Math.random()*pool.length)];
+  const scene = CARD_SCENES[Math.floor(Math.random()*CARD_SCENES.length)];
+  const costume = CARD_COSTUMES[Math.floor(Math.random()*CARD_COSTUMES.length)];
+  const rarity = rollCardRarity(forceRarity);
+  return { character_store_id: character.id, scene_key: scene.key, costume_key: costume.key, rarity };
+}
+function cardMeta(card){
+  const character = storeById(card.character_store_id);
+  const scene = CARD_SCENES.find(s=>s.key===card.scene_key) || CARD_SCENES[0];
+  const costume = CARD_COSTUMES.find(c=>c.key===card.costume_key) || CARD_COSTUMES[0];
+  const rarityDef = CARD_RARITIES.find(r=>r.key===card.rarity) || CARD_RARITIES[0];
+  return { character, scene, costume, rarityDef };
+}
+function renderCardVisual(card, opts){
+  opts = opts || {};
+  const size = opts.size || 'md'; // 'sm' | 'md'
+  const { character, scene, costume, rarityDef } = cardMeta(card);
+  if(!character) return '';
+  const icon = storeSymbolIcon(character);
+  const sparkles = rarityDef.key==='ultra'
+    ? `<span class="card-sparkle" style="top:8%;left:12%;animation-delay:0s;"></span>
+       <span class="card-sparkle" style="top:18%;left:78%;animation-delay:.3s;"></span>
+       <span class="card-sparkle" style="top:70%;left:20%;animation-delay:.6s;"></span>
+       <span class="card-sparkle" style="top:75%;left:82%;animation-delay:.9s;"></span>`
+    : '';
+  return `
+    <div class="card-visual card-visual-${size} rarity-${rarityDef.key}" style="--scene-bg:${scene.bg};">
+      ${sparkles}
+      ${icon ? `<img class="card-visual-char" src="${icon}">` : `<div class="card-visual-char" style="display:flex;align-items:center;justify-content:center;font-size:28px;">🏮</div>`}
+      ${costume.badge ? `<span class="card-visual-badge">${costume.badge}</span>` : ''}
+      <div class="card-visual-foot">
+        <div class="card-visual-name">${character.name}</div>
+        <div class="card-visual-sub">${scene.label}・${costume.label}</div>
+        <div class="card-visual-rarity">${rarityDef.label}</div>
+      </div>
+    </div>
+  `;
+}
+function renderCardCollection(){
+  const cards = cache.myCards || [];
+  const counts = { normal:0, holo:0, ultra:0 };
+  cards.forEach(c=>{ if(counts[c.rarity]!==undefined) counts[c.rarity]++; });
+  return `
+    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <h2>🎴 集めたカード</h2>
+    <div class="banner">ガチャを回すたびに、キャラカードが1枚手に入ります。場面や装い、レアさの組み合わせは毎回ランダムです。</div>
+    <div class="row" style="gap:10px;margin-bottom:14px;flex-wrap:wrap;">
+      <span class="tag">全${cards.length}枚</span>
+      <span class="tag">ノーマル ${counts.normal}</span>
+      <span class="tag">キラキラ ${counts.holo}</span>
+      <span class="tag">超レア ${counts.ultra}</span>
+    </div>
+    ${cards.length===0 ? `<div class="muted">まだカードがありません。「今日のガチャ」を回してみましょう。</div>` : `
+      <div class="card-grid">
+        ${cards.map(c=>renderCardVisual(c, {size:'sm'})).join('')}
+      </div>
+    `}
+  `;
+}
 function gachaMachineHtml(){
   return `
     <div class="gacha-machine">
@@ -903,8 +1031,9 @@ function renderGachaCard(){
         ${today.rare ? `<div class="banner notice" style="margin-top:8px;">🎉 今日は3店舗そろってガチャを回した日でした</div>` : ''}
       ` : `
         <button class="btn btn-primary" style="margin:6px 0 0;" onclick="playGachaCard()">🎁 今日のガチャを回す</button>
-        <div class="muted" style="font-size:12px;margin-top:6px;">1日1回だけ回せます。お題が出たり、他のお店にエールを送れたりします。</div>
+        <div class="muted" style="font-size:12px;margin-top:6px;">1日1回だけ回せます。お題やエールに加えて、キャラカードが1枚もらえます。</div>
       `}
+      <div class="muted" style="font-size:12px;margin-top:8px;cursor:pointer;" onclick="go('cardCollection')">🎴 集めたカード ${(cache.myCards||[]).length}枚 →</div>
     </div>
     ${cheers.length>0 ? `
       <div class="card gacha-cheers-received">
@@ -969,10 +1098,29 @@ async function playGachaCard(){
     });
     await loadMurmurs();
   }
+  // カードを1枚追加(3店舗そろった日は超レアキラキラが確定)
+  const forceRarity = distinctCount >= GACHA_NETWORK_STORE_COUNT ? 'ultra' : null;
+  const newCard = rollCard(forceRarity);
+  const { data: cardRow } = await sb.from('owner_gacha_cards').insert({
+    store_id: store.id,
+    character_store_id: newCard.character_store_id,
+    scene_key: newCard.scene_key,
+    costume_key: newCard.costume_key,
+    rarity: newCard.rarity,
+    gacha_pull_id: data.id
+  }).select().maybeSingle();
+  await loadMyCards();
   await loadGachaToday();
-  closeModal();
-  toast('ガチャを回しました');
   render();
+  closeModal();
+  showModal(`
+    <div style="text-align:center;">
+      <div class="card-flip-in">${renderCardVisual(cardRow || newCard, {size:'md'})}</div>
+      <div class="muted" style="margin:12px 0 4px;">${escapeHtml(card_text)}</div>
+      <button class="btn btn-primary" style="margin-top:10px;" onclick="closeModal(); go('cardCollection');">🎴 集めたカードを見る</button>
+      <button class="btn btn-secondary" onclick="closeModal();">閉じる</button>
+    </div>
+  `);
 }
 
 function renderMurmurs(){
@@ -1679,7 +1827,7 @@ function render(){
     caption: renderCaption, confirm: renderConfirm, history: renderHistory, settings: renderSettings,
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
-    regularNotes: renderRegularNotes, murmurs: renderMurmurs
+    regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
