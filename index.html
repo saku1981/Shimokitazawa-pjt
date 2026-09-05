@@ -279,6 +279,7 @@ const CAPTION_TEMPLATES = {
   karaoke: ['本日営業中です','今夜も賑わっています','新しい機材入りました','ご予約受付中'],
   music: ['本日演奏あります','本日は演奏なしです','静かな一杯をどうぞ','緊急のお知らせは入店中']
 };
+const CAPTION_MAX = 60;
 const COMPOSE_TEMPLATES = [
   {label:'カウンター店内のアップ', icon:'🍸'},
   {label:'メニュー写真と説明', icon:'📄'},
@@ -665,6 +666,7 @@ function renderOwnerHome(){
           ${latest.caption ? escapeHtml(latest.caption) : ''}
         </div>
       </div>
+      <div class="muted" style="text-align:right;font-size:12px;margin:2px 2px 6px;cursor:pointer;" onclick="askDelete('${latest.id}')">🗑 この写真を削除</div>
     ` : '<div class="muted">まだ投稿がありません</div>'}
     ${renderMurmurTeaser()}
     ${renderGachaCard()}
@@ -1922,6 +1924,8 @@ function renderPerformer(){
 function renderCaption(){
   const store = storeById(state.tempPost.storeId);
   const tpls = CAPTION_TEMPLATES[store.type] || [];
+  const draft = state.tempPost.caption || '';
+  const remaining = CAPTION_MAX - draft.length;
   return `
     <span class="back-link" onclick="go('privacy')">← 戻る</span>
     <h2>ひとことを添える(任意)</h2>
@@ -1929,6 +1933,10 @@ function renderCaption(){
     <div class="chip-grid">
       ${tpls.map(t=>`<div class="chip ${state.tempPost.caption===t?'selected':''}" onclick="pickCaption('${t}')">${t}</div>`).join('')}
     </div>
+    <div class="muted" style="margin:10px 0 6px;">自由に書く(2行程度まで)</div>
+    <textarea id="captionFreeInput" maxlength="${CAPTION_MAX}" rows="2" placeholder="例: 今日は仕込みが早く終わったので、少し早めに開けます"
+      oninput="state.tempPost.caption=this.value; document.getElementById('captionCount').textContent = (${CAPTION_MAX} - this.value.length);">${escapeHtml(draft)}</textarea>
+    <div class="muted" style="font-size:12px;margin:4px 0 12px;text-align:right;">残り<span id="captionCount">${remaining}</span>文字</div>
     <button class="btn btn-ghost" onclick="pickCaption('')">何もつけない</button>
     <button class="btn btn-primary" onclick="go('confirm')">次へ(内容を確認)</button>
   `;
