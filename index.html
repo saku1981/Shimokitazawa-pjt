@@ -103,7 +103,8 @@
   .radio-line{display:flex;align-items:center;gap:8px;padding:8px 0;font-size:14px;}
   .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;
     z-index:50;padding:20px;}
-  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:380px;width:100%;}
+  .modal-box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px;max-width:380px;width:100%;
+    max-height:calc(100vh - 48px);overflow-y:auto;}
   .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#2b2d33;color:var(--text);
     padding:10px 18px;border-radius:20px;font-size:13px;border:1px solid var(--line);z-index:60;opacity:0;
     transition:opacity .25s;pointer-events:none;}
@@ -601,6 +602,33 @@ document.getElementById('info-btn').onclick = ()=>{
     <button class="btn btn-primary" onclick="closeModal()">閉じる</button>
   `);
 };
+function openSettingsHelp(){
+  showModal(`
+    <h2>設定画面の取説</h2>
+    <p class="muted">この画面でできることを、上から順番にまとめました。ほとんどの項目は、いつでも気軽にオン/オフし直せます。</p>
+    <p class="muted">1. お店の紹介文 - 常連さん一覧などに表示される文章です。書き換えるといつでも更新されます。</p>
+    <p class="muted">2. 常連への詳細情報の開示 - 紹介文・見つけ方のヒント・道のり動画・常連の定義を、まとめて表示/非表示にできます。オフにしても内容は消えないので、また表示すればすぐ戻せます。</p>
+    <p class="muted">3. 投稿リマインダー - 「なし」か「月1回だけ控えめに知らせる」を選べます。深夜には届きません。催促のための機能ではありません。</p>
+    <p class="muted">4. 投稿の一時停止 - しばらく投稿をお休みしたい時に。いつでも再開できます。</p>
+    <p class="muted">5. 出演者・演奏者の同意管理(音楽系のお店のみ表示) - A:全面OK/B:顔以外可/C:NG・未確認、の3段階です。未確認の方は安全のため自動的にCとして扱われます。</p>
+    <p class="muted">6. 参加店主間での公開 - オンにすると、他の参加店主にも投稿が見えるようになります。数を比べたり、見たことが通知されたりはしません。</p>
+    <p class="muted">7. 常連さんへのアピール(「今なら楽しめます」「今ならゆったり楽しめます」) - その日だけの案内で、日付が変わると自動的に消えます。消し忘れの心配はありません。</p>
+    <p class="muted">8. 雨の日の特典 - 一言添えて今日だけ表示できます。表示をやめれば、いつでも消せます。</p>
+    <p class="muted">9. ネットワークの常連さんへのウェルカムドリンク - オンにすると、他の参加店の常連さんにも見えるようになります。</p>
+    <p class="muted">10. お店の見つけ方(常連向け) - わかりにくい場所への、やさしいヒント文です。常連さんにだけ見えます。</p>
+    <p class="muted">11. お店までの道のり動画 - 15秒ほどの短い動画です。こちらも常連さんにだけ表示されます。</p>
+    <p class="muted">12. 常連の定義 - どんな方を常連と考えるか、お店の言葉で。常連さんにも見える文章です。</p>
+    <p class="muted">13. 外部リンク(Instagram/ホームページ) - 設定すると、常連さんの画面に控えめな「見に行く」リンクが表示されます。営業時間の細かい変更などはこちらにお任せできます。</p>
+    <p class="muted">14. 常連さん向けお知らせ - 臨時休業などを伝える一言です。空欄にして更新すると消えます。</p>
+    <p class="muted">15. その他の招待コード - 複数のお店を管理している場合、この端末にまとめて追加できます。</p>
+    <p class="muted">16. アカウント - このお店の管理権限をリセット(退会)できます。</p>
+    <h3 style="margin-top:14px;">🎁 今日のガチャ・💬 つぶやき・エールの仕組み</h3>
+    <p class="muted">今日のガチャは1日1回。共通のお題10種類に加えて、INVADERは「クラフトジン雑学」、Bar Civettaは「グラッパ豆知識」、U7は「燻製カクテル集」という、お店ごとの専門ネタ(各10種類)が高い確率で出ます。お店の専門ネタが出た時だけ、他の店主にも「つぶやき」として自動でお知らせが流れます。共通のお題が出た時は、自分だけに表示され、他の店主には知らされません。</p>
+    <p class="muted">エールは6種類のメッセージからランダムで選ばれ、参加している他のお店のうち1軒だけに届きます。届いたお店のホーム画面に「届いたエール」として表示される仕組みで、全店舗に一斉に知らされることはありません。</p>
+    <p class="muted">店主のつぶやきは、自由に書き込める気軽な近況欄です。書いた内容は、同じネットワークの店主全員から見える一つの掲示板のようなものになります。プッシュ通知は無く、それぞれの店主がホーム画面を開いた時に見える形です。</p>
+    <button class="btn btn-primary" style="margin-top:8px;" onclick="closeModal()">閉じる</button>
+  `);
+}
 
 /* ===================== 店主：ホーム ===================== */
 function renderOwnerHome(){
@@ -1676,6 +1704,12 @@ function renderSettings(){
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
     <h2>設定 － ${store.name}</h2>
+    <div class="card" style="margin-bottom:16px;cursor:pointer;" onclick="openSettingsHelp()">
+      <div class="row between">
+        <span>📖 この画面の使い方(取説)を見る</span>
+        <span class="muted">→</span>
+      </div>
+    </div>
 
     <h3>お店の紹介文</h3>
     <div class="muted" style="margin-bottom:6px;">常連さん一覧などに表示される、お店の紹介文です。いつでも書き換えられます。</div>
