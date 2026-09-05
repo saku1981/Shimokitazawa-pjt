@@ -601,19 +601,18 @@ function renderOwnerHome(){
     ` : '<div class="muted">まだ投稿がありません</div>'}
     ${renderMurmurTeaser()}
     ${renderGachaCard()}
-    <div class="card" style="margin-top:12px;">
-      <div style="font-weight:bold;font-size:15px;">${store.name} さん、こんにちは</div>
-      <div class="muted" style="margin-top:6px;">
-        ${set.paused ? '⏸ 現在、投稿を一時的にお休み中です' :
-          (latest ? '前回の投稿: '+relTime(latest.created_at) : 'まだ投稿はありません。気が向いた時にどうぞ')}
-      </div>
+    <div class="muted" style="margin:10px 2px;font-size:12px;">
+      ${store.name}さん・${set.paused ? '⏸ 投稿お休み中' :
+        (latest ? '前回の投稿: '+relTime(latest.created_at) : 'まだ投稿はありません')}
     </div>
-    <button class="btn ${vLevel==='normal'?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:6px;" onclick="toggleVacancy('normal')">
-      ${vLevel==='normal' ? '🟢 「今なら楽しめます」を表示中(常連さんに見えています)' : '＋「今なら楽しめます」を表示する'}
-    </button>
-    <button class="btn ${vLevel==='spacious'?'btn-primary':'btn-secondary'}" style="width:100%;margin-bottom:12px;" onclick="toggleVacancy('spacious')">
-      ${vLevel==='spacious' ? '🟢 「今ならゆったり楽しめます」を表示中(常連さんに見えています)' : '＋「今ならゆったり楽しめます」を表示する'}
-    </button>
+    <div class="row" style="margin-bottom:12px;">
+      <button class="btn btn-sm ${vLevel==='normal'?'btn-primary':'btn-secondary'}" style="flex:1;margin:0;text-align:center;" onclick="toggleVacancy('normal')">
+        ${vLevel==='normal' ? '🟢 今なら表示中' : '＋ 今なら楽しめます'}
+      </button>
+      <button class="btn btn-sm ${vLevel==='spacious'?'btn-primary':'btn-secondary'}" style="flex:1;margin:0;text-align:center;" onclick="toggleVacancy('spacious')">
+        ${vLevel==='spacious' ? '🟢 ゆったり表示中' : '＋ ゆったり楽しめます'}
+      </button>
+    </div>
     ${set.paused ? `
       <div class="banner notice">投稿はお休み中です。設定画面からいつでも再開できます。</div>
       <button class="btn btn-secondary" onclick="go('settings')">設定を開く</button>
