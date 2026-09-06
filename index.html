@@ -329,6 +329,9 @@ function showGachaFullReveal(html){ document.getElementById('modal-root').innerH
 function ownerStoreIds(){ return cache.memberships.filter(m=>m.role==='owner').map(m=>m.store_id); }
 function isOwnerAnywhere(){ return ownerStoreIds().length > 0; }
 function storeById(id){ return cache.stores.find(s=>s.id===id); }
+// テスト用の架空店舗(マスターキーでのデモ・動作確認専用)を、実際のお客様や他の店主から隠すためのヘルパー
+function publicStores(){ return (cache.stores||[]).filter(s=>!s.is_test); }
+function isActingAsTestStore(){ const s = storeById(state.currentStoreId); return !!(s && s.is_test); }
 
 /* ===================== 初期化 ===================== */
 async function init(){
@@ -351,7 +354,7 @@ async function init(){
     state.screen = 'invite';
   } else {
     state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
-    state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
+    state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (publicStores()[0] && publicStores()[0].id);
     state.screen = state.role === 'owner' ? 'home' : 'vlist';
   }
   await go(state.screen);
@@ -399,7 +402,7 @@ async function submitInvite(){
       await reloadMemberships();
       if(cache.memberships.length > 0){
         state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
-        state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
+        state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (publicStores()[0] && publicStores()[0].id);
         toast('参加しました');
         await go(state.role === 'owner' ? 'home' : 'vlist');
         return;
@@ -410,7 +413,7 @@ async function submitInvite(){
     await loadStores();
     await reloadMemberships();
     state.role = isOwnerAnywhere() ? 'owner' : 'visitor';
-    state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (cache.stores[0] && cache.stores[0].id);
+    state.currentStoreId = isOwnerAnywhere() ? ownerStoreIds()[0] : (publicStores()[0] && publicStores()[0].id);
     toast('参加しました');
     await go(state.role === 'owner' ? 'home' : 'vlist');
   } finally {
@@ -463,18 +466,21 @@ function dateStr(d){
 function todayStr(){
   return dateStr(new Date());
 }
-// ガチャは1日2回、15時と22時に復活する。0:00〜14:59はまだ「昨夜22時に復活した回」の続き。
+// ガチャは1日3回、7時・13時・19時に復活する。0:00〜6:59はまだ「前夜19時に復活した回」の続き。
 function currentGachaSlot(){
   const now = new Date();
   const h = now.getHours();
-  if(h>=15 && h<22){
-    return { slotKey: dateStr(now)+'_day', label:'午後のガチャ', resetLabel:'22:00' };
+  if(h>=7 && h<13){
+    return { slotKey: dateStr(now)+'_morning', label:'朝のガチャ', resetLabel:'13:00' };
   }
-  if(h>=22){
-    return { slotKey: dateStr(now)+'_night', label:'夜のガチャ', resetLabel:'15:00' };
+  if(h>=13 && h<19){
+    return { slotKey: dateStr(now)+'_afternoon', label:'昼のガチャ', resetLabel:'19:00' };
+  }
+  if(h>=19){
+    return { slotKey: dateStr(now)+'_night', label:'夜のガチャ', resetLabel:'7:00' };
   }
   const y = new Date(now.getTime() - 24*60*60*1000);
-  return { slotKey: dateStr(y)+'_night', label:'夜のガチャ', resetLabel:'15:00' };
+  return { slotKey: dateStr(y)+'_night', label:'夜のガチャ', resetLabel:'7:00' };
 }
 function settingsFor(storeId){
   return (cache.allSettings||[]).find(s=>s.store_id===storeId) || {};
@@ -529,11 +535,13 @@ async function loadPeerSettings(){
 async function loadMurmurs(){
   const { data, error } = await sb.from('owner_murmurs').select('*').order('created_at', {ascending:false}).limit(100);
   if(error){ cache.murmurs = []; return cache.murmurs; }
-  cache.murmurs = data || [];
+  // テスト店舗のつぶやきは、テスト店舗としてログインしている時だけ見える(他の店主のフィードを汚さない)
+  const testIds = new Set(cache.stores.filter(s=>s.is_test).map(s=>s.id));
+  cache.murmurs = isActingAsTestStore() ? (data || []) : (data || []).filter(m=>!testIds.has(m.store_id));
   return cache.murmurs;
 }
 async function loadGachaToday(){
-  const { data } = await sb.from('owner_gacha_pulls').select('*').eq('store_id', state.currentStoreId).eq('pulled_date', currentGachaSlot().slotKey).maybeSingle();
+  const { data } = await sb.from('owner_gacha_pulls').select('*').eq('store_id', state.currentStoreId).eq('pulled_slot', currentGachaSlot().slotKey).maybeSingle();
   cache.gachaToday[state.currentStoreId] = data || null;
   return cache.gachaToday[state.currentStoreId];
 }
@@ -590,7 +598,7 @@ async function go(screen){
   }
   if(screen==='cardCollection'){ await loadMyCards(); }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
-  if(screen==='vlist'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 1))), loadPeerSettings()]); }
+  if(screen==='vlist'){ await Promise.all([Promise.all(publicStores().map(s=>loadPosts(s.id, 1))), loadPeerSettings()]); }
   if(screen==='vdetail'){
     await Promise.all([
       loadPosts(state.currentStoreId),
@@ -600,7 +608,7 @@ async function go(screen){
       loadFindVideoUrl(state.currentStoreId)
     ]);
   }
-  if(screen==='peers'){ await Promise.all([Promise.all(cache.stores.map(s=>loadPosts(s.id, 3))), loadPeerSettings()]); }
+  if(screen==='peers'){ await Promise.all([Promise.all(publicStores().map(s=>loadPosts(s.id, 3))), loadPeerSettings()]); }
   if(screen==='recommendRequests'){ await loadRecommendations(); }
   if(screen==='regularNotes'){ await loadStoreRegulars(state.currentStoreId); }
   if(screen==='murmurs'){ await loadMurmurs(); }
@@ -610,7 +618,7 @@ async function setRole(role){
   if(role==='owner' && !isOwnerAnywhere()){ toast('店主権限を持つ招待コードで参加していません'); return; }
   state.role = role;
   if(role==='owner'){ state.currentStoreId = ownerStoreIds()[0]; await go('home'); }
-  else { state.currentStoreId = cache.stores[0] && cache.stores[0].id; await go('vlist'); }
+  else { state.currentStoreId = publicStores()[0] && publicStores()[0].id; await go('vlist'); }
 }
 document.getElementById('tab-owner').onclick = ()=>setRole('owner');
 document.getElementById('tab-visitor').onclick = ()=>setRole('visitor');
@@ -648,7 +656,7 @@ function openSettingsHelp(){
     <p class="muted">15. その他の招待コード - 複数のお店を管理している場合、この端末にまとめて追加できます。</p>
     <p class="muted">16. アカウント - このお店の管理権限をリセット(退会)できます。</p>
     <h3 style="margin-top:14px;">🎁 今日のガチャ・💬 つぶやき・エールの仕組み</h3>
-    <p class="muted">今日のガチャは1日1回。共通のお題10種類に加えて、INVADERは「クラフトジン雑学」、Bar Civettaは「グラッパ豆知識」、U7は「燻製カクテル集」という、お店ごとの専門ネタ(各10種類)が高い確率で出ます。お店の専門ネタが出た時だけ、他の店主にも「つぶやき」として自動でお知らせが流れます。共通のお題が出た時は、自分だけに表示され、他の店主には知らされません。</p>
+    <p class="muted">今日のガチャは1日3回、7時・13時・19時に復活します。共通のお題10種類に加えて、INVADERは「クラフトジン雑学」、Bar Civettaは「グラッパ豆知識」、U7は「燻製カクテル集」という、お店ごとの専門ネタ(各10種類)が高い確率で出ます。お店の専門ネタが出た時だけ、他の店主にも「つぶやき」として自動でお知らせが流れます。共通のお題が出た時は、自分だけに表示され、他の店主には知らされません。</p>
     <p class="muted">エールは6種類のメッセージからランダムで選ばれ、参加している他のお店のうち1軒だけに届きます。届いたお店のホーム画面に「届いたエール」として表示される仕組みで、全店舗に一斉に知らされることはありません。</p>
     <p class="muted">店主のつぶやきは、自由に書き込める気軽な近況欄です。書いた内容は、同じネットワークの店主全員から見える一つの掲示板のようなものになります。プッシュ通知は無く、それぞれの店主がホーム画面を開いた時に見える形です。</p>
     <button class="btn btn-primary" style="margin-top:8px;" onclick="closeModal()">閉じる</button>
@@ -673,6 +681,7 @@ function renderOwnerHome(){
       </select>
       <span class="tag">${store.type_label}</span>
     </div>
+    ${store.is_test ? `<div class="banner notice" style="margin-bottom:12px;">🧪 テストモードです。ここでの投稿・ガチャ・つぶやきは本番の3店舗には表示されません。</div>` : ''}
     <h3 style="margin-top:0;">最新の投稿</h3>
     ${latest ? `
       <div class="latest-post-hero">
@@ -777,7 +786,8 @@ async function saveNotice(){
 /* ===================== 店主同士：参加店舗の様子・紹介 ===================== */
 function renderPeers(){
   const me = state.currentStoreId;
-  const others = cache.stores.filter(s=>s.id!==me);
+  // テスト店舗は、テスト店舗としてログインしている時だけ見える(他の店主には表示しない)
+  const others = (isActingAsTestStore() ? cache.stores : publicStores()).filter(s=>s.id!==me);
   const settingsById = {};
   (cache.allSettings||[]).forEach(s=>{ settingsById[s.store_id] = s; });
   const visible = others.filter(s => (settingsById[s.id]||{}).share_with_peers !== false);
@@ -1643,13 +1653,16 @@ function renderGachaCard(){
         <div class="muted" style="font-size:12px;margin-top:8px;">次は${slot.resetLabel}に復活します</div>
       ` : `
         <button class="btn btn-primary" style="margin:6px 0 0;" onclick="playGachaCard()">🎁 ${slot.label}を回す</button>
-        <div class="muted" style="font-size:12px;margin-top:6px;">1日2回、15時と22時に復活します。お題やエールに加えて、キャラカードが1枚もらえます。</div>
+        <div class="muted" style="font-size:12px;margin-top:6px;">1日3回、7時・13時・19時に復活します。お題やエールに加えて、キャラカードが1枚もらえます。</div>
       `}
       <div class="muted" style="font-size:12px;margin-top:8px;cursor:pointer;" onclick="go('cardCollection')">🎴 集めたカード ${(cache.myCards||[]).length}枚 →</div>
     </div>
     ${cheers.length>0 ? `
       <div class="card gacha-cheers-received">
-        <div class="muted" style="font-size:12px;margin-bottom:6px;">届いたエール</div>
+        <div class="row between" style="margin-bottom:6px;">
+          <span class="muted" style="font-size:12px;">届いたエール</span>
+          <span class="muted" style="font-size:10px;text-align:right;">🎲 ガチャで自動的に届くものです</span>
+        </div>
         ${cheers.map(c=>`<div class="gacha-cheer-row">${escapeHtml(c.receiver_text || c.card_text)} <span class="muted" style="font-size:11px;">・${relTime(c.created_at)}</span></div>`).join('')}
       </div>
     ` : ''}
@@ -1658,7 +1671,8 @@ function renderGachaCard(){
 async function playGachaCard(){
   const store = storeById(state.currentStoreId);
   const slotKey = currentGachaSlot().slotKey;
-  const others = cache.stores.filter(s=>s.id!==store.id);
+  // エールの送り先は実店舗同士に限定する(テスト店舗や、まだ参加していない架空店舗には送らない)
+  const others = charKeyForStore(store) ? cache.stores.filter(s=>s.id!==store.id && charKeyForStore(s)) : [];
   const isCheer = others.length>0 && Math.random() < 0.45;
   let card_type, card_text, receiver_text = null, target_store_id = null;
   let specialDeck = null, specialTrivia = null;
@@ -1687,7 +1701,7 @@ async function playGachaCard(){
     </div>
   `);
   const { data, error } = await sb.from('owner_gacha_pulls').insert({
-    store_id: store.id, pulled_date: slotKey, card_type, card_text, receiver_text, target_store_id
+    store_id: store.id, pulled_slot: slotKey, card_type, card_text, receiver_text, target_store_id
   }).select().maybeSingle();
   await new Promise(r=>setTimeout(r, 5000));
   if(error){
@@ -1697,9 +1711,9 @@ async function playGachaCard(){
     render();
     return;
   }
-  // 3店舗そろったかチェックして、レアボーナスを付与(同じ回=同じslotKeyの中で判定)
-  const { data: todayRows } = await sb.from('owner_gacha_pulls').select('store_id').eq('pulled_date', slotKey);
-  const distinctCount = new Set((todayRows||[]).map(r=>r.store_id)).size;
+  // 3店舗そろったかチェックして、レアボーナスを付与(同じ回=同じslotKeyの中で判定。テスト店舗はカウントしない)
+  const { data: todayRows } = await sb.from('owner_gacha_pulls').select('store_id').eq('pulled_slot', slotKey);
+  const distinctCount = new Set((todayRows||[]).map(r=>r.store_id).filter(id=>charKeyForStore(storeById(id)))).size;
   if(distinctCount >= GACHA_NETWORK_STORE_COUNT){
     await sb.from('owner_gacha_pulls').update({ rare: true }).eq('id', data.id);
   }
@@ -2303,7 +2317,7 @@ function renderVisitorList(){
   return `
     <h2>このあたりのお店</h2>
     <div class="muted" style="margin-bottom:12px;">投稿の多さで、お店を比べることはしません。</div>
-    ${cache.stores.map(s=>{
+    ${publicStores().map(s=>{
       const st = isOpenNow(s);
       const latest = myVisiblePosts(s.id)[0];
       const set = settingsFor(s.id);
