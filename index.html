@@ -153,8 +153,8 @@
   .gacha-reel:nth-child(2) .gacha-reel-strip{animation-duration:.65s;}
   .gacha-reel:nth-child(3) .gacha-reel-strip{animation-duration:.8s;}
   @keyframes gachaReelSpin{ from{transform:translateY(0);} to{transform:translateY(calc(-1 * var(--reel-cycle, 108px)));} }
-  .gacha-pop{font-size:38px;font-weight:900;color:var(--accent);text-shadow:2px 2px 0 rgba(0,0,0,.25);
-    animation:gachaPopIn .5s cubic-bezier(.34,1.56,.64,1);}
+  .gacha-pop{font-size:clamp(20px, 7vw, 30px);font-weight:900;color:var(--accent);text-shadow:2px 2px 0 rgba(0,0,0,.25);
+    white-space:nowrap;animation:gachaPopIn .5s cubic-bezier(.34,1.56,.64,1);}
   .gacha-comment-bubble{background:var(--panel2);border:1px solid var(--line);border-radius:14px;
     padding:12px 16px;margin:16px auto 0;max-width:300px;font-size:13px;line-height:1.5em;position:relative;}
   .gacha-comment-bubble::before{content:'';position:absolute;top:-8px;left:50%;transform:translateX(-50%);
@@ -1712,7 +1712,8 @@ async function playGachaCard(){
   const { data, error } = await sb.from('owner_gacha_pulls').insert({
     store_id: store.id, pulled_slot: slotKey, card_type, card_text, receiver_text, target_store_id
   }).select().maybeSingle();
-  await new Promise(r=>setTimeout(r, 3000));
+  // テスト店舗だけ、確認を早く回せるようにスピン時間を短くする
+  await new Promise(r=>setTimeout(r, store.is_test ? 1000 : 3000));
   if(error){
     closeModal();
     toast(error.code==='23505' ? 'この回はもう回しています' : 'ガチャを回せませんでした');
@@ -1748,7 +1749,7 @@ async function playGachaCard(){
   await loadMyCards();
   await loadGachaToday();
   render();
-  showModal(`<div style="text-align:center;padding:44px 0;"><div class="gacha-pop">ガチャッ!</div></div>`);
+  showModal(`<div style="text-align:center;padding:44px 0;"><div class="gacha-pop">サクッとゲット!</div></div>`);
   await new Promise(r=>setTimeout(r, 550));
   closeModal();
   const revealCard = cardRow || newCard;
