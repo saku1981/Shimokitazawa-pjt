@@ -1670,7 +1670,10 @@ function renderGachaCard(){
 }
 async function playGachaCard(){
   const store = storeById(state.currentStoreId);
-  const slotKey = currentGachaSlot().slotKey;
+  // テスト店舗は「回」に縛られず何度でも回せるように、回すたびに違うキーを使う
+  const slotKey = store.is_test
+    ? currentGachaSlot().slotKey + '_test_' + Date.now() + '_' + Math.random().toString(36).slice(2,8)
+    : currentGachaSlot().slotKey;
   // エールの送り先は実店舗同士に限定する(テスト店舗や、まだ参加していない架空店舗には送らない)
   const others = charKeyForStore(store) ? cache.stores.filter(s=>s.id!==store.id && charKeyForStore(s)) : [];
   const isCheer = others.length>0 && Math.random() < 0.45;
@@ -1703,7 +1706,7 @@ async function playGachaCard(){
   const { data, error } = await sb.from('owner_gacha_pulls').insert({
     store_id: store.id, pulled_slot: slotKey, card_type, card_text, receiver_text, target_store_id
   }).select().maybeSingle();
-  await new Promise(r=>setTimeout(r, 5000));
+  await new Promise(r=>setTimeout(r, 3000));
   if(error){
     closeModal();
     toast(error.code==='23505' ? 'この回はもう回しています' : 'ガチャを回せませんでした');
