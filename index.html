@@ -541,6 +541,12 @@ async function loadMurmurs(){
   return cache.murmurs;
 }
 async function loadGachaToday(){
+  const store = storeById(state.currentStoreId);
+  if(store && store.is_test){
+    // テスト店舗は常に「まだ回せる」状態にする(無制限に回して、カードを集める体験ができるように)
+    cache.gachaToday[state.currentStoreId] = null;
+    return null;
+  }
   const { data } = await sb.from('owner_gacha_pulls').select('*').eq('store_id', state.currentStoreId).eq('pulled_slot', currentGachaSlot().slotKey).maybeSingle();
   cache.gachaToday[state.currentStoreId] = data || null;
   return cache.gachaToday[state.currentStoreId];
