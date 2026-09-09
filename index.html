@@ -199,6 +199,12 @@
     100%{opacity:1;pointer-events:auto;}
   }
   .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;}
+  .street-map-wrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);}
+  .street-map-pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;cursor:pointer;}
+  .street-map-pin-dot{font-size:20px;filter:grayscale(1) opacity(0.55);transition:filter .2s;}
+  .street-map-pin.visited .street-map-pin-dot{filter:none;}
+  .street-map-pin-label{margin-top:2px;font-size:10px;color:var(--sub);background:rgba(20,21,24,.72);padding:2px 6px;border-radius:8px;white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis;}
+  .street-map-pin.visited .street-map-pin-label{color:var(--text);}
   .card-visual{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);background:var(--panel2);}
   .card-visual-md{width:150px;height:210px;margin:6px auto 0;}
   .card-visual-sm{width:100%;aspect-ratio:5/7;}
@@ -374,7 +380,7 @@ const RECOMMEND_TEMPLATES = {
 
 /* ===================== アプリ状態 ===================== */
 let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null };
-let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[], gachaToday:{}, receivedCheers:[], myCards:[] };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[], gachaToday:{}, receivedCheers:[], myCards:[], visits:[] };
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 const STORE_SYMBOL_ICONS = [
@@ -450,6 +456,7 @@ async function init(){
 
   await loadStores();
   await reloadMemberships();
+  await loadVisits();
 
   if(cache.memberships.length === 0){
     state.screen = 'invite';
@@ -471,6 +478,36 @@ async function loadStores(){
   const { data, error } = await sb.from('stores').select('*').order('id');
   if(error) toast('[診断] stores読み込みエラー: ' + error.message);
   cache.stores = data || [];
+}
+
+/* ===================== 一番街マップ・行った記録 ===================== */
+// 「行った」は競争ではなく個人の思い出マップなので、シンプルな自己申告(行った/行ってない)。
+// store_visits テーブルに (user_id, store_id) の行があるかどうかだけで判定する。
+async function loadVisits(){
+  const uid = state.user && state.user.id;
+  if(!uid){ cache.visits = []; return; }
+  const { data, error } = await sb.from('store_visits').select('*').eq('user_id', uid);
+  if(error) toast('[診断] visits読み込みエラー: ' + error.message);
+  cache.visits = data || [];
+}
+function hasVisited(storeId){ return cache.visits.some(v=>v.store_id===storeId); }
+let visitToggling = false;
+async function toggleVisit(storeId){
+  const uid = state.user && state.user.id;
+  if(!uid || visitToggling) return;
+  visitToggling = true;
+  try {
+    if(hasVisited(storeId)){
+      await sb.from('store_visits').delete().eq('user_id', uid).eq('store_id', storeId);
+    } else {
+      const { error } = await sb.from('store_visits').insert({ user_id: uid, store_id: storeId });
+      if(error){ toast('[診断] 行った記録エラー: ' + error.message); }
+    }
+    await loadVisits();
+    render();
+  } finally {
+    visitToggling = false;
+  }
 }
 
 /* ===================== 招待コード ===================== */
@@ -707,6 +744,7 @@ async function go(screen){
   if(screen==='cardCollection'){ await loadMyCards(); }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
   if(screen==='vlist'){ await Promise.all([Promise.all(publicStores().map(s=>loadPosts(s.id, 1))), loadPeerSettings()]); }
+  if(screen==='storeMap'){ await loadVisits(); }
   if(screen==='vdetail'){
     await Promise.all([
       loadPosts(state.currentStoreId),
@@ -825,6 +863,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('peers')"><span class="nav-label"><span class="nav-icon">🏮</span>参加店舗の様子</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('storeMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>一番街マップ</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('recommendRequests')"><span class="nav-label"><span class="nav-icon">🤝</span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('qrCode')"><span class="nav-label"><span class="nav-icon">📱</span>招待QRコード</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('regularNotes')"><span class="nav-label"><span class="nav-icon">📝</span>常連メモ</span><span class="muted">→</span></div>
@@ -1856,6 +1895,80 @@ function renderCardCollection(){
     `}
   `;
 }
+/* ===================== 一番街マップ画面 ===================== */
+function streetMapBackgroundSvg(){
+  const stars = Array.from({length:18}).map((_,i)=>{
+    const x=(i*37+13)%320, y=(i*53+7)%180;
+    return `<circle cx="${x}" cy="${y}" r="${(i%3===0)?1.6:1}" fill="#f0e8d0" opacity="${(0.3+((i%5)*0.1)).toFixed(2)}"/>`;
+  }).join('');
+  const leftBuildings = [[50,150,55,90],[40,250,60,110],[55,380,50,95],[45,500,58,105]].map(([x,y,w,h])=>`
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#26282f" stroke="#33353b" stroke-width="2"/>
+    <rect x="${x+8}" y="${y+14}" width="14" height="14" fill="#e0a458" opacity="0.55"/>
+    <rect x="${x+w-22}" y="${y+14}" width="14" height="14" fill="#e0a458" opacity="0.35"/>
+  `).join('');
+  const rightBuildings = [[235,140,55,95],[245,255,58,100],[230,375,60,110],[240,495,55,95]].map(([x,y,w,h])=>`
+    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="#26282f" stroke="#33353b" stroke-width="2"/>
+    <rect x="${x+8}" y="${y+14}" width="14" height="14" fill="#e0a458" opacity="0.4"/>
+    <rect x="${x+w-22}" y="${y+14}" width="14" height="14" fill="#e0a458" opacity="0.6"/>
+  `).join('');
+  const lanterns = [[70,110],[250,110],[90,300],[230,300],[80,470],[240,470]].map(([x,y])=>`
+    <line x1="${x}" y1="${y-14}" x2="${x}" y2="${y}" stroke="#6b5a47" stroke-width="1.6"/>
+    <ellipse cx="${x}" cy="${y+10}" rx="8" ry="11" fill="#e0a458" opacity="0.85"/>
+  `).join('');
+  return `
+  <svg viewBox="0 0 320 640" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
+    <defs>
+      <linearGradient id="mapSky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#1c1f2b"/><stop offset="55%" stop-color="#191a20"/><stop offset="100%" stop-color="#121317"/>
+      </linearGradient>
+      <linearGradient id="mapRoad" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3a3c42"/><stop offset="100%" stop-color="#2a2b30"/>
+      </linearGradient>
+    </defs>
+    <rect x="0" y="0" width="320" height="640" fill="url(#mapSky)"/>
+    ${stars}
+    <path d="M40,120 L40,80 Q160,50 280,80 L280,120" fill="none" stroke="#e0a458" stroke-width="6" stroke-linecap="round"/>
+    <text x="160" y="104" text-anchor="middle" font-family="serif" font-weight="900" font-size="15" fill="#e0a458">一番街</text>
+    <path d="M120,120 Q90,320 110,640 L210,640 Q230,320 200,120 Z" fill="url(#mapRoad)"/>
+    <line x1="160" y1="130" x2="160" y2="630" stroke="#e0a458" stroke-width="2" stroke-dasharray="10 14" opacity="0.35"/>
+    ${leftBuildings}
+    ${rightBuildings}
+    ${lanterns}
+  </svg>`;
+}
+function storeMapPosition(s, idx, total){
+  // 店側で map_x / map_y(0〜100のパーセント位置)を設定していれば、その位置を使う。
+  // 未設定の間は、道の上に均等に仮配置しておく(見た目が崩れないようにするためのフォールバック)。
+  if(s.map_x != null && s.map_y != null) return { x:Number(s.map_x), y:Number(s.map_y) };
+  const t = total>1 ? idx/(total-1) : 0.5;
+  const y = 20 + t*65;
+  const x = idx%2===0 ? 40 : 60;
+  return { x, y };
+}
+function renderStoreMap(){
+  const stores = publicStores();
+  const visitedCount = stores.filter(s=>hasVisited(s.id)).length;
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>🗺️ 一番街マップ</h2>
+    <div class="muted" style="margin-bottom:12px;">行ったことのあるお店をタップして記録すると、ここに印がつきます。${stores.length>0 ? `<br>${visitedCount} / ${stores.length} のお店に行きました。` : ''}</div>
+    <div class="street-map-wrap">
+      ${streetMapBackgroundSvg()}
+      ${stores.map((s,idx)=>{
+        const pos = storeMapPosition(s, idx, stores.length);
+        const visited = hasVisited(s.id);
+        return `
+        <div class="street-map-pin ${visited?'visited':''}" style="left:${pos.x}%;top:${pos.y}%;" onclick="openStore('${s.id}')">
+          <div class="street-map-pin-dot">${visited?'✅':'📍'}</div>
+          <div class="street-map-pin-label">${s.name}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${stores.length===0 ? `<div class="muted">まだお店が登録されていません。</div>` : ''}
+    <div class="banner" style="margin-top:14px;">📍 お店のページの「ここ、行った」ボタンを押すと、このマップに記録されます。</div>
+  `;
+}
 function gachaMachineHtml(){
   const useShaker = Math.random() < 0.5;
   if(useShaker){
@@ -2575,9 +2688,14 @@ async function doLeave(){
 function renderVisitorList(){
   const statusLabel = {open:'営業中', prep:'準備中', closed:'本日定休'};
   const statusIcon = {open:'🟢', prep:'⚪', closed:'⚫'};
+  const visitedCount = publicStores().filter(s=>hasVisited(s.id)).length;
   return `
     <h2>このあたりのお店</h2>
     <div class="muted" style="margin-bottom:12px;">投稿の多さで、お店を比べることはしません。</div>
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;" onclick="go('storeMap')">
+      <span>🗺️ 一番街マップ ${visitedCount>0 ? `<span class="muted">(${visitedCount}/${publicStores().length} 訪問済み)</span>` : ''}</span>
+      <span class="muted">→</span>
+    </div>
     ${publicStores().map(s=>{
       const st = isOpenNow(s);
       const latest = myVisiblePosts(s.id)[0];
@@ -2624,6 +2742,11 @@ function renderVisitorDetail(){
     <h2>${store.name}</h2>
     <div class="muted">${store.type_label}${detailDisclosureOn(set) ? ' ・ '+(store.description||'') : ''}</div>
     <div style="margin:8px 0;"><span class="status-dot ${st==='open'?'open':'closed'}"></span>${statusLabel[st]} ・ ${store.hours}</div>
+    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+      <button class="btn ${hasVisited(store.id) ? 'btn-primary' : 'btn-secondary'} btn-sm" style="margin:0;" onclick="toggleVisit('${store.id}')">
+        ${hasVisited(store.id) ? '✅ 行ったことがある' : '📍 ここ、行った'}
+      </button>
+    </div>
     ${(store.instagram_url || store.website_url) ? `<div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:10px;">
       ${store.instagram_url ? `<a class="btn btn-secondary btn-sm" style="margin:0;text-decoration:none;" href="${store.instagram_url}" target="_blank" rel="noopener noreferrer">📷 Instagramを見る</a>` : ''}
       ${store.website_url ? `<a class="btn btn-secondary btn-sm" style="margin:0;text-decoration:none;" href="${store.website_url}" target="_blank" rel="noopener noreferrer">🌐 ホームページを見る</a>` : ''}
@@ -2775,7 +2898,8 @@ function render(){
     caption: renderCaption, confirm: renderConfirm, history: renderHistory, settings: renderSettings,
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
-    regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection
+    regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
+    storeMap: renderStoreMap
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
