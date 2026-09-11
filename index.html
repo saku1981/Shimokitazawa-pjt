@@ -621,15 +621,6 @@ async function loadSpotVisits(){
   cache.spotVisits = data || [];
 }
 function hasVisitedSpot(spotId){ return cache.spotVisits.some(v=>v.spot_id===spotId); }
-function copyMyUserId(){
-  const uid = state.user && state.user.id;
-  if(!uid) return;
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(uid).then(()=>toast('コピーしました: ' + uid)).catch(()=>toast(uid));
-  } else {
-    toast(uid);
-  }
-}
 let spotVisitToggling = false;
 async function toggleSpotVisit(spotId){
   const uid = state.user && state.user.id;
@@ -2170,10 +2161,6 @@ function renderShimokitaMap(){
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
     <h2>🗺️ 下北沢マップ</h2>
     <div class="muted" style="margin-bottom:12px;">お店をタップすると、行った/まだ、をすぐ記録できます。<br>${visitedCount} / ${spots.length} のお店に行きました。</div>
-    <div class="banner" style="margin-bottom:12px;font-family:monospace;font-size:11px;word-break:break-all;" onclick="copyMyUserId()">
-      🔧 [デバッグ用/あとで消します] あなたのアカウントID: ${state.user && state.user.id ? state.user.id : '(未ログイン)'}<br>
-      <span class="muted" style="font-family:inherit;">タップでコピーできます。SQLの設定が終わったら、この表示は削除します。</span>
-    </div>
     <div class="street-map-wrap">
       ${shimokitaMapBackgroundSvg()}
       ${spots.map((s,idx)=>{
