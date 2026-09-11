@@ -205,9 +205,21 @@
   .street-map-pin.visited .street-map-pin-dot{filter:none;}
   .street-map-pin-label{margin-top:2px;font-size:10px;color:var(--sub);background:rgba(20,21,24,.72);padding:2px 6px;border-radius:8px;white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis;}
   .street-map-pin.visited .street-map-pin-label{color:var(--text);}
-  .street-map-pin-preview .street-map-pin-dot{font-size:24px;filter:none;animation:mapPinBounce .6s ease infinite alternate;}
-  .street-map-pin-preview .street-map-pin-label{color:var(--text);background:var(--accent);font-weight:700;}
-  @keyframes mapPinBounce{0%{transform:translateY(0);}100%{transform:translateY(-4px);}}
+  .street-map-bubble{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;padding:5px 10px;border-radius:12px;font-size:10.5px;line-height:1.4;font-weight:700;text-align:center;width:max-content;max-width:120px;white-space:normal;color:#15161a;background:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.35);animation:bubblePop .25s ease;z-index:6;}
+  .street-map-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--accent);}
+  .street-map-bubble.no{background:#8a8d95;}
+  .street-map-bubble.no::after{border-top-color:#8a8d95;}
+  @keyframes bubblePop{0%{opacity:0;transform:translateX(-50%) scale(.6);}100%{opacity:1;transform:translateX(-50%) scale(1);}}
+  .street-map-pin-dense{padding:6px;margin:-6px;transform:translate(-50%,-50%);}
+  .street-map-pin-dense .street-map-pin-dot{font-size:15px;}
+  .shimokita-spot-list{max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;}
+  .shimokita-spot-row{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;}
+  .shimokita-spot-row:last-child{border-bottom:none;}
+  .shimokita-spot-row.visited{background:rgba(224,164,88,.08);}
+  .shimokita-spot-check{font-size:14px;flex-shrink:0;}
+  .shimokita-spot-name{flex:1;font-size:13px;}
+  .shimokita-spot-row.visited .shimokita-spot-name{color:var(--text);}
+  .shimokita-spot-genre{font-size:11px;flex-shrink:0;}
   .card-visual{position:relative;border-radius:12px;overflow:hidden;border:2px solid var(--line);background:var(--panel2);}
   .card-visual-md{width:150px;height:210px;margin:6px auto 0;}
   .card-visual-sm{width:100%;aspect-ratio:5/7;}
@@ -382,8 +394,8 @@ const RECOMMEND_TEMPLATES = {
 };
 
 /* ===================== アプリ状態 ===================== */
-let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null, pickingMapFor:null, pickedPos:null };
-let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[], gachaToday:{}, receivedCheers:[], myCards:[], visits:[] };
+let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null, spotBubble:null };
+let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[], gachaToday:{}, receivedCheers:[], myCards:[], visits:[], spotVisits:[] };
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
 const STORE_SYMBOL_ICONS = [
@@ -494,59 +506,6 @@ async function loadVisits(){
   cache.visits = data || [];
 }
 function hasVisited(storeId){ return cache.visits.some(v=>v.store_id===storeId); }
-// 「バーかどうか」は、まず店名・紹介文から自動判定し、店主が設定画面で明示的に
-// ON/OFFを指定していれば(is_bar: true/false)、その指定を常に優先する。
-function looksLikeBar(store){
-  if(!store) return false;
-  if(store.is_bar === true) return true;
-  if(store.is_bar === false) return false;
-  const text = `${store.name || ''} ${store.description || ''}`;
-  if(/バーバー|理容|床屋|バーベキュー/.test(text)) return false;
-  return /bar|バー|酒場|パブ|pub|スナック|立ち飲み|ワインバー|バル|居酒屋/i.test(text);
-}
-async function setIsBar(val){
-  await sb.from('stores').update({ is_bar: val }).eq('id', state.currentStoreId);
-  await loadStores();
-  toast(val===null ? '自動判定に戻しました' : (val ? 'BARとして地図に表示します' : '地図には表示しないようにしました'));
-  render();
-}
-// 店主が「一番街バーマップ」の上を実際にタップして、自分の店の位置(map_x/map_y)を
-// 指定できるようにする機能。数字を手入力しなくても、地図を見ながら正確な位置を置ける。
-async function startMapPick(storeId){
-  state.pickingMapFor = storeId;
-  state.pickedPos = null;
-  await go('storeMap');
-}
-function handleMapPick(ev){
-  if(!state.pickingMapFor) return;
-  const rect = ev.currentTarget.getBoundingClientRect();
-  const rawX = ((ev.clientX - rect.left) / rect.width) * 100;
-  const rawY = ((ev.clientY - rect.top) / rect.height) * 100;
-  state.pickedPos = { x: Math.round(Math.max(2, Math.min(98, rawX)) * 10) / 10, y: Math.round(Math.max(2, Math.min(98, rawY)) * 10) / 10 };
-  render();
-}
-async function confirmMapPick(){
-  if(!state.pickingMapFor || !state.pickedPos) return;
-  const id = state.pickingMapFor;
-  await sb.from('stores').update({ map_x: state.pickedPos.x, map_y: state.pickedPos.y }).eq('id', id);
-  await loadStores();
-  state.pickingMapFor = null;
-  state.pickedPos = null;
-  toast('地図上の位置を保存しました');
-  state.currentStoreId = id;
-  await go('settings');
-}
-function cancelMapPick(){
-  state.pickingMapFor = null;
-  state.pickedPos = null;
-  render();
-}
-async function resetMapPosition(storeId){
-  await sb.from('stores').update({ map_x: null, map_y: null }).eq('id', storeId);
-  await loadStores();
-  toast('位置設定をリセットしました(しばらくは仮の位置に表示されます)');
-  render();
-}
 let visitToggling = false;
 async function toggleVisit(storeId){
   const uid = state.user && state.user.id;
@@ -564,6 +523,138 @@ async function toggleVisit(storeId){
   } finally {
     visitToggling = false;
   }
+}
+
+/* ===================== 下北沢マップ(個人用・行った記録) =====================
+   店主が招待コードで参加する「stores」テーブルとは別に、あなた個人の
+   「下北沢で行ったことのあるお店」を記録するための、完全に独立した機能。
+   店名・ジャンル・雰囲気などお店自体の情報のみを持ち、個人名や関係性などの
+   プライバシー情報は一切含めていない。位置情報も正確な実際の座標ではなく、
+   下北沢マップの上にバランスよく配置するための仮の並び順。
+*/
+const SHIMOKITA_SPOTS = [
+  {id:'invader-one', name:'Invader one', genre:'バー', area:'路地裏', note:'落ち着いたホーム的なバー'},
+  {id:'u7', name:'U7(うな)', genre:'燻製バー', area:'2F', note:'燻製料理とパスタ・ピザが名物'},
+  {id:'bar-chivetta', name:'Bar chivetta', genre:'バー', area:'路地裏', note:'オーセンティックな新規バー'},
+  {id:'hashage-sakaba', name:'はしゃげさかば', genre:'カラオケバー', area:'地下', note:'ショット多め、歌好きが盛り上がる'},
+  {id:'kanmiadokoro', name:'燗味処', genre:'小料理屋・バー', area:'2F', note:'刺身・小鉢がおいしい'},
+  {id:'haru', name:'はる', genre:'おばんざい', area:'2F', note:'一品料理とハイボール'},
+  {id:'ukishima', name:'浮島', genre:'喫茶・パスタ', area:'2F', note:'20年続く老舗、シェイクカクテル'},
+  {id:'garden-theatre', name:'ガーデンシアター', genre:'カラオケバー', area:'2F', note:'リラックス・チルな雰囲気'},
+  {id:'bar-fabre', name:'Bar Fabre', genre:'バー', area:'', note:''},
+  {id:'seven', name:'Seven', genre:'バル', area:'路面', note:'料理とワインが評判、カルパッチョが人気'},
+  {id:'kanto', name:'Kanto', genre:'バー', area:'', note:'新しくオープンした店'},
+  {id:'amiami', name:'あみあみ', genre:'焼き鳥', area:'', note:'麻雀もできる'},
+  {id:'shimokita-rokkaku', name:'下北 六角', genre:'居酒屋', area:'', note:'ネギトロ・だし系が美味しい'},
+  {id:'le-grand-ecart', name:'Le grand ecart', genre:'バー', area:'', note:'フランス風でチルな雰囲気'},
+  {id:'vanitas', name:'バーニタス', genre:'バー', area:'', note:'アーチレンガの内装が印象的'},
+  {id:'mizutani', name:'みずたに', genre:'居酒屋', area:'', note:'カレーあて盛りが名物'},
+  {id:'rumble', name:'Rumble', genre:'バー', area:'4階', note:'ジンの種類が豊富、卓球台あり'},
+  {id:'kamai-kitchen', name:'かまいキッチン', genre:'フィリピン料理', area:'', note:''},
+  {id:'stay-happy', name:'ステイハッピー', genre:'バー', area:'', note:'店内にハンモックがある'},
+  {id:'bab', name:'Bab', genre:'バー', area:'', note:'バーテンダーに相談しやすい雰囲気'},
+  {id:'kimono-kien', name:'Kimono Kien', genre:'着物店・バー', area:'', note:'昼は着物店、夜はバー'},
+  {id:'hyphen', name:'Hyphen', genre:'バー', area:'', note:'20代が集うホーム的な店'},
+  {id:'second-tabacchi', name:'Second tabacchi', genre:'バー', area:'', note:'20代の語り場的な雰囲気'},
+  {id:'first', name:'First', genre:'バー', area:'', note:'紹介された店'},
+  {id:'colony', name:'Colony', genre:'バー', area:'', note:'音楽や会話の勢いを楽しむ賑やかな店'},
+  {id:'umeboshi-sour', name:'梅干しサワー専門店', genre:'立ち飲みバー', area:'', note:'梅干しサワーが名物'},
+  {id:'lza', name:'Lza', genre:'カラオケバー', area:'', note:'落ち着いた内装、大人な社交の場'},
+  {id:'el', name:'El(エル)', genre:'レコード・バー', area:'レコードシティ界隈', note:'音楽好きが集まる'},
+  {id:'arika', name:'Arika', genre:'カラオケバー', area:'', note:''},
+  {id:'scarecrow', name:'Scarecrow', genre:'バー', area:'', note:'バンドマンなど音楽好きが集う老舗'},
+  {id:'kakurega', name:'かくれが', genre:'バー', area:'南口', note:''},
+  {id:'yuukoku', name:'Yuukoku', genre:'バー', area:'', note:'ウイスキーが評判'},
+  {id:'algonquins-bar', name:'アルゴンキンズバー', genre:'バー', area:'', note:'食事がおいしい'},
+  {id:'panipani', name:'Panipani', genre:'バー', area:'', note:'沖縄・宮古島ルーツの料理が名物'},
+  {id:'momoyama-dogma', name:'桃山ドグマ', genre:'バー', area:'', note:'アニメ・サブカル系の個性派'},
+  {id:'ten', name:'TEN', genre:'バー', area:'', note:'若い店主のバー'},
+  {id:'tonoto', name:'Tonoto', genre:'居酒屋', area:'', note:'わかめ料理が中心'},
+  {id:'gecko', name:'ゲッコー', genre:'沖縄バー', area:'4階', note:'下北沢を見渡せる眺め'},
+  {id:'sugar', name:'Sugar', genre:'バー', area:'', note:'仕事帰りにも寄りやすい'},
+  {id:'share', name:'Share', genre:'バー', area:'', note:'カジュアルな出会いの場'},
+  {id:'shina', name:'SHINA', genre:'バー', area:'', note:'落ち着いた大人向けのオーセンティックバー'},
+  {id:'canpy', name:'Canpy', genre:'バー', area:'', note:'浴衣ナイトなどイベントあり'},
+  {id:'1carat', name:'1carat', genre:'カラオケバー', area:'', note:'ゲームやヒップホップが好きな柔らかい雰囲気'},
+  {id:'borders', name:'Borders', genre:'バー', area:'', note:'居心地の良いCosyな雰囲気'},
+  {id:'geek', name:'Geek', genre:'バー', area:'', note:'good time bar'},
+  {id:'giraffe', name:'ジラフ', genre:'バー', area:'', note:'ウッド調の内装'},
+  {id:'miraiya', name:'みらいや喫茶', genre:'喫茶店', area:'', note:'旧:はまこ'},
+  {id:'lnmssml', name:'Last Night Music Saved My Life', genre:'ミュージックバー', area:'', note:'R&B中心'},
+  {id:'little-soul-cafe', name:'Little soul cafe', genre:'ミュージックバー', area:'', note:'ソウルミュージック中心'},
+  {id:'takibi', name:'焚き火', genre:'バー', area:'', note:'ウッド調で落ち着いたカウンター'},
+  {id:'amber-bar', name:'アンバー&bar', genre:'バー', area:'', note:'メニュー表がない独特のスタイル'},
+  {id:'velvet', name:'ベルベット', genre:'バー', area:'', note:'オーセンティックな正統派バー'},
+  {id:'aomori', name:'あおもり', genre:'居酒屋', area:'', note:'だし巻き・かつおのたたきが美味しい'},
+  {id:'daisan-shinseimaru', name:'第三新生丸', genre:'居酒屋', area:'', note:''},
+  {id:'ensemble', name:'アンサンブル', genre:'バー', area:'', note:''},
+  {id:'bachi-buzoku', name:'バチブーズク', genre:'バー', area:'', note:''},
+  {id:'no-rooms-for-squares', name:'No rooms for squares', genre:'ジャズバー', area:'', note:'ジャズと美味しいジントニック'},
+  {id:'bar-uoshin', name:'Bar(うおしんの近く)', genre:'バー', area:'うおしんの近く', note:''},
+  {id:'swamp', name:'Swamp', genre:'ミュージックバー', area:'一番街左手・2F', note:''},
+  {id:'zaji', name:'Zaji', genre:'居酒屋', area:'', note:'40年来の老舗、軽井沢にも展開'},
+  {id:'tabacchi', name:'tabacchi(タバッキ)', genre:'バー', area:'', note:'30〜50代の大人が語り合う場'},
+  {id:'lagoon', name:'ラグーン', genre:'イタリアン', area:'', note:'白いスパゲティが名物'},
+  {id:'matsu', name:'まつ', genre:'和食', area:'南口商店街側', note:''},
+  {id:'kampal', name:'Kampal', genre:'バー', area:'', note:'40〜50年超えのローカルバー'},
+  {id:'happy-house', name:'はっぴいはうす', genre:'スナック', area:'', note:'月1オープン'},
+  {id:'milk', name:'みるく', genre:'', area:'', note:''},
+  {id:'obanzai', name:'おばんざい', genre:'おばんざい', area:'', note:''},
+  {id:'rakumi', name:'らくみ', genre:'', area:'', note:''},
+  {id:'furusato', name:'ふるさと', genre:'', area:'', note:''},
+  {id:'kokochi', name:'Kokochi', genre:'', area:'', note:'鯵のなめろうが名物'},
+  {id:'budokan', name:'BUDOKAN', genre:'バー', area:'「飲もうぜ」グループ', note:''},
+  {id:'arena-shimokita', name:'ARENA下北沢', genre:'バー', area:'「飲もうぜ」グループ', note:''},
+  {id:'kirowne', name:'キローネ(KIROWNE)', genre:'バー', area:'「飲もうぜ」グループ', note:''},
+  {id:'gijido', name:'Gijido(ギジドー)', genre:'バー', area:'「飲もうぜ」グループ', note:'少し落ち着いた雰囲気'},
+  {id:'buckingham', name:'バッキンガム宮殿', genre:'バー', area:'「飲もうぜ」グループ', note:'明るくワイワイした雰囲気'},
+  {id:'sakarijo', name:'酒里城', genre:'バー', area:'「飲もうぜ」グループ', note:''},
+  {id:'hope', name:'HOPE', genre:'バー', area:'「飲もうぜ」グループ', note:''},
+  {id:'central-park-daizawa', name:'Central Park DAIZAWA', genre:'バー', area:'「飲もうぜ」グループ', note:''},
+  {id:'toshimaen', name:'としまえん', genre:'カラオケバー', area:'「飲もうぜ」グループ', note:''},
+];
+async function loadSpotVisits(){
+  const uid = state.user && state.user.id;
+  if(!uid){ cache.spotVisits = []; return; }
+  const { data, error } = await sb.from('spot_visits').select('*').eq('user_id', uid);
+  if(error) toast('[診断] 下北沢マップ読み込みエラー: ' + error.message);
+  cache.spotVisits = data || [];
+}
+function hasVisitedSpot(spotId){ return cache.spotVisits.some(v=>v.spot_id===spotId); }
+let spotVisitToggling = false;
+async function toggleSpotVisit(spotId){
+  const uid = state.user && state.user.id;
+  if(!uid || spotVisitToggling) return;
+  spotVisitToggling = true;
+  try {
+    const willVisit = !hasVisitedSpot(spotId);
+    if(!willVisit){
+      await sb.from('spot_visits').delete().eq('user_id', uid).eq('spot_id', spotId);
+    } else {
+      const { error } = await sb.from('spot_visits').insert({ user_id: uid, spot_id: spotId });
+      if(error){ toast('[診断] 行った記録エラー: ' + error.message); }
+    }
+    await loadSpotVisits();
+    const spot = SHIMOKITA_SPOTS.find(s=>s.id===spotId);
+    state.spotBubble = { id: spotId, visited: willVisit };
+    render();
+    clearTimeout(window.__spotBubbleTimer);
+    window.__spotBubbleTimer = setTimeout(()=>{ state.spotBubble = null; render(); }, 1600);
+  } finally {
+    spotVisitToggling = false;
+  }
+}
+function spotMapPosition(spot, idx, total){
+  // お店の数が多い(数十件)ため、道の形に沿わせるのではなく、
+  // タップしやすい間隔を確保できるグリッド状に配置する。
+  const cols = Math.max(4, Math.ceil(Math.sqrt(total * (400/280))));
+  const rows = Math.max(1, Math.ceil(total / cols));
+  const col = idx % cols;
+  const row = Math.floor(idx / cols);
+  const xMargin = 8, yMargin = 10;
+  const x = cols>1 ? xMargin + (col/(cols-1)) * (100 - xMargin*2) : 50;
+  const y = rows>1 ? yMargin + (row/(rows-1)) * (100 - yMargin*2) : 50;
+  return { x, y };
 }
 
 /* ===================== 招待コード ===================== */
@@ -800,7 +891,7 @@ async function go(screen){
   if(screen==='cardCollection'){ await loadMyCards(); }
   if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
   if(screen==='vlist'){ await Promise.all([Promise.all(publicStores().map(s=>loadPosts(s.id, 1))), loadPeerSettings()]); }
-  if(screen==='storeMap'){ await loadVisits(); }
+  if(screen==='shimokitaMap'){ await loadSpotVisits(); }
   if(screen==='vdetail'){
     await Promise.all([
       loadPosts(state.currentStoreId),
@@ -919,7 +1010,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('peers')"><span class="nav-label"><span class="nav-icon">🏮</span>参加店舗の様子</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('storeMap')"><span class="nav-label"><span class="nav-icon">🍸</span>一番街バーマップ</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('recommendRequests')"><span class="nav-label"><span class="nav-icon">🤝</span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('qrCode')"><span class="nav-label"><span class="nav-icon">📱</span>招待QRコード</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('regularNotes')"><span class="nav-label"><span class="nav-icon">📝</span>常連メモ</span><span class="muted">→</span></div>
@@ -1951,12 +2042,11 @@ function renderCardCollection(){
     `}
   `;
 }
-/* ===================== 一番街マップ画面 =====================
-   実際の下北沢一番街商店街マップ(shimokita1ban.com/map/)の構成に合わせて、
-   「横に長いメイン通り」+「途中から下(下北沢駅方面)に分岐する通り」という
-   T字型のレイアウトで描画している。
+/* ===================== 下北沢マップ画面(イラスト背景) =====================
+   下北沢の街の雰囲気(横に長いメイン通り+途中から下北沢駅方面に分岐する通り)を
+   モチーフにした、オリジナルのイラストマップ。
 */
-function streetMapBackgroundSvg(){
+function shimokitaMapBackgroundSvg(){
   // 実際の商店街マップの「配色・雰囲気」(白地・テイール色の通り・ベージュの建物・赤系のアクセント)
   // に寄せた、オリジナルのイラストマップ。実際のマップ画像そのものはコピーしていない。
   // 通りの形は、実際の一番街(横のメイン通り→途中でゆるく曲がりながら下北沢駅方面へ分岐)に
@@ -2062,66 +2152,41 @@ function streetMapBackgroundSvg(){
     <rect x="1" y="1" width="398" height="278" fill="none" stroke="#3a6f96" stroke-width="3" rx="6"/>
   </svg>`;
 }
-function storeMapPosition(s, idx, total){
-  // 店側で map_x / map_y(0〜100のパーセント位置)を設定していれば、その位置を使う。
-  // 未設定の間は、実際のマップと同じく「横のメイン通り」に多くの店を、
-  // 残りを「下北沢駅方面への分岐通り」に仮配置しておく(見た目が崩れないためのフォールバック)。
-  if(s.map_x != null && s.map_y != null) return { x:Number(s.map_x), y:Number(s.map_y) };
-  const mainCount = Math.max(1, Math.round(total*0.7));
-  if(idx < mainCount){
-    const t = mainCount>1 ? idx/(mainCount-1) : 0.5;
-    const x = 8 + t*82;
-    const y = idx%2===0 ? 15 : 40;
-    return { x, y };
-  }
-  const bIdx = idx - mainCount;
-  const branchCount = Math.max(1, total - mainCount);
-  const t = branchCount>1 ? bIdx/(branchCount-1) : 0.5;
-  const y = 40 + t*40;
-  const x = bIdx%2===0 ? 61 : 76;
-  return { x, y };
-}
-function renderStoreMap(){
-  const bars = publicStores().filter(looksLikeBar);
-  const visitedCount = bars.filter(s=>hasVisited(s.id)).length;
+function renderShimokitaMap(){
+  const spots = SHIMOKITA_SPOTS;
+  const visitedCount = spots.filter(s=>hasVisitedSpot(s.id)).length;
   const backScreen = state.role==='owner' ? 'home' : 'vlist';
-  const picking = !!state.pickingMapFor;
-  const pickTarget = picking ? storeById(state.pickingMapFor) : null;
-  const previewPos = picking
-    ? (state.pickedPos || (pickTarget && pickTarget.map_x!=null && pickTarget.map_y!=null ? { x:Number(pickTarget.map_x), y:Number(pickTarget.map_y) } : null))
-    : null;
+  const bubble = state.spotBubble;
   return `
-    ${picking ? '' : `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span>`}
-    <h2>${picking ? '📍 位置を指定する' : '🍸 一番街バーマップ'}</h2>
-    <div class="muted" style="margin-bottom:12px;">${picking
-      ? `地図をタップして、「${pickTarget ? pickTarget.name : 'このお店'}」の場所を指定してください。`
-      : `行ったことのあるBARをタップして記録すると、ここに印がつきます。${bars.length>0 ? `<br>${visitedCount} / ${bars.length} のBARに行きました。` : ''}`}</div>
-    <div class="street-map-wrap" ${picking ? `onclick="handleMapPick(event)"` : ''}>
-      ${streetMapBackgroundSvg()}
-      ${bars.map((s,idx)=>{
-        const pos = storeMapPosition(s, idx, bars.length);
-        const visited = hasVisited(s.id);
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>🗺️ 下北沢マップ</h2>
+    <div class="muted" style="margin-bottom:12px;">お店をタップすると、行った/まだ、をすぐ記録できます。<br>${visitedCount} / ${spots.length} のお店に行きました。</div>
+    <div class="street-map-wrap">
+      ${shimokitaMapBackgroundSvg()}
+      ${spots.map((s,idx)=>{
+        const pos = spotMapPosition(s, idx, spots.length);
+        const visited = hasVisitedSpot(s.id);
         return `
-        <div class="street-map-pin ${visited?'visited':''}" style="left:${pos.x}%;top:${pos.y}%;${picking?'pointer-events:none;opacity:0.5;':''}" ${picking?'':`onclick="openStore('${s.id}')"`}>
+        <div class="street-map-pin street-map-pin-dense ${visited?'visited':''}" style="left:${pos.x}%;top:${pos.y}%;" onclick="toggleSpotVisit('${s.id}')">
           <div class="street-map-pin-dot">${visited?'✅':'📍'}</div>
-          <div class="street-map-pin-label">${s.name}</div>
+          ${bubble && bubble.id===s.id ? `<div class="street-map-bubble ${bubble.visited?'yes':'no'}">${s.name}<br>${bubble.visited ? '行った!🎉' : 'また今度〜'}</div>` : ''}
         </div>`;
       }).join('')}
-      ${previewPos ? `
-      <div class="street-map-pin street-map-pin-preview" style="left:${previewPos.x}%;top:${previewPos.y}%;pointer-events:none;">
-        <div class="street-map-pin-dot">📌</div>
-        <div class="street-map-pin-label">${pickTarget ? pickTarget.name : ''}</div>
-      </div>` : ''}
     </div>
-    ${picking ? `
-      <div class="row" style="gap:8px;margin-top:12px;">
-        <button class="btn btn-primary" ${state.pickedPos ? '' : 'disabled'} onclick="confirmMapPick()">この位置に設定する</button>
-        <button class="btn btn-secondary" onclick="cancelMapPick()">キャンセル</button>
-      </div>
-    ` : `
-      ${bars.length===0 ? `<div class="muted">まだBARとして表示されているお店がありません。店名や紹介文から自動判定していますが、お店の設定画面からも「BARとして表示する」を指定できます。</div>` : ''}
-      <div class="banner" style="margin-top:14px;">📍 お店のページの「ここ、行った」ボタンを押すと、このマップに記録されます。地図には、店名や紹介文から自動的に「BAR」と判定されたお店だけを表示しています(お店の設定画面から表示/非表示を上書きできます)。</div>
-    `}
+    <div class="banner" style="margin-top:14px;">📍 お店の数が多いので、地図上は印だけにしています。タップすると、その場でお店の名前と「行った/まだ」の状態がふきだしで出ます。表示しているのは、あなた個人の下北沢のお店メモです(お店の名前・ジャンルのみで、個人名などは含まれていません)。</div>
+
+    <h3 style="margin-top:18px;">お店一覧から探す</h3>
+    <div class="shimokita-spot-list">
+      ${spots.map(s=>{
+        const visited = hasVisitedSpot(s.id);
+        return `
+        <div class="shimokita-spot-row ${visited?'visited':''}" onclick="toggleSpotVisit('${s.id}')">
+          <span class="shimokita-spot-check">${visited?'✅':'⬜'}</span>
+          <span class="shimokita-spot-name">${s.name}</span>
+          <span class="shimokita-spot-genre muted">${s.genre || ''}</span>
+        </div>`;
+      }).join('')}
+    </div>
   `;
 }
 function gachaMachineHtml(){
@@ -2633,22 +2698,6 @@ function renderSettings(){
       </div>
     </div>
 
-    <h3>一番街バーマップへの表示</h3>
-    <div class="muted" style="margin-bottom:6px;">店名や紹介文から「BARかどうか」を自動判定して、常連さんの地図(一番街バーマップ)に表示しています。判定が実際と違う場合は、ここで指定できます。</div>
-    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:6px;">
-      <button class="btn ${store.is_bar==null?'btn-primary':'btn-secondary'} btn-sm" style="margin:0;" onclick="setIsBar(null)">🤖 自動判定のまま</button>
-      <button class="btn ${store.is_bar===true?'btn-primary':'btn-secondary'} btn-sm" style="margin:0;" onclick="setIsBar(true)">🍸 BARとして表示する</button>
-      <button class="btn ${store.is_bar===false?'btn-primary':'btn-secondary'} btn-sm" style="margin:0;" onclick="setIsBar(false)">🚫 表示しない</button>
-    </div>
-    <div class="muted" style="margin-bottom:16px;">現在の状態: ${looksLikeBar(store) ? '🍸 一番街バーマップに表示されています' : '一番街バーマップには表示されていません'}</div>
-
-    <h3>地図上での位置</h3>
-    <div class="muted" style="margin-bottom:6px;">${store.map_x!=null && store.map_y!=null ? '位置が設定済みです。地図には、この位置でピンが表示されます。' : '位置が未設定です。今は、他のお店と重ならないよう自動で仮の位置に表示されています。'}</div>
-    <div class="row" style="gap:8px;flex-wrap:wrap;margin-bottom:16px;">
-      <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="startMapPick('${store.id}')">🗺️ 地図で位置を指定する</button>
-      ${store.map_x!=null ? `<button class="btn btn-ghost btn-sm" style="margin:0;color:#c77;" onclick="resetMapPosition('${store.id}')">位置をリセット</button>` : ''}
-    </div>
-
     <h3>お店の紹介文</h3>
     <div class="muted" style="margin-bottom:6px;">常連さん一覧などに表示される、お店の紹介文です。いつでも書き換えられます。</div>
     <textarea id="descriptionInput" placeholder="例: 隠れ家的な一軒。落ち着いた雰囲気でゆっくり過ごせます">${store.description || ''}</textarea>
@@ -2859,13 +2908,12 @@ async function doLeave(){
 function renderVisitorList(){
   const statusLabel = {open:'営業中', prep:'準備中', closed:'本日定休'};
   const statusIcon = {open:'🟢', prep:'⚪', closed:'⚫'};
-  const bars = publicStores().filter(looksLikeBar);
-  const visitedCount = bars.filter(s=>hasVisited(s.id)).length;
+  const shimokitaVisitedCount = SHIMOKITA_SPOTS.filter(s=>hasVisitedSpot(s.id)).length;
   return `
     <h2>このあたりのお店</h2>
     <div class="muted" style="margin-bottom:12px;">投稿の多さで、お店を比べることはしません。</div>
-    <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;" onclick="go('storeMap')">
-      <span>🍸 一番街バーマップ ${bars.length>0 ? `<span class="muted">(${visitedCount}/${bars.length} 訪問済み)</span>` : ''}</span>
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;" onclick="go('shimokitaMap')">
+      <span>🗺️ 下北沢マップ <span class="muted">(${shimokitaVisitedCount}/${SHIMOKITA_SPOTS.length} 訪問済み)</span></span>
       <span class="muted">→</span>
     </div>
     ${publicStores().map(s=>{
@@ -3071,7 +3119,7 @@ function render(){
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
-    storeMap: renderStoreMap
+    shimokitaMap: renderShimokitaMap
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
