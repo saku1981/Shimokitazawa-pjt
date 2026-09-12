@@ -210,6 +210,15 @@
   .smt-facility-list{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
   .smt-facility-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
   .smt-facility-card .row{margin-bottom:6px;}
+  .smt-align-bar{position:relative;height:6px;border-radius:3px;background:linear-gradient(90deg,#d0503f,#9aa0a8,#4a7fd0);margin:2px 0 10px;}
+  .smt-align-fill{position:absolute;top:-3px;width:2px;height:12px;background:#fff;transform:translateX(-1px);box-shadow:0 0 3px rgba(0,0,0,.6);}
+  .smt-player-icon-wrap, .smt-boss-marker-wrap, .smt-shop-marker-wrap{background:transparent;border:none;}
+  .smt-align-ring{position:absolute;inset:0;border:3px dashed;border-radius:50%;}
+  .smt-player-emoji{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:19px;}
+  @keyframes smtSpinCW{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+  @keyframes smtSpinCCW{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
+  .smt-spin-cw{animation:smtSpinCW 3s linear infinite;}
+  .smt-spin-ccw{animation:smtSpinCCW 3s linear infinite;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
     overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
@@ -2787,12 +2796,16 @@ function renderRevengeGame(){
 }
 
 /* ===================== 封鎖された下北沢(テスト機能・遊びのみ) =====================
-   結界に閉ざされた下北沢を、2Dのフィールドを実際に歩き回って探索するミニRPG。
-   草むら状のエリアを歩くとまれに悪魔と遭遇し(常時ではない)、ボスを倒すとその
-   エリアの結界が解ける。宿屋・武器屋・転職・悪魔召喚の館は街の広場にある建物として
-   マップ上に配置されている。オリジナルのストーリー・悪魔データ、特定作品の
-   キャラクターやマップをそのまま使ってはいない。進行状況は保存されず、
-   画面を離れると最初からになる。
+   結界に閉ざされた下北沢を、実際の地図(下北沢マップと同じOpenStreetMapベース)の上で
+   歩き回って探索するミニRPG。地図はピンチ/スクロールで自由にズームできる。
+   エリア内を歩くとまれに悪魔と遭遇し(常時ではない)、ボスを倒すとそのエリアの
+   結界が解ける。下北沢マップに載っている実在のお店(名前・ジャンルのみ、個人名は
+   含まない)が地図上にすべて表示され、近づくとマスター(店主)との軽い会話イベントが
+   起き、HP/MP回復やアイテム・武器・魔力などのボーナスが1店舗につき1回もらえる。
+   戦うか話しかけるかの選択はロウ(秩序・右回り)/カオス(自由・左回り)という属性の
+   ゲージに影響し、プレイヤーのアイコンの色と回転方向に反映される。
+   オリジナルのストーリー・悪魔データ、特定作品のキャラクターやマップをそのまま
+   使ってはいない。進行状況は保存されず、画面を離れると最初からになる。
 */
 let smtGameState = null;
 const SMT_ENCOUNTERS = [
@@ -2805,37 +2818,20 @@ const SMT_ENCOUNTERS = [
 ];
 const SMT2_ZONE_REGULAR = { '1': SMT_ENCOUNTERS[0], '2': SMT_ENCOUNTERS[2], '3': SMT_ENCOUNTERS[4] };
 const SMT2_ZONE_BOSS = { '1': SMT_ENCOUNTERS[1], '2': SMT_ENCOUNTERS[3], '3': SMT_ENCOUNTERS[5] };
-const SMT2_BOSS_CHAR_CORRIDOR = { 'a':'1', 'b':'2', 'c':'3' };
-// フィールドマップ(25×19マス)。'#'=壁/侵入不可、'.'=広場(安全)、'1'/'2'/'3'=各エリアの草むら状の道(遭遇判定あり)、
-// 'a'/'b'/'c'=各エリアのボス部屋、'I'=宿屋、'W'=武器屋、'J'=転職の間、'D'=悪魔召喚の館。到達可能性は検証済み。
-const SMT2_TILE = 20;
-const SMT2_MAP_ROWS = [
-  "#########################",
-  "##########11a11##########",
-  "##########11111##########",
-  "##########11111##########",
-  "############1############",
-  "############1############",
-  "############1############",
-  "#########.I...W.#########",
-  "#########.......#########",
-  "#########.......#########",
-  "#########.......#########",
-  "#########.J...D.#########",
-  "#########2#####3#########",
-  "#########2#####3#########",
-  "#########2#####3#########",
-  "##2222###2#####3###33333#",
-  "##2b22###2#####3###333c3#",
-  "##22222222#####333333333#",
-  "#########################"
-];
-const SMT2_MAP_W = SMT2_MAP_ROWS[0].length;
-const SMT2_MAP_H = SMT2_MAP_ROWS.length;
-const SMT2_MAP_PW = SMT2_MAP_W * SMT2_TILE;
-const SMT2_MAP_PH = SMT2_MAP_H * SMT2_TILE;
-const SMT2_START_PX = 12 * SMT2_TILE + SMT2_TILE/2;
-const SMT2_START_PY = 9 * SMT2_TILE + SMT2_TILE/2;
+// 各エリアのおおよその中心(遭遇判定用)とボス出現地点(下北沢マップと同じ座標系)
+const SMT_ZONE_CENTER = {
+  '1': [35.6624, 139.6684],
+  '2': [35.6601, 139.6677],
+  '3': [35.6613, 139.6683]
+};
+const SMT_ZONE_BOSS_POINT = {
+  '1': [35.66285, 139.66895],
+  '2': [35.65975, 139.66715],
+  '3': [35.66175, 139.66905]
+};
+const SMT_ZONE_RADIUS_M = 120;
+const SMT_BOSS_RADIUS_M = 26;
+const SMT_SHOP_RADIUS_M = 15;
 const SMT_JOBS = {
   balance: { name:'バランス型・召喚士', atkMod:0, magicMod:0, desc:'物理も魔法も平均的な、素の召喚士のスタイル。' },
   mage:    { name:'呪術師', atkMod:-2, magicMod:6, desc:'属性弾の威力が上がるが、直接攻撃はやや弱くなる。' },
@@ -2858,8 +2854,12 @@ function newSmtGame(){
     player: { hp:65, maxHp:65, mp:22, maxMp:22 },
     atkBonus: 0, magicBonus: 0, job: 'balance', gold: 0,
     clearedZones: { '1':false, '2':false, '3':false },
-    pos: { x: SMT2_START_PX, y: SMT2_START_PY },
-    lastTileX: Math.floor(SMT2_START_PX/SMT2_TILE), lastTileY: Math.floor(SMT2_START_PY/SMT2_TILE),
+    pos: { lat: SHIMOKITA_STATION_CENTER[0], lng: SHIMOKITA_STATION_CENTER[1] },
+    mapZoom: 17,
+    alignment: 0,
+    claimedSpots: {},
+    encounterTimer: 1.4,
+    shopVisit: null,
     enemy: null,
     icons: 2,
     magicMenuOpen: false,
@@ -2877,40 +2877,67 @@ function restartSmtGame(){ stopSmtGameMap(); smtGameState = null; render(); }
 function smtMaxIcons(s){
   return Math.min(4, 2 + Math.floor(s.recruited.length/2));
 }
-function smtTileWalkable(px, py){
-  const tx = Math.floor(px/SMT2_TILE), ty = Math.floor(py/SMT2_TILE);
-  if(tx<0 || ty<0 || tx>=SMT2_MAP_W || ty>=SMT2_MAP_H) return false;
-  return SMT2_MAP_ROWS[ty][tx] !== '#';
+function smtDistMeters(lat1, lng1, lat2, lng2){
+  const dLat = (lat2-lat1) * 111320;
+  const dLng = (lng2-lng1) * 111320 * Math.cos(lat1*Math.PI/180);
+  return Math.sqrt(dLat*dLat + dLng*dLng);
 }
-function smtHandleTileEnter(tx, ty){
-  const s = smtGameState;
-  if(!s || s.stage !== 'overworld') return;
-  const ch = SMT2_MAP_ROWS[ty][tx];
-  if(ch==='1' || ch==='2' || ch==='3'){
-    if(!s.clearedZones[ch] && Math.random() < 0.15){
-      smtStartEncounter(SMT2_ZONE_REGULAR[ch]);
-    }
-    return;
-  }
-  if(ch==='a' || ch==='b' || ch==='c'){
-    const corridor = SMT2_BOSS_CHAR_CORRIDOR[ch];
-    if(!s.clearedZones[corridor]){
-      smtStartEncounter(SMT2_ZONE_BOSS[corridor]);
-    }
-    return;
-  }
-  if(ch==='I'){ smtVisitInn(); return; }
-  if(ch==='W'){ s.stage = 'facilityShop'; render(); return; }
-  if(ch==='J'){ s.stage = 'facilityJob'; render(); return; }
-  if(ch==='D'){ s.stage = 'facilityDemon'; render(); return; }
-}
-function smtVisitInn(){
+function smtShiftAlignment(delta){
   const s = smtGameState;
   if(!s) return;
-  if(s.player.hp>=s.player.maxHp && s.player.mp>=s.player.maxMp){ return; }
-  s.player.hp = s.player.maxHp;
-  s.player.mp = s.player.maxMp;
-  toast('🏨 宿屋で傷を癒やした。HP・MPが全回復!');
+  s.alignment = Math.max(-100, Math.min(100, s.alignment + delta));
+}
+const SMT_SHOP_REWARD_RULES = [
+  { keywords:['バー','酒','スナック','立ち飲み','ビール'], type:'heal', line:'マスターが「顔色悪いよ、これ飲んでいきな」と一杯出してくれた。', effect:'❤️ HPが全回復した!' },
+  { keywords:['カフェ','喫茶','コーヒー'], type:'mp', line:'マスターが淹れたての一杯を出してくれた。頭がすっと軽くなる。', effect:'💧 MPが全回復した!' },
+  { keywords:['レコード','音楽','楽器','CD'], type:'magic', line:'店主が一枚のレコードをかけてくれた。不思議な力が身体に流れ込む。', effect:'🔮 魔力+2!' },
+  { keywords:['古着','雑貨','アクセサリー','服'], type:'item', line:'店主が「これ、お守り代わりにどうぞ」と小さな品をくれた。', effect:'🎁 HP上限+5!' },
+  { keywords:['ラーメン','食堂','定食','カレー','焼肉','中華'], type:'heal', line:'ボリュームのある一皿で満腹になった。力が湧いてくる。', effect:'❤️ HPが全回復した!' },
+  { keywords:['本','古書'], type:'magic', line:'店主が「これ、役に立つかもね」と古い本を貸してくれた。', effect:'🔮 魔力+2!' },
+  { keywords:['武道','格闘','スポーツ'], type:'atk', line:'店主に稽古をつけてもらい、腕が上がった気がする。', effect:'⚔️ 攻撃力+2!' }
+];
+const SMT_SHOP_REWARD_GENERIC = [
+  { type:'gold', line:'店主と世間話をしていたら、少しお小遣いをくれた。', effect:g=>`💰 ${g}Gをもらった!` },
+  { type:'atk', line:'店主から景気のいい話を聞いて、少し力がみなぎってきた。', effect:'⚔️ 攻撃力+2!' },
+  { type:'magic', line:'店主から不思議な噂話を聞き、力が湧いてくる。', effect:'🔮 魔力+2!' },
+  { type:'item', line:'店主のもてなしで、少し身体が丈夫になった気がする。', effect:'🎁 HP上限+5!' }
+];
+function smtRewardForSpot(spot){
+  const g = spot.genre || '';
+  for(const rule of SMT_SHOP_REWARD_RULES){
+    if(rule.keywords.some(k=>g.includes(k))) return rule;
+  }
+  let h = 0;
+  for(const c of spot.id){ h = (h*31 + c.charCodeAt(0)) >>> 0; }
+  return SMT_SHOP_REWARD_GENERIC[h % SMT_SHOP_REWARD_GENERIC.length];
+}
+function smtVisitShop(spot){
+  const s = smtGameState;
+  if(!s || s.claimedSpots[spot.id]) return;
+  const rule = smtRewardForSpot(spot);
+  let effectText = '';
+  if(rule.type==='heal'){ s.player.hp = s.player.maxHp; effectText = typeof rule.effect==='function' ? rule.effect() : rule.effect; }
+  else if(rule.type==='mp'){ s.player.mp = s.player.maxMp; effectText = typeof rule.effect==='function' ? rule.effect() : rule.effect; }
+  else if(rule.type==='item'){ s.player.maxHp += 5; s.player.hp += 5; effectText = typeof rule.effect==='function' ? rule.effect() : rule.effect; }
+  else if(rule.type==='magic'){ s.magicBonus += 2; effectText = typeof rule.effect==='function' ? rule.effect() : rule.effect; }
+  else if(rule.type==='atk'){ s.atkBonus += 2; effectText = typeof rule.effect==='function' ? rule.effect() : rule.effect; }
+  else if(rule.type==='gold'){ const g = 10 + Math.floor(Math.random()*10); s.gold += g; effectText = rule.effect(g); }
+  s.claimedSpots[spot.id] = rule.type;
+  s.shopVisit = { name: spot.name, genre: spot.genre, line: rule.line, effectText };
+  s.stage = 'shopVisit';
+  render();
+}
+function smtLeaveShop(){
+  const s = smtGameState;
+  if(!s) return;
+  s.stage = 'overworld';
+  render();
+}
+function smtOpenFacility(stage){
+  const s = smtGameState;
+  if(!s) return;
+  s.stage = stage;
+  render();
 }
 function smtStartEncounter(def){
   const s = smtGameState;
@@ -2932,6 +2959,8 @@ let smtOverworldRafId = null;
 let smtOverworldKeyHandlerBound = false;
 let smtOverworldInput = { up:false, down:false, left:false, right:false };
 let smtOverworldLastTime = null;
+let smtLeafletMapInstance = null;
+let smtLeafletPlayerMarker = null;
 function smtOverworldKeyDown(e){
   if(e.key==='ArrowUp') smtOverworldInput.up = true;
   if(e.key==='ArrowDown') smtOverworldInput.down = true;
@@ -2956,20 +2985,65 @@ function stopSmtGameMap(){
     window.removeEventListener('keyup', smtOverworldKeyUp);
     smtOverworldKeyHandlerBound = false;
   }
+  if(smtLeafletMapInstance){ smtLeafletMapInstance.remove(); smtLeafletMapInstance = null; }
+  smtLeafletPlayerMarker = null;
+}
+function smtZoneCircleColor(corridor, cleared){
+  if(cleared) return '#3a8a4e';
+  return corridor==='3' ? '#2f6f9e' : '#a0403a';
+}
+function smtPlayerIconHtml(alignment){
+  const dir = alignment > 10 ? 'law' : alignment < -10 ? 'chaos' : 'neutral';
+  const ringColor = dir==='law' ? '#4a7fd0' : dir==='chaos' ? '#d0503f' : '#9aa0a8';
+  const spinClass = dir==='law' ? 'smt-spin-cw' : dir==='chaos' ? 'smt-spin-ccw' : '';
+  return `<div class="smt-align-ring ${spinClass}" style="border-color:${ringColor};"></div><div class="smt-player-emoji">🧙</div>`;
+}
+function smtShopIconHtml(claimed){
+  return `<div style="font-size:15px;line-height:1;opacity:${claimed?0.35:1};filter:drop-shadow(0 1px 1px rgba(0,0,0,.6));">🏮</div>`;
 }
 function initSmtGameMap(){
   const s = smtGameState;
-  const canvas = document.getElementById('smtOverworldCanvas');
-  if(!canvas || typeof canvas.getContext !== 'function' || !s || s.stage !== 'overworld'){
+  const container = document.getElementById('smtOverworldMap');
+  if(!container || typeof L === 'undefined' || !s || s.stage !== 'overworld'){
     stopSmtGameMap();
     return;
   }
-  stopSmtGameMap(); // renderSmtGame()が毎回innerHTMLを差し替えるため、canvasごとループを作り直す
+  stopSmtGameMap(); // renderSmtGame()が毎回innerHTMLを差し替えるため、地図とループを毎回作り直す
   smtOverworldInput = { up:false, down:false, left:false, right:false };
   smtOverworldLastTime = null;
-  // 再開時に現在地のタイルで再発火しないよう同期しておく
-  s.lastTileX = Math.floor(s.pos.x/SMT2_TILE);
-  s.lastTileY = Math.floor(s.pos.y/SMT2_TILE);
+
+  const map = L.map(container, { zoomControl: true });
+  map.setView([s.pos.lat, s.pos.lng], s.mapZoom || 17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  map.on('zoomend', () => { s.mapZoom = map.getZoom(); });
+
+  ['1','2','3'].forEach(corridor=>{
+    const cleared = s.clearedZones[corridor];
+    const color = smtZoneCircleColor(corridor, cleared);
+    L.circle(SMT_ZONE_CENTER[corridor], { radius: SMT_ZONE_RADIUS_M, color, fillColor: color, fillOpacity: 0.15, weight: 1 }).addTo(map);
+    L.marker(SMT_ZONE_BOSS_POINT[corridor], {
+      icon: L.divIcon({ className:'smt-boss-marker-wrap', html:`<div style="font-size:20px;">${cleared ? '✅' : '⛩️'}</div>`, iconSize:[24,24], iconAnchor:[12,12] })
+    }).addTo(map);
+  });
+
+  SHIMOKITA_SPOTS.forEach(spot=>{
+    if(typeof spot.lat !== 'number' || typeof spot.lng !== 'number') return;
+    const claimed = !!s.claimedSpots[spot.id];
+    const marker = L.marker([spot.lat, spot.lng], {
+      icon: L.divIcon({ className:'smt-shop-marker-wrap', html: smtShopIconHtml(claimed), iconSize:[18,18], iconAnchor:[9,9] })
+    }).addTo(map);
+    marker.bindTooltip(escapeHtml(spot.name), { direction:'top', offset:[0,-8] });
+  });
+
+  smtLeafletPlayerMarker = L.marker([s.pos.lat, s.pos.lng], {
+    icon: L.divIcon({ className:'smt-player-icon-wrap', html: smtPlayerIconHtml(s.alignment), iconSize:[34,34], iconAnchor:[17,17] }),
+    zIndexOffset: 1000
+  }).addTo(map);
+
+  smtLeafletMapInstance = map;
   window.addEventListener('keydown', smtOverworldKeyDown);
   window.addEventListener('keyup', smtOverworldKeyUp);
   smtOverworldKeyHandlerBound = true;
@@ -2982,94 +3056,66 @@ function smtOverworldLoop(ts){
   const dt = Math.min(0.05, (ts - smtOverworldLastTime)/1000);
   smtOverworldLastTime = ts;
   smtOverworldUpdate(s, dt);
-  const canvas = document.getElementById('smtOverworldCanvas');
-  if(canvas && typeof canvas.getContext === 'function'){ smtOverworldDraw(s, canvas.getContext('2d'), canvas.width, canvas.height); }
   if(smtGameState && smtGameState.stage === 'overworld'){
     smtOverworldRafId = requestAnimationFrame(smtOverworldLoop);
   } else {
     smtOverworldRafId = null;
   }
 }
+function smtCheckShopProximity(s){
+  for(const spot of SHIMOKITA_SPOTS){
+    if(typeof spot.lat !== 'number' || s.claimedSpots[spot.id]) continue;
+    if(smtDistMeters(s.pos.lat, s.pos.lng, spot.lat, spot.lng) < SMT_SHOP_RADIUS_M){
+      smtVisitShop(spot);
+      return true;
+    }
+  }
+  return false;
+}
+function smtCheckZoneEncounter(s, dt, moving){
+  for(const corridor of ['1','2','3']){
+    if(s.clearedZones[corridor]) continue;
+    const bossPt = SMT_ZONE_BOSS_POINT[corridor];
+    if(smtDistMeters(s.pos.lat, s.pos.lng, bossPt[0], bossPt[1]) < SMT_BOSS_RADIUS_M){
+      smtStartEncounter(SMT2_ZONE_BOSS[corridor]);
+      return;
+    }
+    const center = SMT_ZONE_CENTER[corridor];
+    if(smtDistMeters(s.pos.lat, s.pos.lng, center[0], center[1]) < SMT_ZONE_RADIUS_M){
+      if(moving){
+        s.encounterTimer -= dt;
+        if(s.encounterTimer <= 0){
+          s.encounterTimer = 1.0 + Math.random()*1.3;
+          if(Math.random() < 0.4){
+            smtStartEncounter(SMT2_ZONE_REGULAR[corridor]);
+            return;
+          }
+        }
+      }
+      return;
+    }
+  }
+}
 function smtOverworldUpdate(s, dt){
   let dx = 0, dy = 0;
   if(smtOverworldInput.left) dx -= 1;
   if(smtOverworldInput.right) dx += 1;
-  if(smtOverworldInput.up) dy -= 1;
-  if(smtOverworldInput.down) dy += 1;
-  if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
-  const speed = 84;
-  const half = 6;
-  if(dx !== 0){
-    const nx = s.pos.x + dx*speed*dt;
-    const testX = dx>0 ? nx+half : nx-half;
-    if(smtTileWalkable(testX, s.pos.y-half+1) && smtTileWalkable(testX, s.pos.y+half-1)){
-      s.pos.x = nx;
-    }
+  if(smtOverworldInput.up) dy += 1;
+  if(smtOverworldInput.down) dy -= 1;
+  const moving = dx !== 0 || dy !== 0;
+  if(moving){
+    if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
+    const speedMps = 14;
+    const metersPerDegLat = 111320;
+    const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
+    s.pos.lat += (dy*speedMps*dt) / metersPerDegLat;
+    s.pos.lng += (dx*speedMps*dt) / metersPerDegLng;
+    if(smtLeafletMapInstance){ smtLeafletMapInstance.panTo([s.pos.lat, s.pos.lng], { animate:false }); }
   }
-  if(dy !== 0){
-    const ny = s.pos.y + dy*speed*dt;
-    const testY = dy>0 ? ny+half : ny-half;
-    if(smtTileWalkable(s.pos.x-half+1, testY) && smtTileWalkable(s.pos.x+half-1, testY)){
-      s.pos.y = ny;
-    }
-  }
-  s.pos.x = Math.max(half, Math.min(SMT2_MAP_PW-half, s.pos.x));
-  s.pos.y = Math.max(half, Math.min(SMT2_MAP_PH-half, s.pos.y));
+  if(smtLeafletPlayerMarker){ smtLeafletPlayerMarker.setLatLng([s.pos.lat, s.pos.lng]); }
 
-  const tx = Math.floor(s.pos.x/SMT2_TILE), ty = Math.floor(s.pos.y/SMT2_TILE);
-  if(tx !== s.lastTileX || ty !== s.lastTileY){
-    s.lastTileX = tx; s.lastTileY = ty;
-    smtHandleTileEnter(tx, ty);
-  }
-}
-const SMT2_TILE_COLORS = {
-  '#': '#111318', '.': '#3a3d42',
-  'I': '#c98a3e', 'W': '#6c7a8a', 'J': '#8a6cae', 'D': '#4a3a6b'
-};
-const SMT2_TILE_ICON = { 'I':'🏨', 'W':'🗡️', 'J':'🔄', 'D':'😈' };
-function smtOverworldDraw(s, ctx, viewW, viewH){
-  let camX = s.pos.x - viewW/2, camY = s.pos.y - viewH/2;
-  camX = Math.max(0, Math.min(Math.max(0, SMT2_MAP_PW-viewW), camX));
-  camY = Math.max(0, Math.min(Math.max(0, SMT2_MAP_PH-viewH), camY));
-
-  ctx.fillStyle = '#0b0c0e';
-  ctx.fillRect(0,0,viewW,viewH);
-
-  const startTx = Math.max(0, Math.floor(camX/SMT2_TILE));
-  const endTx = Math.min(SMT2_MAP_W-1, Math.ceil((camX+viewW)/SMT2_TILE));
-  const startTy = Math.max(0, Math.floor(camY/SMT2_TILE));
-  const endTy = Math.min(SMT2_MAP_H-1, Math.ceil((camY+viewH)/SMT2_TILE));
-
-  for(let ty=startTy; ty<=endTy; ty++){
-    for(let tx=startTx; tx<=endTx; tx++){
-      const ch = SMT2_MAP_ROWS[ty][tx];
-      const sx = tx*SMT2_TILE - camX, sy = ty*SMT2_TILE - camY;
-      let color = SMT2_TILE_COLORS[ch];
-      let icon = SMT2_TILE_ICON[ch];
-      if(ch==='1' || ch==='2'){ color = s.clearedZones[ch] ? '#3a6b46' : '#7a3030'; }
-      if(ch==='3'){ color = s.clearedZones['3'] ? '#3a6b46' : '#2f4f7a'; }
-      if(ch==='a' || ch==='b' || ch==='c'){
-        const corridor = SMT2_BOSS_CHAR_CORRIDOR[ch];
-        color = s.clearedZones[corridor] ? '#3a6b46' : '#b0402c';
-        icon = s.clearedZones[corridor] ? '✅' : '⛩️';
-      }
-      if(!color) color = '#1c1e22';
-      ctx.fillStyle = color;
-      ctx.fillRect(sx, sy, SMT2_TILE, SMT2_TILE);
-      if(icon){
-        ctx.font = '13px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
-        ctx.fillText(icon, sx+SMT2_TILE/2, sy+SMT2_TILE/2+1);
-      }
-    }
-  }
-
-  const px = s.pos.x - camX, py = s.pos.y - camY;
-  ctx.font = '18px sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('🧙', px, py);
+  if(smtCheckShopProximity(s)) return;
+  smtCheckZoneEncounter(s, dt, moving);
 }
 function smtChooseFight(){
   const s = smtGameState;
@@ -3078,6 +3124,7 @@ function smtChooseFight(){
   s.icons = smtMaxIcons(s);
   s.magicMenuOpen = false;
   s.log = [`${s.enemy.name}との戦闘が始まった!`];
+  smtShiftAlignment(5);
   render();
 }
 function smtChooseTalk(){
@@ -3106,6 +3153,7 @@ function smtNegotiateContinue(){
     return;
   }
   s.lastResolvedViaTalk = true;
+  smtShiftAlignment(-5);
   smtAdvanceAfterClear();
 }
 function smtAdvanceAfterClear(){
@@ -3281,14 +3329,16 @@ function renderSmtGame(){
       <div class="revenge-story-box">
         <p>下北沢に、突如として結界が張られた。</p>
         <p>結界の向こうから、悪魔たちの気配が忍び寄る。</p>
-        <p>あなたは新米の召喚士。フィールドを歩き回り、悪魔と戦い、時には言葉を交わしながら、閉ざされた街を解放しなければならない。</p>
+        <p>あなたは新米の召喚士。実際の下北沢の地図の上を歩き回り、悪魔と戦い、時には言葉を交わしながら、閉ざされた街を解放しなければならない。</p>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">始める</button>
-      <div class="muted" style="margin-top:10px;">2Dのフィールドを移動する探索型のミニRPGです。草むら状の道を歩くとまれに悪魔と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。街の広場には宿屋・武器屋・転職・悪魔召喚の館があります。進行状況は保存されません。</div>
+      <div class="muted" style="margin-top:10px;">実際の下北沢マップ(下北沢マップと同じ地図)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。エリア内を歩くとまれに悪魔と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。地図には下北沢マップのお店がすべて表示され、近づくとマスターとの会話でHP/MP回復やアイテム・魔力などのボーナスが1店舗につき1回もらえます。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転に表れます。進行状況は保存されません。</div>
     `;
   }
   if(s.stage==='overworld'){
     const clearedCount = Object.values(s.clearedZones).filter(Boolean).length;
+    const alignLabel = s.alignment > 10 ? 'ロウ寄り(右回り)' : s.alignment < -10 ? 'カオス寄り(左回り)' : 'ニュートラル';
+    const alignPct = Math.max(0, Math.min(100, (s.alignment + 100) / 2));
     return `
       ${header}
       <div class="smt-hud">
@@ -3299,7 +3349,9 @@ function renderSmtGame(){
         <span>🔓 解放 <b>${clearedCount}/3</b></span>
         <span>職 <b>${escapeHtml(SMT_JOBS[s.job].name)}</b></span>
       </div>
-      <canvas id="smtOverworldCanvas" width="280" height="280" style="display:block;margin:0 auto;border-radius:12px;border:1px solid var(--line);"></canvas>
+      <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b></div>
+      <div class="smt-align-bar"><div class="smt-align-fill" style="left:${alignPct}%;"></div></div>
+      <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
       <div class="smt-dpad">
         <div></div>
         <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
@@ -3311,7 +3363,25 @@ function renderSmtGame(){
         <button class="invader-btn" style="grid-column:2;grid-row:3;" ontouchstart="smtOverworldTouch(event,'down',true)" ontouchend="smtOverworldTouch(event,'down',false)" onmousedown="smtOverworldSetInput('down',true)" onmouseup="smtOverworldSetInput('down',false)" onmouseleave="smtOverworldSetInput('down',false)">▼</button>
         <div></div>
       </div>
-      <div class="muted" style="margin-top:10px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。色のついた道は各エリアの結界エリア(赤=一番街/南口、青=下北沢駅前)、緑は解放済みです。🏨宿屋 🗡️武器屋 🔄転職 😈悪魔召喚の館</div>
+      <div class="row" style="gap:8px;margin:12px 0 4px;flex-wrap:wrap;">
+        <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityJob')">🔄 転職</button>
+        <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityDemon')">😈 召喚の館</button>
+        <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityShop')">🗡️ 強化(G)</button>
+      </div>
+      <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。地図はピンチ・スクロールでズームできます。赤/青い円は結界エリア(緑は解放済み)、⛩️はボスの出現地点、🏮は下北沢マップのお店です。</div>
+    `;
+  }
+  if(s.stage==='shopVisit'){
+    const v = s.shopVisit;
+    return `
+      ${header}
+      <div class="revenge-story-box" style="text-align:center;">
+        <div class="smt-zone-label">${escapeHtml(v.name)}${v.genre ? '(' + escapeHtml(v.genre) + ')' : ''}</div>
+        <div style="font-size:36px;">🧑‍🍳</div>
+        <p style="margin-top:6px;">${escapeHtml(v.line)}</p>
+        <p style="color:#e0c458;font-weight:bold;">${escapeHtml(v.effectText)}</p>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="smtLeaveShop()">お礼を言って店を出る</button>
     `;
   }
   if(s.stage==='facilityShop'){
