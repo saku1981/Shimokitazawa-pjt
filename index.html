@@ -165,6 +165,15 @@
   .card-visual-xl{width:86%;max-width:300px;aspect-ratio:5/7;margin:4px auto 0;}
   .home-hero-card{text-align:center;margin-bottom:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
   .card-visual-hero{height:24vh;min-height:160px;max-height:230px;aspect-ratio:5/7;width:auto;margin:0 auto;}
+  .invader-game-wrap{position:relative;text-align:center;}
+  #invaderCanvas{border-radius:10px;border:1px solid var(--line);background:#0b0c0e;display:block;margin:0 auto;max-width:100%;height:auto;}
+  .invader-end-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(11,12,14,.9);border-radius:10px;color:#fff;}
+  .invader-end-title{font-size:18px;font-weight:bold;}
+  .invader-end-score{margin-top:6px;font-size:13px;}
+  .invader-controls{display:flex;justify-content:center;align-items:center;gap:16px;margin-top:14px;}
+  .invader-btn{width:60px;height:52px;font-size:20px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;}
+  .invader-btn:active{background:var(--panel);}
+  .invader-btn-fire{background:#c0453c;border-color:#c0453c;color:#fff;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
     overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
@@ -862,6 +871,7 @@ function otherStoresFor(userId, excludeStoreId){
 
 /* ===================== 画面遷移 ===================== */
 async function go(screen){
+  if(state.screen==='invaderGame' && screen!=='invaderGame'){ stopInvaderGame(); }
   state.screen = screen;
   render(); // まず今あるデータで即座に画面を切り替え、後から新しいデータで更新する(反応を速く感じさせるため)
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
@@ -998,6 +1008,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
+      ${store.is_test ? `<div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
     </div>
   `;
@@ -2106,6 +2117,234 @@ function renderShimokitaMap(){
     </div>
   `;
 }
+
+/* ===================== インベーダーゲーム(テスト機能・遊びのみ) =====================
+   Invader one の店主にちなんだ、ちょっとした息抜き用のクラシックなシューティングゲーム。
+   スコアや進行状況はどこにも保存せず、画面を出入りするたびに最初からになる。
+*/
+let invaderGameState = null;
+let invaderGameRafId = null;
+let invaderGameKeyHandlerBound = false;
+function invaderGameKeyDown(e){
+  if(!invaderGameState) return;
+  if(e.key==='ArrowLeft') invaderGameState.input.left = true;
+  if(e.key==='ArrowRight') invaderGameState.input.right = true;
+  if(e.key===' '){ e.preventDefault(); invaderGameState.input.fire = true; }
+}
+function invaderGameKeyUp(e){
+  if(!invaderGameState) return;
+  if(e.key==='ArrowLeft') invaderGameState.input.left = false;
+  if(e.key==='ArrowRight') invaderGameState.input.right = false;
+  if(e.key===' ') invaderGameState.input.fire = false;
+}
+function invaderGameSetInput(key, val){
+  if(!invaderGameState) return;
+  invaderGameState.input[key] = val;
+}
+function invaderGameTouch(e, key, val){
+  if(e && e.preventDefault) e.preventDefault();
+  invaderGameSetInput(key, val);
+}
+function stopInvaderGame(){
+  if(invaderGameRafId){ cancelAnimationFrame(invaderGameRafId); invaderGameRafId = null; }
+  if(invaderGameKeyHandlerBound){
+    window.removeEventListener('keydown', invaderGameKeyDown);
+    window.removeEventListener('keyup', invaderGameKeyUp);
+    invaderGameKeyHandlerBound = false;
+  }
+  invaderGameState = null;
+}
+function newInvaderWave(s, wave){
+  const cols = 8, rows = 5;
+  const invaders = [];
+  const spacingX = 30, spacingY = 24, offsetX = 20, offsetY = 26;
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      invaders.push({ x: offsetX + c*spacingX, y: offsetY + r*spacingY, alive:true });
+    }
+  }
+  s.invaders = invaders;
+  s.dir = 1;
+  s.stepTimer = 0;
+  s.baseStepInterval = Math.max(0.18, 0.5 - (wave-1)*0.04);
+  s.stepInterval = s.baseStepInterval;
+  s.dropAmount = 10;
+  s.invaderBullets = [];
+  s.fireTimer = 0;
+}
+function initInvaderGame(){
+  const canvas = document.getElementById('invaderCanvas');
+  if(!canvas || typeof canvas.getContext !== 'function') return;
+  stopInvaderGame(); // 念のため、前のループが残っていたら止める
+  const overlay = document.getElementById('invaderEndOverlay');
+  if(overlay) overlay.style.display = 'none';
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const s = {
+    ctx, W, H,
+    player: { x: W/2 - 14, y: H-26, w:28, h:10, speed: 170 },
+    bullets: [],
+    invaders: [], invaderBullets: [],
+    dir: 1, wave: 1, score: 0, lives: 3,
+    over: false, cleared: false,
+    input: { left:false, right:false, fire:false },
+    lastFireAt: 0, lastTime: null
+  };
+  newInvaderWave(s, s.wave);
+  invaderGameState = s;
+  window.addEventListener('keydown', invaderGameKeyDown);
+  window.addEventListener('keyup', invaderGameKeyUp);
+  invaderGameKeyHandlerBound = true;
+  invaderGameRafId = requestAnimationFrame(invaderGameLoop);
+}
+function invaderGameLoop(ts){
+  const s = invaderGameState;
+  if(!s) return;
+  if(s.lastTime==null) s.lastTime = ts;
+  const dt = Math.min(0.05, (ts - s.lastTime)/1000);
+  s.lastTime = ts;
+  if(!s.over && !s.cleared){ invaderGameUpdate(s, dt, ts); }
+  invaderGameDraw(s);
+  if(!s.over && !s.cleared){
+    invaderGameRafId = requestAnimationFrame(invaderGameLoop);
+  } else {
+    invaderGameRafId = null;
+    const endEl = document.getElementById('invaderEndOverlay');
+    if(endEl){
+      endEl.style.display = 'flex';
+      const titleEl = endEl.querySelector('.invader-end-title');
+      const scoreEl = endEl.querySelector('.invader-end-score');
+      if(titleEl) titleEl.textContent = s.over ? '💥 ゲームオーバー' : '🎉 とりあえずクリア!';
+      if(scoreEl) scoreEl.textContent = `スコア: ${s.score} (WAVE ${s.wave})`;
+    }
+  }
+}
+function invaderGameUpdate(s, dt, ts){
+  if(s.input.left) s.player.x -= s.player.speed*dt;
+  if(s.input.right) s.player.x += s.player.speed*dt;
+  s.player.x = Math.max(0, Math.min(s.W - s.player.w, s.player.x));
+
+  if(s.input.fire && ts - s.lastFireAt > 350 && s.bullets.length < 2){
+    s.bullets.push({ x: s.player.x + s.player.w/2 - 2, y: s.player.y - 6, w:4, h:8 });
+    s.lastFireAt = ts;
+  }
+  s.bullets.forEach(b=> b.y -= 260*dt);
+  s.bullets = s.bullets.filter(b=> b.y > -10);
+
+  s.stepTimer += dt;
+  if(s.stepTimer >= s.stepInterval){
+    s.stepTimer = 0;
+    const alive = s.invaders.filter(i=>i.alive);
+    let hitEdge = false;
+    alive.forEach(i=>{
+      const nx = i.x + s.dir*8;
+      if(nx < 4 || nx > s.W-20) hitEdge = true;
+    });
+    if(hitEdge){
+      s.dir *= -1;
+      alive.forEach(i=> i.y += s.dropAmount);
+    } else {
+      alive.forEach(i=> i.x += s.dir*8);
+    }
+    const total = s.invaders.length;
+    s.stepInterval = Math.max(0.08, s.baseStepInterval * (alive.length/total) + 0.08);
+  }
+
+  s.fireTimer += dt;
+  if(s.fireTimer > 0.9){
+    s.fireTimer = 0;
+    const alive = s.invaders.filter(i=>i.alive);
+    if(alive.length && Math.random() < 0.6){
+      const shooter = alive[Math.floor(Math.random()*alive.length)];
+      s.invaderBullets.push({ x: shooter.x+8, y: shooter.y+10, w:4, h:8 });
+    }
+  }
+  s.invaderBullets.forEach(b=> b.y += 140*dt);
+  s.invaderBullets = s.invaderBullets.filter(b=> b.y < s.H+10);
+
+  s.bullets.forEach(b=>{
+    s.invaders.forEach(inv=>{
+      if(!inv.alive) return;
+      if(b.x < inv.x+16 && b.x+b.w > inv.x && b.y < inv.y+14 && b.y+b.h > inv.y){
+        inv.alive = false; b.y = -100; s.score += 10;
+      }
+    });
+  });
+  s.bullets = s.bullets.filter(b=> b.y > -50);
+
+  s.invaderBullets.forEach(b=>{
+    if(b.x < s.player.x+s.player.w && b.x+b.w > s.player.x && b.y < s.player.y+s.player.h && b.y+b.h > s.player.y){
+      b.y = s.H+100;
+      s.lives -= 1;
+      if(s.lives <= 0) s.over = true;
+    }
+  });
+  s.invaderBullets = s.invaderBullets.filter(b=> b.y < s.H+50);
+
+  const aliveNow = s.invaders.filter(i=>i.alive);
+  if(aliveNow.some(i=> i.y+14 >= s.player.y)) s.over = true;
+
+  if(aliveNow.length === 0 && !s.over){
+    s.wave += 1;
+    newInvaderWave(s, s.wave);
+  }
+}
+function invaderGameDraw(s){
+  const { ctx, W, H } = s;
+  ctx.fillStyle = '#0b0c0e';
+  ctx.fillRect(0,0,W,H);
+  ctx.fillStyle = 'rgba(255,255,255,0.28)';
+  for(let i=0;i<24;i++){ ctx.fillRect((i*53)%W, (i*97)%H, 1, 1); }
+
+  ctx.fillStyle = '#e0a458';
+  s.invaders.forEach(inv=>{
+    if(!inv.alive) return;
+    ctx.fillRect(inv.x, inv.y, 16, 12);
+    ctx.fillStyle = '#0b0c0e';
+    ctx.fillRect(inv.x+4, inv.y+3, 2, 2);
+    ctx.fillRect(inv.x+10, inv.y+3, 2, 2);
+    ctx.fillStyle = '#e0a458';
+  });
+
+  ctx.fillStyle = '#7ad0e0';
+  ctx.fillRect(s.player.x, s.player.y, s.player.w, s.player.h);
+
+  ctx.fillStyle = '#fff';
+  s.bullets.forEach(b=> ctx.fillRect(b.x,b.y,b.w,b.h));
+  ctx.fillStyle = '#c0453c';
+  s.invaderBullets.forEach(b=> ctx.fillRect(b.x,b.y,b.w,b.h));
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`SCORE ${s.score}`, 6, 14);
+  ctx.textAlign = 'right';
+  ctx.fillText(`💛×${Math.max(0,s.lives)}`, W-6, 14);
+  ctx.textAlign = 'center';
+  ctx.fillText(`WAVE ${s.wave}`, W/2, 14);
+}
+function renderInvaderGame(){
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>👾 インベーダーゲーム <span class="tag">テスト機能</span></h2>
+    <div class="muted" style="margin-bottom:10px;">Invader one の店主が贈る、ちょっとした息抜きゲームです。左右ボタンで移動、🔫ボタンで弾を撃って、降りてくるインベーダーを全滅させましょう。スコアなどは保存されず、画面を出入りするたびに最初からになります。</div>
+    <div class="invader-game-wrap">
+      <canvas id="invaderCanvas" width="300" height="360"></canvas>
+      <div id="invaderEndOverlay" class="invader-end-overlay" style="display:none;">
+        <div class="invader-end-title">🎉 クリア!</div>
+        <div class="invader-end-score muted">スコア: 0</div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="initInvaderGame()">もう一度あそぶ</button>
+      </div>
+    </div>
+    <div class="invader-controls">
+      <button class="invader-btn" ontouchstart="invaderGameTouch(event,'left',true)" ontouchend="invaderGameTouch(event,'left',false)" onmousedown="invaderGameSetInput('left',true)" onmouseup="invaderGameSetInput('left',false)" onmouseleave="invaderGameSetInput('left',false)">◀️</button>
+      <button class="invader-btn invader-btn-fire" ontouchstart="invaderGameTouch(event,'fire',true)" ontouchend="invaderGameTouch(event,'fire',false)" onmousedown="invaderGameSetInput('fire',true)" onmouseup="invaderGameSetInput('fire',false)" onmouseleave="invaderGameSetInput('fire',false)">🔫</button>
+      <button class="invader-btn" ontouchstart="invaderGameTouch(event,'right',true)" ontouchend="invaderGameTouch(event,'right',false)" onmousedown="invaderGameSetInput('right',true)" onmouseup="invaderGameSetInput('right',false)" onmouseleave="invaderGameSetInput('right',false)">▶️</button>
+    </div>
+  `;
+}
+
 function gachaMachineHtml(){
   const useShaker = Math.random() < 0.5;
   if(useShaker){
@@ -3045,11 +3284,12 @@ function render(){
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
-    shimokitaMap: renderShimokitaMap
+    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
   if(state.screen==='shimokitaMap'){ initShimokitaLeafletMap(); }
+  if(state.screen==='invaderGame'){ initInvaderGame(); }
 }
 
 init();
