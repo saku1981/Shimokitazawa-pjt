@@ -191,6 +191,12 @@
   .hanafuda-captured-group{display:flex;flex-wrap:wrap;gap:3px;}
   .hanafuda-koikoi-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;}
   .hanafuda-koikoi-box{background:var(--panel);border-radius:16px;padding:20px;max-width:320px;text-align:center;}
+  .batterbox-track{position:relative;height:52px;background:#123320;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid var(--line);}
+  .batterbox-zone{position:absolute;top:0;bottom:0;background:rgba(255,213,79,0.35);border-left:2px solid #ffd54f;border-right:2px solid #ffd54f;}
+  .batterbox-zone-center{position:absolute;top:0;bottom:0;width:2px;background:#ff7043;}
+  .batterbox-indicator{position:absolute;top:4px;bottom:4px;width:6px;background:#fff;border-radius:3px;
+    box-shadow:0 0 6px rgba(255,255,255,.8);left:0;animation-name:batterboxSweep;animation-timing-function:linear;animation-fill-mode:forwards;}
+  @keyframes batterboxSweep{ from{ left:0%; } to{ left:calc(100% - 6px); } }
   .revenge-story-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
   .revenge-story-box p{margin:0 0 8px;line-height:1.6;font-size:13.5px;}
   .revenge-story-box p:last-child{margin-bottom:0;}
@@ -965,6 +971,7 @@ async function go(screen){
   if(state.screen==='blockTowerGame' && screen!=='blockTowerGame'){ stopBlockTowerGame(); }
   if(state.screen==='smtGame' && screen!=='smtGame'){ stopSmtGameMap(); }
   if(state.screen==='hanafudaGame' && screen!=='hanafudaGame'){ stopHanafudaGame(); }
+  if(state.screen==='batterBoxGame' && screen!=='batterBoxGame'){ stopBatterBoxGame(); }
   state.screen = screen;
   render(); // まず今あるデータで即座に画面を切り替え、後から新しいデータで更新する(反応を速く感じさせるため)
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
@@ -1106,6 +1113,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('blockTowerGame')"><span class="nav-label"><span class="nav-icon">🟦</span>ブロックタワー</span><span class="muted">→</span></div>
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
       ${store.is_test ? `<div class="nav-row" onclick="go('hanafudaGame')"><span class="nav-label"><span class="nav-icon">🌸</span>花札(こいこい) <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
+      ${store.is_test ? `<div class="nav-row" onclick="go('batterBoxGame')"><span class="nav-label"><span class="nav-icon">⚾</span>バッターボックス <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       ${store.is_test ? `<div class="nav-row" onclick="go('smtGame')"><span class="nav-label"><span class="nav-icon">🌀</span>封鎖された下北沢 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
     </div>
@@ -3557,6 +3565,152 @@ function renderHanafudaGame(){
   `;
 }
 
+/* ===================== 下北沢バッターボックス(テスト機能・遊びのみ) =====================
+   打席に立ってタイミングよくスイングするだけの、シンプルな野球ミニゲーム。
+   北海道日本ハムファイターズが好きな店主向けの遊び心という設定のみで、
+   実在の選手名・球団のロゴや公式マークなどは一切使用していない。
+   進行状況はどこにも保存せず、画面を出入りするたびに最初からになる。
+*/
+const BATTERBOX_TOTAL_PITCHES = 10;
+const BATTERBOX_RESULTS = {
+  homerun: { label:'⚾ ホームラン!!', points:4 },
+  hit: { label:'👍 ヒット', points:1 },
+  foul: { label:'ファウル', points:0 },
+  miss: { label:'空振り三振', points:0 },
+  lookingStrikeout: { label:'見逃し三振', points:0 }
+};
+function newBatterBoxGame(){
+  return {
+    pitchNumber: 0,
+    totalPitches: BATTERBOX_TOTAL_PITCHES,
+    stats: { hits:0, homeruns:0, strikeouts:0, fouls:0 },
+    phase: 'ready',
+    zoneCenter: 0.5, zoneHalfWidth: 0.16,
+    pitchDuration: 1.4,
+    pitchStartTime: null,
+    timeoutId: null,
+    lastResult: null,
+    over: false
+  };
+}
+let batterBoxGameState = null;
+function stopBatterBoxGame(){
+  const s = batterBoxGameState;
+  if(s && s.timeoutId){ clearTimeout(s.timeoutId); s.timeoutId = null; }
+  batterBoxGameState = null;
+}
+function initBatterBoxGame(){
+  stopBatterBoxGame();
+  batterBoxGameState = newBatterBoxGame();
+  batterBoxStartPitch();
+}
+function batterBoxStartPitch(){
+  const s = batterBoxGameState;
+  if(!s || s.over) return;
+  s.pitchNumber += 1;
+  s.phase = 'pitching';
+  s.lastResult = null;
+  s.zoneCenter = 0.32 + Math.random()*0.36;
+  s.zoneHalfWidth = Math.max(0.09, 0.17 - s.pitchNumber*0.006);
+  s.pitchDuration = Math.max(0.65, 1.5 - s.pitchNumber*0.07);
+  s.pitchStartTime = performance.now();
+  if(s.timeoutId) clearTimeout(s.timeoutId);
+  s.timeoutId = setTimeout(()=>{ batterBoxResolveSwing(1); }, s.pitchDuration*1000 + 40);
+  render();
+}
+function batterBoxSwing(){
+  const s = batterBoxGameState;
+  if(!s || s.phase!=='pitching') return;
+  const elapsed = (performance.now() - s.pitchStartTime)/1000;
+  const pos = Math.min(1, elapsed / s.pitchDuration);
+  batterBoxResolveSwing(pos);
+}
+function batterBoxResolveSwing(pos){
+  const s = batterBoxGameState;
+  if(!s || s.phase!=='pitching') return;
+  if(s.timeoutId){ clearTimeout(s.timeoutId); s.timeoutId = null; }
+  let resultKey;
+  if(pos>=1){
+    resultKey = 'lookingStrikeout';
+  } else {
+    const dist = Math.abs(pos - s.zoneCenter);
+    if(dist <= s.zoneHalfWidth*0.35) resultKey = 'homerun';
+    else if(dist <= s.zoneHalfWidth) resultKey = 'hit';
+    else if(dist <= s.zoneHalfWidth*1.8) resultKey = 'foul';
+    else resultKey = 'miss';
+  }
+  const result = BATTERBOX_RESULTS[resultKey];
+  s.lastResult = { key: resultKey, label: result.label };
+  if(resultKey==='homerun'){ s.stats.homeruns++; s.stats.hits++; }
+  else if(resultKey==='hit'){ s.stats.hits++; }
+  else if(resultKey==='foul'){ s.stats.fouls++; }
+  else { s.stats.strikeouts++; }
+  s.phase = 'result';
+  render();
+}
+function batterBoxNextPitch(){
+  const s = batterBoxGameState;
+  if(!s || s.phase!=='result') return;
+  if(s.pitchNumber >= s.totalPitches){
+    s.over = true;
+    s.phase = 'over';
+    render();
+    return;
+  }
+  batterBoxStartPitch();
+}
+function batterBoxBattingAverage(s){
+  if(s.totalPitches<=0) return '.000';
+  const avg = s.stats.hits / s.totalPitches;
+  return avg.toFixed(3).replace(/^0\./,'.');
+}
+function renderBatterBoxGame(){
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const s = batterBoxGameState;
+  if(!s){
+    return `
+      <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+      <h2>⚾ 下北沢バッターボックス <span class="tag">テスト機能</span></h2>
+      <div class="muted" style="margin-bottom:14px;">打席に立って、タイミングよくスイングするだけのシンプルな野球ミニゲームです。北海道日本ハムファイターズが好きな店主のために作った設定で、実在の選手名やチームのロゴ・公式マークなどは使用していません。白いバーが黄色いミートゾーンに入った瞬間にスイングボタンをタップしましょう。ちょうど真ん中で打てるとホームランです。全${BATTERBOX_TOTAL_PITCHES}打席、進行状況は保存されず画面を出入りするたびに最初からになります。</div>
+      <button class="btn btn-primary" onclick="initBatterBoxGame()">打席に入る</button>
+    `;
+  }
+  if(s.phase==='over'){
+    return `
+      <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+      <h2>⚾ 下北沢バッターボックス <span class="tag">テスト機能</span></h2>
+      <div class="card" style="text-align:center;padding:24px;">
+        <div style="font-size:20px;margin-bottom:10px;">🏟️ 結果発表</div>
+        <div class="muted" style="margin-bottom:6px;">${s.totalPitches}打席 ${s.stats.hits}安打(うち${s.stats.homeruns}本塁打) ${s.stats.strikeouts}三振 ${s.stats.fouls}ファウル</div>
+        <div class="muted">打率 ${batterBoxBattingAverage(s)}</div>
+        <button class="btn btn-primary" style="margin-top:16px;" onclick="initBatterBoxGame()">もう一度あそぶ</button>
+      </div>
+    `;
+  }
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>⚾ 下北沢バッターボックス <span class="tag">テスト機能</span></h2>
+    <div class="muted" style="margin-bottom:8px;">${s.pitchNumber} / ${s.totalPitches}打席目 ・ ${s.stats.hits}安打(${s.stats.homeruns}本塁打) ${s.stats.strikeouts}三振</div>
+    ${s.phase==='pitching' ? `
+      <div class="batterbox-track">
+        <div class="batterbox-zone" style="left:${((s.zoneCenter-s.zoneHalfWidth)*100).toFixed(1)}%;width:${(s.zoneHalfWidth*2*100).toFixed(1)}%;"></div>
+        <div class="batterbox-zone-center" style="left:${(s.zoneCenter*100).toFixed(1)}%;"></div>
+        <div class="batterbox-indicator" style="animation-duration:${s.pitchDuration}s;"></div>
+      </div>
+      <div class="muted" style="text-align:center;margin-bottom:6px;">白いバーが黄色いゾーンに入ったらスイング!</div>
+      <div class="invader-controls">
+        <button class="invader-btn invader-btn-fire" style="width:140px;" onclick="batterBoxSwing()">🏏 スイング!</button>
+      </div>
+    ` : ''}
+    ${s.phase==='result' && s.lastResult ? `
+      <div class="card" style="text-align:center;padding:16px;">
+        <div style="font-size:18px;">${s.lastResult.label}</div>
+        <button class="btn btn-primary" style="margin-top:10px;" onclick="batterBoxNextPitch()">${s.pitchNumber>=s.totalPitches ? '結果を見る' : '次の球へ'}</button>
+      </div>
+    ` : ''}
+  `;
+}
+
 /* ===================== 封鎖された下北沢(テスト機能・遊びのみ) =====================
    結界に閉ざされた下北沢を、実際の地図(下北沢マップと同じOpenStreetMapベース)の上で
    歩き回って探索するミニRPG。地図はピンチ/スクロールで自由にズームできる。
@@ -5256,7 +5410,8 @@ function render(){
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
     shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
     blockTowerGame: renderBlockTowerGame,
-    revengeGame: renderRevengeGame, smtGame: renderSmtGame, hanafudaGame: renderHanafudaGame
+    revengeGame: renderRevengeGame, smtGame: renderSmtGame, hanafudaGame: renderHanafudaGame,
+    batterBoxGame: renderBatterBoxGame
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
