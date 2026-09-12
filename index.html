@@ -868,7 +868,7 @@ async function go(screen){
     await Promise.all([ loadRecommendations(), loadSettings(state.currentStoreId), loadMurmurs(), loadGachaToday(), loadReceivedCheers(), loadMyCards() ]);
   }
   if(screen==='cardCollection'){ await loadMyCards(); }
-  if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId)]); }
+  if(screen==='settings'){ await Promise.all([loadSettings(state.currentStoreId), loadPerformers(state.currentStoreId), loadRecommendations()]); }
   if(screen==='vlist'){ await Promise.all([Promise.all(publicStores().map(s=>loadPosts(s.id, 1))), loadPeerSettings()]); }
   if(screen==='shimokitaMap'){ await loadSpotVisits(); }
   if(screen==='vdetail'){
@@ -985,15 +985,10 @@ function renderOwnerHome(){
       <button class="big-post-btn" onclick="startPost()"><span class="ic">📷</span>今の様子を投稿する</button>
     `}
     <div class="nav-list">
-      <div class="nav-row" onclick="go('history')"><span class="nav-label"><span class="nav-icon">🗂️</span>投稿履歴</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('peers')"><span class="nav-label"><span class="nav-icon">🏮</span>参加店舗の様子</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('recommendRequests')"><span class="nav-label"><span class="nav-icon">🤝</span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('qrCode')"><span class="nav-label"><span class="nav-icon">📱</span>招待QRコード</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('regularNotes')"><span class="nav-label"><span class="nav-icon">📝</span>常連メモ</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
     </div>
   `;
 }
@@ -1066,7 +1061,7 @@ function renderPeers(){
   const visible = others.filter(s => (settingsById[s.id]||{}).share_with_peers !== false);
   const hiddenCount = others.length - visible.length;
   return `
-    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <span class="back-link" onclick="go('settings')">← 戻る</span>
     <h2>参加店舗の様子</h2>
     <div class="banner">他の参加店主の投稿を、気が向いた時に眺める場所です。比較やランキングはありません。</div>
     ${visible.length===0 ? '<div class="muted">現在、閲覧できる参加店舗がありません。</div>' : visible.map(s=>{
@@ -1123,7 +1118,7 @@ function renderRecommendRequests(){
   const incoming = (cache.recommendations||[]).filter(r=>r.to_store_id===me && r.status==='pending');
   const outgoing = (cache.recommendations||[]).filter(r=>r.from_store_id===me && (r.status==='pending'||r.status==='accepted'));
   return `
-    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <span class="back-link" onclick="go('settings')">← 戻る</span>
     <h2>紹介の申し出</h2>
     <div class="banner">紹介の申し出には、ここで返事ができます。見送るときも、理由は要りません。</div>
     <h3>あなたへの申し出</h3>
@@ -1170,7 +1165,7 @@ function renderRegularNotes(){
   const store = storeById(state.currentStoreId);
   const regulars = cache.storeRegulars[store.id] || [];
   return `
-    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <span class="back-link" onclick="go('settings')">← 戻る</span>
     <h2>常連メモ</h2>
     <div class="banner">この画面はあなただけに見えます。常連さんご本人には表示されません。同じ常連さんが他の参加店舗にもいる場合、店舗名がここにわかります。トラブル時の連携や、ゆるやかな信頼関係のためにお使いください。</div>
     ${regulars.length===0 ? '<div class="muted">まだ常連の登録がありません。</div>' : regulars.map(r=>{
@@ -2338,7 +2333,7 @@ function renderQrCode(){
   const codeVal = state._qrCodeInput || '';
   const url = location.origin + location.pathname + (codeVal ? ('?code='+encodeURIComponent(codeVal)) : '');
   return `
-    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <span class="back-link" onclick="go('settings')">← 戻る</span>
     <h2>招待QRコード</h2>
     <div class="banner">新しい常連コードは、その場で発行できます。1回だけ使えて、7日で期限切れになります。</div>
     <button class="btn btn-primary" onclick="generateInviteCode()">＋ 新しい常連コードを発行する</button>
@@ -2555,7 +2550,7 @@ async function saveDraft(){ await publish(false); }
 function renderHistory(){
   const posts = cache.posts[state.currentStoreId] || [];
   return `
-    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <span class="back-link" onclick="go('settings')">← 戻る</span>
     <h2>投稿履歴</h2>
     ${posts.length===0 ? '<div class="muted">まだ投稿がありません</div>' : posts.map(p=>`
       <div class="post-row">
@@ -2600,6 +2595,7 @@ function renderSettings(){
   const performers = cache.performers[store.id] || [];
   const vLevel = vacancyLevel(set);
   const rainToday = isRainSpecialToday(set);
+  const pendingCount = (cache.recommendations||[]).filter(r=>r.to_store_id===store.id && r.status==='pending').length;
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
     <h2>設定 － ${store.name}</h2>
@@ -2608,6 +2604,14 @@ function renderSettings(){
         <span>📖 この画面の使い方(取説)を見る</span>
         <span class="muted">→</span>
       </div>
+    </div>
+
+    <div class="nav-list" style="margin-top:0;margin-bottom:20px;">
+      <div class="nav-row" onclick="go('history')"><span class="nav-label"><span class="nav-icon">🗂️</span>投稿履歴</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('peers')"><span class="nav-label"><span class="nav-icon">🏮</span>参加店舗の様子</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('recommendRequests')"><span class="nav-label"><span class="nav-icon">🤝</span>紹介の申し出${pendingCount>0?` <span class="tag warn">${pendingCount}</span>`:''}</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('qrCode')"><span class="nav-label"><span class="nav-icon">📱</span>招待QRコード</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('regularNotes')"><span class="nav-label"><span class="nav-icon">📝</span>常連メモ</span><span class="muted">→</span></div>
     </div>
 
     <h3>お店の紹介文</h3>
