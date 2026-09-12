@@ -199,19 +199,9 @@
     100%{opacity:1;pointer-events:auto;}
   }
   .card-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:6px;}
-  .street-map-wrap{position:relative;border-radius:16px;overflow:hidden;border:1px solid var(--line);}
-  .street-map-pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;cursor:pointer;}
-  .street-map-pin-dot{font-size:20px;filter:grayscale(1) opacity(0.55);transition:filter .2s;}
-  .street-map-pin.visited .street-map-pin-dot{filter:none;}
-  .street-map-pin-label{margin-top:2px;font-size:10px;color:var(--sub);background:rgba(20,21,24,.72);padding:2px 6px;border-radius:8px;white-space:nowrap;max-width:70px;overflow:hidden;text-overflow:ellipsis;}
-  .street-map-pin.visited .street-map-pin-label{color:var(--text);}
-  .street-map-bubble{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:4px;padding:5px 10px;border-radius:12px;font-size:10.5px;line-height:1.4;font-weight:700;text-align:center;width:max-content;max-width:120px;white-space:normal;color:#15161a;background:var(--accent);box-shadow:0 2px 6px rgba(0,0,0,.35);animation:bubblePop .25s ease;z-index:6;}
-  .street-map-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--accent);}
-  .street-map-bubble.no{background:#8a8d95;}
-  .street-map-bubble.no::after{border-top-color:#8a8d95;}
-  @keyframes bubblePop{0%{opacity:0;transform:translateX(-50%) scale(.6);}100%{opacity:1;transform:translateX(-50%) scale(1);}}
-  .street-map-pin-dense{padding:6px;margin:-6px;transform:translate(-50%,-50%);}
-  .street-map-pin-dense .street-map-pin-dot{font-size:15px;}
+  .shimokita-leaflet-pin-wrap{background:transparent;border:none;}
+  .shimokita-leaflet-pin{font-size:20px;line-height:1;text-align:center;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));}
+  .shimokita-leaflet-pin.visited{filter:drop-shadow(0 2px 3px rgba(0,0,0,.5)) saturate(1.3);}
   .shimokita-spot-list{max-height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;}
   .shimokita-spot-row{display:flex;align-items:center;gap:8px;padding:9px 12px;border-bottom:1px solid var(--line);cursor:pointer;}
   .shimokita-spot-row:last-child{border-bottom:none;}
@@ -363,6 +353,8 @@
 <div class="toast" id="toast"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ===================== 接続設定 ===================== */
 const SUPABASE_URL = 'https://mxnpeddextguwjmhcmvc.supabase.co';
@@ -394,7 +386,7 @@ const RECOMMEND_TEMPLATES = {
 };
 
 /* ===================== アプリ状態 ===================== */
-let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null, spotBubble:null };
+let state = { screen:'loading', role:'owner', currentStoreId:null, tempPost:null, user:null, _murmurDraft:'', _murmurStoreId:null };
 let cache = { memberships:[], stores:[], posts:{}, performers:{}, settings:{}, recommendations:[], allSettings:[], storeMates:{}, storeRegulars:{}, regularNetwork:[], findVideoUrls:{}, murmurs:[], gachaToday:{}, receivedCheers:[], myCards:[], visits:[], spotVisits:[] };
 const OWNER_BADGE_TEMPLATES = ['', 'いつもありがとうございます', '常連歴の長い方です', '気持ちよく過ごしてくださる方です', 'お店を支えてくださっている方です'];
 const PREFILL_CODE = new URLSearchParams(location.search).get('code') || '';
@@ -533,85 +525,85 @@ async function toggleVisit(storeId){
    下北沢マップの上にバランスよく配置するための仮の並び順。
 */
 const SHIMOKITA_SPOTS = [
-  {id:'invader-one', name:'Invader one', genre:'バー', area:'路地裏', note:'落ち着いたホーム的なバー'},
-  {id:'u7', name:'U7(うな)', genre:'燻製バー', area:'2F', note:'燻製料理とパスタ・ピザが名物'},
-  {id:'bar-chivetta', name:'Bar chivetta', genre:'バー', area:'路地裏', note:'オーセンティックな新規バー'},
-  {id:'hashage-sakaba', name:'はしゃげさかば', genre:'カラオケバー', area:'地下', note:'ショット多め、歌好きが盛り上がる'},
-  {id:'kanmiadokoro', name:'燗味処', genre:'小料理屋・バー', area:'2F', note:'刺身・小鉢がおいしい'},
-  {id:'haru', name:'はる', genre:'おばんざい', area:'2F', note:'一品料理とハイボール'},
-  {id:'ukishima', name:'浮島', genre:'喫茶・パスタ', area:'2F', note:'20年続く老舗、シェイクカクテル'},
-  {id:'garden-theatre', name:'ガーデンシアター', genre:'カラオケバー', area:'2F', note:'リラックス・チルな雰囲気'},
-  {id:'bar-fabre', name:'Bar Fabre', genre:'バー', area:'', note:''},
-  {id:'seven', name:'Seven', genre:'バル', area:'路面', note:'料理とワインが評判、カルパッチョが人気'},
-  {id:'kanto', name:'Kanto', genre:'バー', area:'', note:'新しくオープンした店'},
-  {id:'amiami', name:'あみあみ', genre:'焼き鳥', area:'', note:'麻雀もできる'},
-  {id:'shimokita-rokkaku', name:'下北 六角', genre:'居酒屋', area:'', note:'ネギトロ・だし系が美味しい'},
-  {id:'le-grand-ecart', name:'Le grand ecart', genre:'バー', area:'', note:'フランス風でチルな雰囲気'},
-  {id:'vanitas', name:'バーニタス', genre:'バー', area:'', note:'アーチレンガの内装が印象的'},
-  {id:'mizutani', name:'みずたに', genre:'居酒屋', area:'', note:'カレーあて盛りが名物'},
-  {id:'rumble', name:'Rumble', genre:'バー', area:'4階', note:'ジンの種類が豊富、卓球台あり'},
-  {id:'kamai-kitchen', name:'かまいキッチン', genre:'フィリピン料理', area:'', note:''},
-  {id:'stay-happy', name:'ステイハッピー', genre:'バー', area:'', note:'店内にハンモックがある'},
-  {id:'bab', name:'Bab', genre:'バー', area:'', note:'バーテンダーに相談しやすい雰囲気'},
-  {id:'kimono-kien', name:'Kimono Kien', genre:'着物店・バー', area:'', note:'昼は着物店、夜はバー'},
-  {id:'hyphen', name:'Hyphen', genre:'バー', area:'', note:'20代が集うホーム的な店'},
-  {id:'second-tabacchi', name:'Second tabacchi', genre:'バー', area:'', note:'20代の語り場的な雰囲気'},
-  {id:'first', name:'First', genre:'バー', area:'', note:'紹介された店'},
-  {id:'colony', name:'Colony', genre:'バー', area:'', note:'音楽や会話の勢いを楽しむ賑やかな店'},
-  {id:'umeboshi-sour', name:'梅干しサワー専門店', genre:'立ち飲みバー', area:'', note:'梅干しサワーが名物'},
-  {id:'lza', name:'Lza', genre:'カラオケバー', area:'', note:'落ち着いた内装、大人な社交の場'},
-  {id:'el', name:'El(エル)', genre:'レコード・バー', area:'レコードシティ界隈', note:'音楽好きが集まる'},
-  {id:'arika', name:'Arika', genre:'カラオケバー', area:'', note:''},
-  {id:'scarecrow', name:'Scarecrow', genre:'バー', area:'', note:'バンドマンなど音楽好きが集う老舗'},
-  {id:'kakurega', name:'かくれが', genre:'バー', area:'南口', note:''},
-  {id:'yuukoku', name:'Yuukoku', genre:'バー', area:'', note:'ウイスキーが評判'},
-  {id:'algonquins-bar', name:'アルゴンキンズバー', genre:'バー', area:'', note:'食事がおいしい'},
-  {id:'panipani', name:'Panipani', genre:'バー', area:'', note:'沖縄・宮古島ルーツの料理が名物'},
-  {id:'momoyama-dogma', name:'桃山ドグマ', genre:'バー', area:'', note:'アニメ・サブカル系の個性派'},
-  {id:'ten', name:'TEN', genre:'バー', area:'', note:'若い店主のバー'},
-  {id:'tonoto', name:'Tonoto', genre:'居酒屋', area:'', note:'わかめ料理が中心'},
-  {id:'gecko', name:'ゲッコー', genre:'沖縄バー', area:'4階', note:'下北沢を見渡せる眺め'},
-  {id:'sugar', name:'Sugar', genre:'バー', area:'', note:'仕事帰りにも寄りやすい'},
-  {id:'share', name:'Share', genre:'バー', area:'', note:'カジュアルな出会いの場'},
-  {id:'shina', name:'SHINA', genre:'バー', area:'', note:'落ち着いた大人向けのオーセンティックバー'},
-  {id:'canpy', name:'Canpy', genre:'バー', area:'', note:'浴衣ナイトなどイベントあり'},
-  {id:'1carat', name:'1carat', genre:'カラオケバー', area:'', note:'ゲームやヒップホップが好きな柔らかい雰囲気'},
-  {id:'borders', name:'Borders', genre:'バー', area:'', note:'居心地の良いCosyな雰囲気'},
-  {id:'geek', name:'Geek', genre:'バー', area:'', note:'good time bar'},
-  {id:'giraffe', name:'ジラフ', genre:'バー', area:'', note:'ウッド調の内装'},
-  {id:'miraiya', name:'みらいや喫茶', genre:'喫茶店', area:'', note:'旧:はまこ'},
-  {id:'lnmssml', name:'Last Night Music Saved My Life', genre:'ミュージックバー', area:'', note:'R&B中心'},
-  {id:'little-soul-cafe', name:'Little soul cafe', genre:'ミュージックバー', area:'', note:'ソウルミュージック中心'},
-  {id:'takibi', name:'焚き火', genre:'バー', area:'', note:'ウッド調で落ち着いたカウンター'},
-  {id:'amber-bar', name:'アンバー&bar', genre:'バー', area:'', note:'メニュー表がない独特のスタイル'},
-  {id:'velvet', name:'ベルベット', genre:'バー', area:'', note:'オーセンティックな正統派バー'},
-  {id:'aomori', name:'あおもり', genre:'居酒屋', area:'', note:'だし巻き・かつおのたたきが美味しい'},
-  {id:'daisan-shinseimaru', name:'第三新生丸', genre:'居酒屋', area:'', note:''},
-  {id:'ensemble', name:'アンサンブル', genre:'バー', area:'', note:''},
-  {id:'bachi-buzoku', name:'バチブーズク', genre:'バー', area:'', note:''},
-  {id:'no-rooms-for-squares', name:'No rooms for squares', genre:'ジャズバー', area:'', note:'ジャズと美味しいジントニック'},
-  {id:'bar-uoshin', name:'Bar(うおしんの近く)', genre:'バー', area:'うおしんの近く', note:''},
-  {id:'swamp', name:'Swamp', genre:'ミュージックバー', area:'一番街左手・2F', note:''},
-  {id:'zaji', name:'Zaji', genre:'居酒屋', area:'', note:'40年来の老舗、軽井沢にも展開'},
-  {id:'tabacchi', name:'tabacchi(タバッキ)', genre:'バー', area:'', note:'30〜50代の大人が語り合う場'},
-  {id:'lagoon', name:'ラグーン', genre:'イタリアン', area:'', note:'白いスパゲティが名物'},
-  {id:'matsu', name:'まつ', genre:'和食', area:'南口商店街側', note:''},
-  {id:'kampal', name:'Kampal', genre:'バー', area:'', note:'40〜50年超えのローカルバー'},
-  {id:'happy-house', name:'はっぴいはうす', genre:'スナック', area:'', note:'月1オープン'},
-  {id:'milk', name:'みるく', genre:'', area:'', note:''},
-  {id:'obanzai', name:'おばんざい', genre:'おばんざい', area:'', note:''},
-  {id:'rakumi', name:'らくみ', genre:'', area:'', note:''},
-  {id:'furusato', name:'ふるさと', genre:'', area:'', note:''},
-  {id:'kokochi', name:'Kokochi', genre:'', area:'', note:'鯵のなめろうが名物'},
-  {id:'budokan', name:'BUDOKAN', genre:'バー', area:'「飲もうぜ」グループ', note:''},
-  {id:'arena-shimokita', name:'ARENA下北沢', genre:'バー', area:'「飲もうぜ」グループ', note:''},
-  {id:'kirowne', name:'キローネ(KIROWNE)', genre:'バー', area:'「飲もうぜ」グループ', note:''},
-  {id:'gijido', name:'Gijido(ギジドー)', genre:'バー', area:'「飲もうぜ」グループ', note:'少し落ち着いた雰囲気'},
-  {id:'buckingham', name:'バッキンガム宮殿', genre:'バー', area:'「飲もうぜ」グループ', note:'明るくワイワイした雰囲気'},
-  {id:'sakarijo', name:'酒里城', genre:'バー', area:'「飲もうぜ」グループ', note:''},
-  {id:'hope', name:'HOPE', genre:'バー', area:'「飲もうぜ」グループ', note:''},
-  {id:'central-park-daizawa', name:'Central Park DAIZAWA', genre:'バー', area:'「飲もうぜ」グループ', note:''},
-  {id:'toshimaen', name:'としまえん', genre:'カラオケバー', area:'「飲もうぜ」グループ', note:''},
+  {id:'invader-one', name:'Invader one', genre:'バー', area:'路地裏', note:'落ち着いたホーム的なバー', lat:35.66261, lng:139.66789},
+  {id:'u7', name:'U7(うな)', genre:'燻製バー', area:'2F', note:'燻製料理とパスタ・ピザが名物', lat:35.66287, lng:139.66817},
+  {id:'bar-chivetta', name:'Bar chivetta', genre:'バー', area:'路地裏', note:'オーセンティックな新規バー', lat:35.663176, lng:139.668152},
+  {id:'hashage-sakaba', name:'はしゃげさかば', genre:'カラオケバー', area:'地下', note:'ショット多め、歌好きが盛り上がる', lat:35.660726, lng:139.669266},
+  {id:'kanmiadokoro', name:'燗味処', genre:'小料理屋・バー', area:'2F', note:'刺身・小鉢がおいしい', lat:35.66273, lng:139.66879},
+  {id:'haru', name:'はる', genre:'おばんざい', area:'2F', note:'一品料理とハイボール', lat:35.66099, lng:139.666884},
+  {id:'ukishima', name:'浮島', genre:'喫茶・パスタ', area:'2F', note:'20年続く老舗、シェイクカクテル', lat:35.661251, lng:139.668743},
+  {id:'garden-theatre', name:'ガーデンシアター', genre:'カラオケバー', area:'2F', note:'リラックス・チルな雰囲気', lat:35.661684, lng:139.667096},
+  {id:'bar-fabre', name:'Bar Fabre', genre:'バー', area:'', note:'', lat:35.65784, lng:139.6714},
+  {id:'seven', name:'Seven', genre:'バル', area:'路面', note:'料理とワインが評判、カルパッチョが人気', lat:35.663003, lng:139.668307},
+  {id:'kanto', name:'Kanto', genre:'バー', area:'', note:'新しくオープンした店', lat:35.660268, lng:139.668401},
+  {id:'amiami', name:'あみあみ', genre:'焼き鳥', area:'', note:'麻雀もできる', lat:35.662325, lng:139.668472},
+  {id:'shimokita-rokkaku', name:'下北 六角', genre:'居酒屋', area:'', note:'ネギトロ・だし系が美味しい', lat:35.66121, lng:139.66857},
+  {id:'le-grand-ecart', name:'Le grand ecart', genre:'バー', area:'', note:'フランス風でチルな雰囲気', lat:35.661985, lng:139.668446},
+  {id:'vanitas', name:'バーニタス', genre:'バー', area:'', note:'アーチレンガの内装が印象的', lat:35.663143, lng:139.669253},
+  {id:'mizutani', name:'みずたに', genre:'居酒屋', area:'', note:'カレーあて盛りが名物', lat:35.663457, lng:139.669308},
+  {id:'rumble', name:'Rumble', genre:'バー', area:'4階', note:'ジンの種類が豊富、卓球台あり', lat:35.663183, lng:139.668415},
+  {id:'kamai-kitchen', name:'かまいキッチン', genre:'フィリピン料理', area:'', note:'', lat:35.66263, lng:139.668991},
+  {id:'stay-happy', name:'ステイハッピー', genre:'バー', area:'', note:'店内にハンモックがある', lat:35.66004, lng:139.66897},
+  {id:'bab', name:'Bab', genre:'バー', area:'', note:'バーテンダーに相談しやすい雰囲気', lat:35.660387, lng:139.669127},
+  {id:'kimono-kien', name:'Kimono Kien', genre:'着物店・バー', area:'', note:'昼は着物店、夜はバー', lat:35.662527, lng:139.668641},
+  {id:'hyphen', name:'Hyphen', genre:'バー', area:'', note:'20代が集うホーム的な店', lat:35.66162, lng:139.66829},
+  {id:'second-tabacchi', name:'Second tabacchi', genre:'バー', area:'', note:'20代の語り場的な雰囲気', lat:35.661699, lng:139.664974},
+  {id:'first', name:'First', genre:'バー', area:'', note:'紹介された店', lat:35.661063, lng:139.667247},
+  {id:'colony', name:'Colony', genre:'バー', area:'', note:'音楽や会話の勢いを楽しむ賑やかな店', lat:35.661386, lng:139.669092},
+  {id:'umeboshi-sour', name:'梅干しサワー専門店', genre:'立ち飲みバー', area:'', note:'梅干しサワーが名物', lat:35.660725, lng:139.668247},
+  {id:'lza', name:'Lza', genre:'カラオケバー', area:'', note:'落ち着いた内装、大人な社交の場', lat:35.663664, lng:139.669136},
+  {id:'el', name:'El(エル)', genre:'レコード・バー', area:'レコードシティ界隈', note:'音楽好きが集まる', lat:35.663318, lng:139.666023},
+  {id:'arika', name:'Arika', genre:'カラオケバー', area:'', note:'', lat:35.660912, lng:139.669726},
+  {id:'scarecrow', name:'Scarecrow', genre:'バー', area:'', note:'バンドマンなど音楽好きが集う老舗', lat:35.65885, lng:139.6675},
+  {id:'kakurega', name:'かくれが', genre:'バー', area:'南口', note:'', lat:35.659135, lng:139.666902},
+  {id:'yuukoku', name:'Yuukoku', genre:'バー', area:'', note:'ウイスキーが評判', lat:35.66365, lng:139.66852},
+  {id:'algonquins-bar', name:'アルゴンキンズバー', genre:'バー', area:'', note:'食事がおいしい', lat:35.65593, lng:139.66734},
+  {id:'panipani', name:'Panipani', genre:'バー', area:'', note:'沖縄・宮古島ルーツの料理が名物', lat:35.660999, lng:139.66905},
+  {id:'momoyama-dogma', name:'桃山ドグマ', genre:'バー', area:'', note:'アニメ・サブカル系の個性派', lat:35.662106, lng:139.667104},
+  {id:'ten', name:'TEN', genre:'バー', area:'', note:'若い店主のバー', lat:35.663048, lng:139.668172},
+  {id:'tonoto', name:'Tonoto', genre:'居酒屋', area:'', note:'わかめ料理が中心', lat:35.66226, lng:139.66772},
+  {id:'gecko', name:'ゲッコー', genre:'沖縄バー', area:'4階', note:'下北沢を見渡せる眺め', lat:35.661694, lng:139.669036},
+  {id:'sugar', name:'Sugar', genre:'バー', area:'', note:'仕事帰りにも寄りやすい', lat:35.662722, lng:139.668703},
+  {id:'share', name:'Share', genre:'バー', area:'', note:'カジュアルな出会いの場', lat:35.663455, lng:139.667916},
+  {id:'shina', name:'SHINA', genre:'バー', area:'', note:'落ち着いた大人向けのオーセンティックバー', lat:35.661872, lng:139.669196},
+  {id:'canpy', name:'Canpy', genre:'バー', area:'', note:'浴衣ナイトなどイベントあり', lat:35.661273, lng:139.668468},
+  {id:'1carat', name:'1carat', genre:'カラオケバー', area:'', note:'ゲームやヒップホップが好きな柔らかい雰囲気', lat:35.662692, lng:139.668975},
+  {id:'borders', name:'Borders', genre:'バー', area:'', note:'居心地の良いCosyな雰囲気', lat:35.65684, lng:139.66777},
+  {id:'geek', name:'Geek', genre:'バー', area:'', note:'good time bar', lat:35.661678, lng:139.668613},
+  {id:'giraffe', name:'ジラフ', genre:'バー', area:'', note:'ウッド調の内装', lat:35.66224, lng:139.67066},
+  {id:'miraiya', name:'みらいや喫茶', genre:'喫茶店', area:'', note:'旧:はまこ', lat:35.661072, lng:139.666919},
+  {id:'lnmssml', name:'Last Night Music Saved My Life', genre:'ミュージックバー', area:'', note:'R&B中心', lat:35.663087, lng:139.669616},
+  {id:'little-soul-cafe', name:'Little soul cafe', genre:'ミュージックバー', area:'', note:'ソウルミュージック中心', lat:35.663575, lng:139.669141},
+  {id:'takibi', name:'焚き火', genre:'バー', area:'', note:'ウッド調で落ち着いたカウンター', lat:35.66048, lng:139.66734},
+  {id:'amber-bar', name:'アンバー&bar', genre:'バー', area:'', note:'メニュー表がない独特のスタイル', lat:35.66052, lng:139.66544},
+  {id:'velvet', name:'ベルベット', genre:'バー', area:'', note:'オーセンティックな正統派バー', lat:35.65751, lng:139.66759},
+  {id:'aomori', name:'あおもり', genre:'居酒屋', area:'', note:'だし巻き・かつおのたたきが美味しい', lat:35.663152, lng:139.669495},
+  {id:'daisan-shinseimaru', name:'第三新生丸', genre:'居酒屋', area:'', note:'', lat:35.65972, lng:139.6666},
+  {id:'ensemble', name:'アンサンブル', genre:'バー', area:'', note:'', lat:35.66227, lng:139.667726},
+  {id:'bachi-buzoku', name:'バチブーズク', genre:'バー', area:'', note:'', lat:35.662342, lng:139.668396},
+  {id:'no-rooms-for-squares', name:'No rooms for squares', genre:'ジャズバー', area:'', note:'ジャズと美味しいジントニック', lat:35.658825, lng:139.667883},
+  {id:'bar-uoshin', name:'Bar(うおしんの近く)', genre:'バー', area:'うおしんの近く', note:'', lat:35.658735, lng:139.667913},
+  {id:'swamp', name:'Swamp', genre:'ミュージックバー', area:'一番街左手・2F', note:'', lat:35.662833, lng:139.666734},
+  {id:'zaji', name:'Zaji', genre:'居酒屋', area:'', note:'40年来の老舗、軽井沢にも展開', lat:35.66269, lng:139.668898},
+  {id:'tabacchi', name:'tabacchi(タバッキ)', genre:'バー', area:'', note:'30〜50代の大人が語り合う場', lat:35.662382, lng:139.66496},
+  {id:'lagoon', name:'ラグーン', genre:'イタリアン', area:'', note:'白いスパゲティが名物', lat:35.66088, lng:139.66893},
+  {id:'matsu', name:'まつ', genre:'和食', area:'南口商店街側', note:'', lat:35.66045, lng:139.66753},
+  {id:'kampal', name:'Kampal', genre:'バー', area:'', note:'40〜50年超えのローカルバー', lat:35.661174, lng:139.666736},
+  {id:'happy-house', name:'はっぴいはうす', genre:'スナック', area:'', note:'月1オープン', lat:35.661955, lng:139.669526},
+  {id:'milk', name:'みるく', genre:'', area:'', note:'', lat:35.66462, lng:139.66689},
+  {id:'obanzai', name:'おばんざい', genre:'おばんざい', area:'', note:'', lat:35.661681, lng:139.667861},
+  {id:'rakumi', name:'らくみ', genre:'', area:'', note:'', lat:35.660746, lng:139.668648},
+  {id:'furusato', name:'ふるさと', genre:'', area:'', note:'', lat:35.662408, lng:139.668494},
+  {id:'kokochi', name:'Kokochi', genre:'', area:'', note:'鯵のなめろうが名物', lat:35.65789, lng:139.66742},
+  {id:'budokan', name:'BUDOKAN', genre:'バー', area:'「飲もうぜ」グループ', note:'', lat:35.66293, lng:139.67},
+  {id:'arena-shimokita', name:'ARENA下北沢', genre:'バー', area:'「飲もうぜ」グループ', note:'', lat:35.659252, lng:139.66822},
+  {id:'kirowne', name:'キローネ(KIROWNE)', genre:'バー', area:'「飲もうぜ」グループ', note:'', lat:35.659422, lng:139.667475},
+  {id:'gijido', name:'Gijido(ギジドー)', genre:'バー', area:'「飲もうぜ」グループ', note:'少し落ち着いた雰囲気', lat:35.662566, lng:139.670434},
+  {id:'buckingham', name:'バッキンガム宮殿', genre:'バー', area:'「飲もうぜ」グループ', note:'明るくワイワイした雰囲気', lat:35.662205, lng:139.669857},
+  {id:'sakarijo', name:'酒里城', genre:'バー', area:'「飲もうぜ」グループ', note:'', lat:35.661716, lng:139.670245},
+  {id:'hope', name:'HOPE', genre:'バー', area:'「飲もうぜ」グループ', note:'', lat:35.661189, lng:139.668364},
+  {id:'central-park-daizawa', name:'Central Park DAIZAWA', genre:'バー', area:'「飲もうぜ」グループ', note:'', lat:35.661662, lng:139.668924},
+  {id:'toshimaen', name:'としまえん', genre:'カラオケバー', area:'「飲もうぜ」グループ', note:'', lat:35.663113, lng:139.668951},
 ];
 async function loadSpotVisits(){
   const uid = state.user && state.user.id;
@@ -636,25 +628,11 @@ async function toggleSpotVisit(spotId){
     }
     await loadSpotVisits();
     const spot = SHIMOKITA_SPOTS.find(s=>s.id===spotId);
-    state.spotBubble = { id: spotId, visited: willVisit };
+    toast(willVisit ? `${spot ? spot.name : ''} 行った!🎉` : `${spot ? spot.name : ''} また今度〜`);
     render();
-    clearTimeout(window.__spotBubbleTimer);
-    window.__spotBubbleTimer = setTimeout(()=>{ state.spotBubble = null; render(); }, 1600);
   } finally {
     spotVisitToggling = false;
   }
-}
-function spotMapPosition(spot, idx, total){
-  // お店の数が多い(数十件)ため、道の形に沿わせるのではなく、
-  // タップしやすい間隔を確保できるグリッド状に配置する。
-  const cols = Math.max(4, Math.ceil(Math.sqrt(total * (400/280))));
-  const rows = Math.max(1, Math.ceil(total / cols));
-  const col = idx % cols;
-  const row = Math.floor(idx / cols);
-  const xMargin = 8, yMargin = 10;
-  const x = cols>1 ? xMargin + (col/(cols-1)) * (100 - xMargin*2) : 50;
-  const y = rows>1 ? yMargin + (row/(rows-1)) * (100 - yMargin*2) : 50;
-  return { x, y };
 }
 
 /* ===================== 招待コード ===================== */
@@ -2042,138 +2020,60 @@ function renderCardCollection(){
     `}
   `;
 }
-/* ===================== 下北沢マップ画面(イラスト背景) =====================
-   下北沢の街の雰囲気(横に長いメイン通り+途中から下北沢駅方面に分岐する通り)を
-   モチーフにした、オリジナルのイラストマップ。
-*/
-function shimokitaMapBackgroundSvg(){
-  // 実際の商店街マップの「配色・雰囲気」(白地・テイール色の通り・ベージュの建物・赤系のアクセント)
-  // に寄せた、オリジナルのイラストマップ。実際のマップ画像そのものはコピーしていない。
-  // 通りの形は、実際の一番街(横のメイン通り→途中でゆるく曲がりながら下北沢駅方面へ分岐)に
-  // 近づけつつ、建物の高さ・のれん・街灯・自転車・横断歩道などのディテールを増やしている。
-  const MAROON = '#8a3a35';
-  const RED = '#c0453c';
-  const TEAL = '#2f9e93';
-  const BEIGE = '#e6d7b3';
-  const BEIGE_LINE = '#c7ad78';
-  const NOREN = ['#c0453c','#2f9e93','#c9a24e'];
-  // 建物: 高さや形にバラつきを持たせ、小さな「のれん」も添える
-  const building = (x,y,w,h,seed=0,step=0)=>{
-    const noren = NOREN[seed % NOREN.length];
-    const stepBlock = step>0 ? `<rect x="${x+w-step-2}" y="${y-10}" width="${step}" height="10" fill="${BEIGE}" stroke="${BEIGE_LINE}" stroke-width="1.2"/>` : '';
-    return `
-    ${stepBlock}
-    <rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${BEIGE}" stroke="${BEIGE_LINE}" stroke-width="1.4"/>
-    <rect x="${x}" y="${y}" width="${w}" height="5" fill="${BEIGE_LINE}"/>
-    <rect x="${x+6}" y="${y+5}" width="7" height="9" fill="${noren}" opacity="0.8"/>
-    <rect x="${x+5}" y="${y+h-9}" width="5" height="5" fill="${RED}" opacity="0.55"/>
-  `;};
-  const tree = (x,y)=>`
-    <line x1="${x}" y1="${y+8}" x2="${x}" y2="${y+16}" stroke="#8a7a55" stroke-width="1.6"/>
-    <circle cx="${x}" cy="${y+3}" r="6.5" fill="#5c8a5f" opacity="0.9"/>
-    <circle cx="${x-3}" cy="${y+6}" r="4" fill="#6ea072" opacity="0.85"/>`;
-  const streetlight = (x,y)=>`
-    <line x1="${x}" y1="${y}" x2="${x}" y2="${y-18}" stroke="#8a8272" stroke-width="1.6"/>
-    <circle cx="${x}" cy="${y-19}" r="2.6" fill="#f4dfa0" stroke="#8a8272" stroke-width="1"/>`;
-  const bicycle = (x,y)=>`
-    <circle cx="${x}" cy="${y}" r="4.5" fill="none" stroke="#5a6470" stroke-width="1.3"/>
-    <circle cx="${x+9}" cy="${y}" r="4.5" fill="none" stroke="#5a6470" stroke-width="1.3"/>
-    <path d="M${x},${y} L${x+4},${y-6} L${x+9},${y} M${x+4},${y-6} L${x+5},${y-9}" fill="none" stroke="#5a6470" stroke-width="1.2"/>`;
-  // メイン通り沿い(上): 建物(高さ違い・のれん付き)と街路樹・街灯を交互に
-  const topBuildings = [[30,36,40,46,0,0],[80,30,44,52,1,10],[134,36,38,46,2,0],[182,28,44,54,0,12],[236,36,40,46,1,0],[286,30,44,52,2,10],[340,36,38,46,0,0]]
-    .map(([x,y,w,h,seed,step])=>building(x,y,w,h,seed,step)).join('');
-  const topTrees = [56,124,226,330].map(x=>tree(x,68)).join('');
-  const topLights = [178,278].map(x=>streetlight(x,80)).join('');
-  // メイン通り沿い(下・分岐点より左側): 建物
-  const bottomLeftBuildings = [[26,104,42,36,1,0],[78,106,40,38,2,8],[128,104,42,36,0,0],[180,106,38,38,1,8],[226,104,32,36,2,0]]
-    .map(([x,y,w,h,seed,step])=>building(x,y,w,h,seed,step)).join('');
-  const bottomLeftTrees = [66,168].map(x=>tree(x,146)).join('');
-  const bottomLeftBike = bicycle(112,140);
-  // メイン通り沿い(下・分岐点より右側)
-  const bottomRightBuildings = [[292,104,36,36,0,0],[332,106,32,38,1,0]]
-    .map(([x,y,w,h,seed,step])=>building(x,y,w,h,seed,step)).join('');
-  // 分岐通り(縦・下北沢駅方面)の左右に並ぶ建物
-  const branchLeftBuildings = [[188,150,60,34,2,0],[188,190,60,32,0,0]]
-    .map(([x,y,w,h,seed,step])=>building(x,y,w,h,seed,step)).join('');
-  const branchRightBuildings = [[292,150,58,34,1,0],[292,190,58,32,2,0]]
-    .map(([x,y,w,h,seed,step])=>building(x,y,w,h,seed,step)).join('');
-  const lanterns = [[58,72],[156,68],[254,72],[338,68]].map(([x,y])=>`
-    <line x1="${x}" y1="${y-11}" x2="${x}" y2="${y}" stroke="#8a7a55" stroke-width="1.4"/>
-    <ellipse cx="${x}" cy="${y+7}" rx="6" ry="8.5" fill="${RED}" opacity="0.85"/>
-  `).join('');
-  // 案内板(入口アーチのそば)
-  const signboard = `
-    <line x1="52" y1="86" x2="52" y2="66" stroke="#8a7a55" stroke-width="2"/>
-    <rect x="42" y="56" width="20" height="12" rx="2" fill="#fff" stroke="${MAROON}" stroke-width="1"/>
-    <text x="52" y="65" text-anchor="middle" font-size="6" fill="${MAROON}">MAP</text>
-  `;
-  // 分岐通りの脇の街灯・下北沢駅前の横断歩道
-  const branchLight = streetlight(255, 160);
-  const crosswalk = Array.from({length:6}).map((_,i)=>`<rect x="${214+i*20}" y="228" width="10" height="6" fill="#aaa196"/>`).join('');
-  return `
-  <svg viewBox="0 0 400 280" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:auto;">
-    <defs>
-      <linearGradient id="mapRoad" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="${TEAL}"/><stop offset="100%" stop-color="#268078"/>
-      </linearGradient>
-    </defs>
-    <rect x="0" y="0" width="400" height="280" fill="#faf6ec"/>
-    ${topBuildings}
-    ${topTrees}
-    ${topLights}
-    <!-- 入口アーチ(一番街) -->
-    <path d="M14,104 L14,68 Q28,54 44,68 L44,104" fill="none" stroke="${MAROON}" stroke-width="5" stroke-linecap="round"/>
-    <text x="29" y="46" text-anchor="middle" font-family="serif" font-weight="900" font-size="12" fill="${MAROON}">一番街</text>
-    ${signboard}
-    <!-- メイン通り(横・茶沢通り側 → 渋谷通り側)。実際の一番街と同様、緩くカーブしている -->
-    <path d="M20,90 Q120,87 200,90 T365,89" fill="none" stroke="url(#mapRoad)" stroke-width="16" stroke-linecap="round"/>
-    <text x="362" y="62" text-anchor="end" font-size="8" fill="#8a8272">渋谷通りへ</text>
-    <!-- 分岐通り(縦・下北沢駅方面)。実際の地図と同じく、途中でゆるく左に曲がる -->
-    <path d="M275,90 C271,120 281,140 275,168 C270,192 262,208 262,236" fill="none" stroke="url(#mapRoad)" stroke-width="16" stroke-linecap="round"/>
-    ${bottomLeftBuildings}
-    ${bottomLeftTrees}
-    ${bottomLeftBike}
-    ${bottomRightBuildings}
-    ${branchLeftBuildings}
-    ${branchRightBuildings}
-    ${branchLight}
-    ${lanterns}
-    <!-- 銀行・スーパーなど -->
-    <rect x="150" y="196" width="70" height="30" rx="4" fill="#e4e0d6" stroke="#b8b0a0" stroke-width="1.4"/>
-    <text x="185" y="215" text-anchor="middle" font-size="7" fill="#6b6458">銀行・ATM</text>
-    <rect x="300" y="196" width="60" height="30" rx="4" fill="#e4e0d6" stroke="#b8b0a0" stroke-width="1.4"/>
-    <text x="330" y="215" text-anchor="middle" font-size="7" fill="#6b6458">スーパー</text>
-    ${crosswalk}
-    <!-- 下北沢駅 -->
-    <rect x="205" y="234" width="140" height="34" rx="4" fill="#fff" stroke="${MAROON}" stroke-width="1.4"/>
-    <line x1="210" y1="252" x2="340" y2="252" stroke="#c9c0ac" stroke-width="6" stroke-dasharray="6 5"/>
-    <text x="275" y="248" text-anchor="middle" font-size="11" font-weight="700" fill="${MAROON}">下北沢駅</text>
-    <text x="275" y="262" text-anchor="middle" font-size="7" fill="#6b6458">西口・中央口・南口</text>
-    <rect x="1" y="1" width="398" height="278" fill="none" stroke="#3a6f96" stroke-width="3" rx="6"/>
-  </svg>`;
+const SHIMOKITA_STATION_CENTER = [35.6613, 139.6683];
+let shimokitaLeafletMapInstance = null;
+let shimokitaLeafletMarkers = {};
+let shimokitaLastMapView = null; // {center:[lat,lng], zoom} — remembers pan/zoom across re-renders
+function shimokitaPinIcon(visited){
+  return L.divIcon({
+    className: 'shimokita-leaflet-pin-wrap',
+    html: `<div class="shimokita-leaflet-pin ${visited?'visited':''}">${visited?'✅':'🚩'}</div>`,
+    iconSize: [26, 34],
+    iconAnchor: [13, 32],
+    popupAnchor: [0, -30]
+  });
+}
+function initShimokitaLeafletMap(){
+  const container = document.getElementById('shimokitaLeafletMap');
+  if(!container || typeof L === 'undefined') return;
+  if(shimokitaLeafletMapInstance){
+    shimokitaLastMapView = { center: shimokitaLeafletMapInstance.getCenter(), zoom: shimokitaLeafletMapInstance.getZoom() };
+    shimokitaLeafletMapInstance.remove();
+    shimokitaLeafletMapInstance = null;
+  }
+  const view = shimokitaLastMapView;
+  const map = L.map(container, { zoomControl: true });
+  if(view){ map.setView(view.center, view.zoom); } else { map.setView(SHIMOKITA_STATION_CENTER, 16); }
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  shimokitaLeafletMarkers = {};
+  SHIMOKITA_SPOTS.forEach(s=>{
+    if(typeof s.lat !== 'number' || typeof s.lng !== 'number') return;
+    const visited = hasVisitedSpot(s.id);
+    const marker = L.marker([s.lat, s.lng], { icon: shimokitaPinIcon(visited) }).addTo(map);
+    marker.bindPopup(`
+      <div style="font-size:13px;min-width:140px;">
+        <div style="font-weight:bold;margin-bottom:2px;">${escapeHtml(s.name)}</div>
+        <div style="color:#666;margin-bottom:8px;">${escapeHtml(s.genre||'')}</div>
+        <button class="btn ${visited?'btn-secondary':'btn-primary'} btn-sm" style="margin:0;" onclick="toggleSpotVisit('${s.id}')">${visited?'✅ 行った':'📍 行った にする'}</button>
+      </div>
+    `);
+    shimokitaLeafletMarkers[s.id] = marker;
+  });
+  shimokitaLeafletMapInstance = map;
 }
 function renderShimokitaMap(){
   const spots = SHIMOKITA_SPOTS;
   const visitedCount = spots.filter(s=>hasVisitedSpot(s.id)).length;
   const backScreen = state.role==='owner' ? 'home' : 'vlist';
-  const bubble = state.spotBubble;
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
     <h2>🗺️ 下北沢マップ</h2>
-    <div class="muted" style="margin-bottom:12px;">お店をタップすると、行った/まだ、をすぐ記録できます。<br>${visitedCount} / ${spots.length} のお店に行きました。</div>
-    <div class="street-map-wrap">
-      ${shimokitaMapBackgroundSvg()}
-      ${spots.map((s,idx)=>{
-        const pos = spotMapPosition(s, idx, spots.length);
-        const visited = hasVisitedSpot(s.id);
-        return `
-        <div class="street-map-pin street-map-pin-dense ${visited?'visited':''}" style="left:${pos.x}%;top:${pos.y}%;" onclick="toggleSpotVisit('${s.id}')">
-          <div class="street-map-pin-dot">${visited?'✅':'📍'}</div>
-          ${bubble && bubble.id===s.id ? `<div class="street-map-bubble ${bubble.visited?'yes':'no'}">${s.name}<br>${bubble.visited ? '行った!🎉' : 'また今度〜'}</div>` : ''}
-        </div>`;
-      }).join('')}
-    </div>
-    <div class="banner" style="margin-top:14px;">📍 お店の数が多いので、地図上は印だけにしています。タップすると、その場でお店の名前と「行った/まだ」の状態がふきだしで出ます。表示しているのは、あなた個人の下北沢のお店メモです(お店の名前・ジャンルのみで、個人名などは含まれていません)。</div>
+    <div class="muted" style="margin-bottom:12px;">ピンをタップすると、お店の名前と「行った/まだ」を切り替えるボタンが出ます。<br>${visitedCount} / ${spots.length} のお店に行きました。</div>
+    <div id="shimokitaLeafletMap" style="height:420px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+    <div class="banner" style="margin-top:14px;">🚩 は未訪問、✅ は訪問済みです。地図はOpenStreetMapの実際の下北沢の地図で、ピンの位置は多くのお店で実際の場所に近い位置にしていますが、一部のお店(住所がはっきり特定できなかったもの)はおおよその位置になっています。表示しているのはあなた個人の下北沢のお店メモです(お店の名前・ジャンルのみで、個人名などは含まれていません)。</div>
 
     <h3 style="margin-top:18px;">お店一覧から探す</h3>
     <div class="shimokita-spot-list">
@@ -3123,6 +3023,7 @@ function render(){
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
+  if(state.screen==='shimokitaMap'){ initShimokitaLeafletMap(); }
 }
 
 init();
