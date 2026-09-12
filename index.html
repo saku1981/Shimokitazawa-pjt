@@ -119,6 +119,14 @@
   .nav-row:last-child{border-bottom:none;}
   .nav-row.nav-row-stack{display:block;}
   .nav-row-sub{margin-top:4px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .game-hub-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px;}
+  .game-hub-icon{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 4px 10px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;cursor:pointer;text-align:center;
+    min-height:78px;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .08s;}
+  .game-hub-icon:active{background:var(--panel2);}
+  .game-hub-icon .game-hub-ic{font-size:26px;line-height:1;}
+  .game-hub-icon .game-hub-lbl{font-size:10.5px;line-height:1.25;color:var(--text);word-break:break-word;}
+  .game-hub-icon .tag{margin-top:1px;font-size:9.5px;padding:2px 6px;}
   .murmur-card{padding:12px 14px;}
   .murmur-teaser{margin-top:10px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;transition:background .08s;}
   .murmur-teaser:active{background:var(--panel2);}
@@ -1136,19 +1144,42 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🚶</span>さんサクっと下北沢マップ</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('breakoutGame')"><span class="nav-label"><span class="nav-icon">🧱</span>ブロックくずし</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('blockTowerGame')"><span class="nav-label"><span class="nav-icon">🟦</span>ブロックタワー</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('shooterGame')"><span class="nav-label"><span class="nav-icon">🚀</span>ギャラクシーシューター</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('islandGame')"><span class="nav-label"><span class="nav-icon">🏝️</span>アイランドラン</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('rpgGame')"><span class="nav-label"><span class="nav-icon">⚔️</span>下北沢クロニクル</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('moGame')"><span class="nav-label"><span class="nav-icon">👽</span>下北沢エイリアン騒動</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('kmGame')"><span class="nav-label"><span class="nav-icon">🤖</span>下北沢からくり武者伝</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('gamesHub')"><span class="nav-label"><span class="nav-icon">🕹️</span>レトロゲームをサクッと</span><span class="muted">→</span></div>
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
-      ${store.is_test ? `<div class="nav-row" onclick="go('hanafudaGame')"><span class="nav-label"><span class="nav-icon">🌸</span>花札(こいこい) <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       ${false && store.is_test ? `<div class="nav-row" onclick="go('batterBoxGame')"><span class="nav-label"><span class="nav-icon">⚾</span>バッターボックス <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- バッターボックス: 一旦非表示(false&&を外せば再表示できます) -->
-      ${store.is_test ? `<div class="nav-row" onclick="go('smtGame')"><span class="nav-label"><span class="nav-icon">🌀</span>封鎖された下北沢 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
+    </div>
+  `;
+}
+// レトロゲームをサクッと: 増えてきたミニゲームをアイコン一覧にまとめた入り口画面。
+// 4個/行のグリッドにしているのは、5個/行だとゲーム名が長いものでラベルが窮屈になり
+// 誤タップしやすくなるため(下北沢からくり武者伝など)。
+const GAMES_HUB_ENTRIES = [
+  { screen:'invaderGame',   icon:'👾', label:'インベーダーゲーム' },
+  { screen:'breakoutGame',  icon:'🏓', label:'ブロックくずし' },
+  { screen:'blockTowerGame',icon:'🧩', label:'ブロックタワー' },
+  { screen:'shooterGame',   icon:'✨', label:'ギャラクシーシューター' },
+  { screen:'islandGame',    icon:'🏃', label:'アイランドラン' },
+  { screen:'rpgGame',       icon:'⚔️', label:'下北沢クロニクル' },
+  { screen:'moGame',        icon:'📡', label:'下北沢エイリアン騒動' },
+  { screen:'kmGame',        icon:'🤖', label:'下北沢からくり武者伝' },
+  { screen:'hanafudaGame',  icon:'🎴', label:'花札(こいこい)', testOnly:true },
+  { screen:'smtGame',       icon:'🌀', label:'封鎖された下北沢', testOnly:true }
+];
+function renderGamesHub(){
+  const store = storeById(state.currentStoreId);
+  const entries = GAMES_HUB_ENTRIES.filter(e => !e.testOnly || (store && store.is_test));
+  return `
+    <span class="back-link" onclick="go('home')">← 戻る</span>
+    <h2>🕹️ レトロゲームをサクッと</h2>
+    <div class="game-hub-grid">
+      ${entries.map(e => `
+        <div class="game-hub-icon" onclick="go('${e.screen}')">
+          <span class="game-hub-ic">${e.icon}</span>
+          <span class="game-hub-lbl">${escapeHtml(e.label)}</span>
+          ${e.testOnly ? `<span class="tag">テスト</span>` : ''}
+        </div>
+      `).join('')}
     </div>
   `;
 }
@@ -2489,7 +2520,7 @@ function invaderGameDraw(s){
   ctx.fillText(`WAVE ${s.wave}`, W/2, 14);
 }
 function renderInvaderGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
     <h2>👾 インベーダーゲーム</h2>
@@ -2711,7 +2742,7 @@ function breakoutGameDraw(s){
   }
 }
 function renderBreakoutGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
     <h2>🧱 下北沢ブロックくずし</h2>
@@ -3038,7 +3069,7 @@ function blockTowerDraw(s){
   }
 }
 function renderBlockTowerGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
     <h2>🟦 下北沢ブロックタワー</h2>
@@ -3517,7 +3548,7 @@ function hanafudaNextHand(){
   render();
 }
 function renderHanafudaGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const s = hanafudaGameState;
   if(!s){
     return `
@@ -4351,7 +4382,7 @@ function shooterGameLoop(ts){
   }
 }
 function renderShooterGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const s = shooterGameState;
   if(!s){
     return `
@@ -4752,7 +4783,7 @@ function islandGameLoop(ts){
   }
 }
 function renderIslandGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const s = islandGameState;
   if(!s){
     return `
@@ -5365,7 +5396,7 @@ function rpgRenderBattle(s){
   `;
 }
 function renderRpgGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const s = rpgGameState;
   if(!s){
     return `
@@ -6032,7 +6063,7 @@ function moRenderBattle(s){
   `;
 }
 function renderMoGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const s = moGameState;
   if(!s){
     return `
@@ -6767,7 +6798,7 @@ function kmRenderWorkshop(s){
   `;
 }
 function renderKmGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const s = kmGameState;
   if(!s){
     return `
@@ -7352,7 +7383,7 @@ function smtLeaveFacility(){
   render();
 }
 function renderSmtGame(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🌀 封鎖された下北沢 <span class="tag">テスト機能</span></h2>`;
   const s = smtGameState;
 
@@ -8525,7 +8556,7 @@ function render(){
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
-    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
+    shimokitaMap: renderShimokitaMap, gamesHub: renderGamesHub, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
     blockTowerGame: renderBlockTowerGame,
     revengeGame: renderRevengeGame, smtGame: renderSmtGame, hanafudaGame: renderHanafudaGame,
     batterBoxGame: renderBatterBoxGame, shooterGame: renderShooterGame, islandGame: renderIslandGame,
