@@ -1081,6 +1081,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('sansakuMap')"><span class="nav-label"><span class="nav-icon">🚶</span>さんサクっと下北沢マップ</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('breakoutGame')"><span class="nav-label"><span class="nav-icon">🧱</span>ブロックくずし</span><span class="muted">→</span></div>
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
@@ -1286,6 +1287,19 @@ async function setRegularBadge(id, badge){
   render();
 }
 const MURMUR_MAX = 140;
+const RETRO_MURMUR_STARTERS = [
+  '🕹 好きなレトロゲームは「」!',
+  '🕹 子どもの頃よく遊んだファミコン風ゲームは「」でした',
+  '🕹 実は「」が得意です(自称)'
+];
+function promptRetroGameMurmur(){
+  // インベーダー/ブロックくずしのプレイ後に、店主同士の軽い雑談(つぶやき)を誘発するための導線。
+  // 下書きに一言テンプレを入れるだけで、投稿するかどうか・内容を変えるかは店主の自由。
+  const starter = RETRO_MURMUR_STARTERS[Math.floor(Math.random()*RETRO_MURMUR_STARTERS.length)];
+  state._murmurDraft = starter;
+  state._murmurStoreId = state.currentStoreId;
+  go('murmurs');
+}
 function renderMurmurTeaser(){
   const latest = (cache.murmurs||[])[0];
   const s = latest ? storeById(latest.store_id) : null;
@@ -2199,6 +2213,52 @@ function renderShimokitaMap(){
   `;
 }
 
+/* ===================== さんサクっと下北沢マップ(店主向け・閲覧のみ) =====================
+   店主同士の「ゆるいコミュニケーション」のきっかけとして、下北沢一番街商店街の全店舗を
+   実際の地図上に眺められる共有ビュー。個人の訪問記録やゲーム要素は一切なく、あくまで
+   「さんサクの散歩スポットをみんなで眺める」だけのシンプルな地図。全店主に共通で同じ
+   表示になる(個人ごとの状態を持たない)。
+*/
+let sansakuLeafletMapInstance = null;
+let sansakuLastMapView = null;
+function sansakuSpotIconHtml(){
+  return `<div style="font-size:16px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">🏮</div>`;
+}
+function initSansakuMap(){
+  const container = document.getElementById('sansakuLeafletMap');
+  if(!container || typeof L === 'undefined') return;
+  if(sansakuLeafletMapInstance){
+    sansakuLastMapView = { center: sansakuLeafletMapInstance.getCenter(), zoom: sansakuLeafletMapInstance.getZoom() };
+    sansakuLeafletMapInstance.remove();
+    sansakuLeafletMapInstance = null;
+  }
+  const view = sansakuLastMapView;
+  const map = L.map(container, { zoomControl: true });
+  if(view){ map.setView(view.center, view.zoom); } else { map.setView(SHIMOKITA_STATION_CENTER, 16); }
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  SHIMOKITA_SPOTS.forEach(s=>{
+    if(typeof s.lat !== 'number' || typeof s.lng !== 'number') return;
+    const marker = L.marker([s.lat, s.lng], {
+      icon: L.divIcon({ className:'smt-shop-marker-wrap', html: sansakuSpotIconHtml(), iconSize:[20,20], iconAnchor:[10,10] })
+    }).addTo(map);
+    marker.bindTooltip(`${escapeHtml(s.name)}${s.genre ? ' ・ ' + escapeHtml(s.genre) : ''}`, { direction:'top', offset:[0,-8] });
+  });
+  sansakuLeafletMapInstance = map;
+}
+function renderSansakuMap(){
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>🚶 さんサクっと下北沢マップ</h2>
+    <div class="muted" style="margin-bottom:12px;">「さんサク」の名前を借りた、店主のみなさん向けの散歩マップです。下北沢一番街商店街の全${SHIMOKITA_SPOTS.length}店舗を実際の地図上でまとめて眺められます。訪問記録やゲーム要素はなく、あくまで散歩コースを眺めて楽しむための共有ビューです。ピンには店名とジャンルだけを表示しており、個人情報は含まれていません。</div>
+    <div id="sansakuLeafletMap" style="height:420px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+    <div class="banner" style="margin-top:14px;">🏮のピンをタップすると店名とジャンルが表示されます。近くのお店の店主とすれ違ったら、「今度あの店行ってみようかな」なんて話のきっかけにどうぞ。</div>
+  `;
+}
+
 /* ===================== インベーダーゲーム(テスト機能・遊びのみ) =====================
    Invader one の店主にちなんだ、ちょっとした息抜き用のクラシックなシューティングゲーム。
    スコアや進行状況はどこにも保存せず、画面を出入りするたびに最初からになる。
@@ -2409,7 +2469,7 @@ function renderInvaderGame(){
   const backScreen = state.role==='owner' ? 'home' : 'vlist';
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
-    <h2>👾 インベーダーゲーム <span class="tag">テスト機能</span></h2>
+    <h2>👾 インベーダーゲーム</h2>
     <div class="muted" style="margin-bottom:10px;">Invader one の店主が贈る、ちょっとした息抜きゲームです。左右ボタンで移動、🔫ボタンで弾を撃って、降りてくるインベーダーを全滅させましょう。スコアなどは保存されず、画面を出入りするたびに最初からになります。</div>
     <div class="invader-game-wrap">
       <canvas id="invaderCanvas" width="300" height="360"></canvas>
@@ -2417,6 +2477,7 @@ function renderInvaderGame(){
         <div class="invader-end-title">🎉 クリア!</div>
         <div class="invader-end-score muted">スコア: 0</div>
         <button class="btn btn-primary" style="margin-top:12px;" onclick="initInvaderGame()">もう一度あそぶ</button>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="promptRetroGameMurmur()">🕹 好きなレトロゲームをつぶやく</button>
       </div>
     </div>
     <div class="invader-controls">
@@ -2630,7 +2691,7 @@ function renderBreakoutGame(){
   const backScreen = state.role==='owner' ? 'home' : 'vlist';
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
-    <h2>🧱 下北沢ブロックくずし <span class="tag">テスト機能</span></h2>
+    <h2>🧱 下北沢ブロックくずし</h2>
     <div class="muted" style="margin-bottom:10px;">ファミコン時代のブロック崩しゲームのような、シンプルな一人用ゲームです。左右ボタンでバーを動かし、画面タップ・🚀ボタン・スペースキーでボールを発射してブロックを崩しましょう。スコアなどは保存されず、画面を出入りするたびに最初からになります。</div>
     <div class="invader-game-wrap">
       <canvas id="breakoutCanvas" width="300" height="360" onclick="breakoutLaunchBall()" ontouchstart="breakoutLaunchBall()"></canvas>
@@ -2638,6 +2699,7 @@ function renderBreakoutGame(){
         <div class="invader-end-title">💥 ゲームオーバー</div>
         <div class="invader-end-score muted">スコア: 0</div>
         <button class="btn btn-primary" style="margin-top:12px;" onclick="initBreakoutGame()">もう一度あそぶ</button>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="promptRetroGameMurmur()">🕹 好きなレトロゲームをつぶやく</button>
       </div>
     </div>
     <div class="invader-controls">
@@ -4526,11 +4588,12 @@ function render(){
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
     shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
-    revengeGame: renderRevengeGame, smtGame: renderSmtGame
+    revengeGame: renderRevengeGame, smtGame: renderSmtGame, sansakuMap: renderSansakuMap
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
   if(state.screen==='shimokitaMap'){ initShimokitaLeafletMap(); }
+  if(state.screen==='sansakuMap'){ initSansakuMap(); }
   if(state.screen==='invaderGame'){ initInvaderGame(); }
   if(state.screen==='breakoutGame'){ initBreakoutGame(); }
   if(state.screen==='smtGame'){ initSmtGameMap(); }
