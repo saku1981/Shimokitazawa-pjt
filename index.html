@@ -194,9 +194,22 @@
   .smt-zone-label{font-size:11px;color:var(--sub);margin-bottom:2px;}
   .smt-encounter-choice{display:flex;gap:10px;margin-top:14px;}
   .smt-encounter-choice .btn{flex:1;margin:0;}
-  .smt-player-marker-wrap, .smt-dest-marker-wrap{background:transparent;border:none;}
-  .smt-player-marker{font-size:22px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));}
-  .smt-dest-marker{font-size:22px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));opacity:.85;}
+  .smt-hud{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--sub);margin-bottom:8px;}
+  .smt-hud b{color:var(--text);}
+  .smt-dpad{display:grid;grid-template-columns:52px 52px 52px;grid-template-rows:44px 44px 44px;gap:5px;justify-content:center;margin-top:14px;}
+  .smt-dpad .invader-btn{width:52px;height:44px;}
+  @keyframes smtHitFlash{0%{transform:translateX(0);filter:brightness(1);}20%{transform:translateX(-4px);filter:brightness(2.1) saturate(0);}45%{transform:translateX(4px);}70%{transform:translateX(-2px);}100%{transform:translateX(0);filter:brightness(1);}}
+  .smt-hit-flash{animation:smtHitFlash .35s ease;}
+  .smt-weak-tag{color:#e0524a;font-weight:bold;}
+  .smt-resist-tag{color:#7a8aa0;}
+  .smt-icon-row{display:flex;gap:6px;justify-content:center;margin:2px 0 10px;}
+  .smt-icon{width:13px;height:13px;border-radius:50%;background:#2a2c31;border:1px solid var(--line);}
+  .smt-icon.on{background:#e0c458;border-color:#e0c458;box-shadow:0 0 6px rgba(224,196,88,.7);}
+  .smt-magic-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+  .smt-magic-grid .btn{margin:0;}
+  .smt-facility-list{display:flex;flex-direction:column;gap:10px;margin-top:12px;}
+  .smt-facility-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;}
+  .smt-facility-card .row{margin-bottom:6px;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
     overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
@@ -2774,148 +2787,296 @@ function renderRevengeGame(){
 }
 
 /* ===================== 封鎖された下北沢(テスト機能・遊びのみ) =====================
-   悪魔と出会い、戦うか話しかけるかを選びながら、結界に閉ざされた街を
-   ゾーンごとに解放していく短編ミニRPG。オリジナルのストーリー・悪魔データ。
-   進行状況はどこにも保存せず、画面を離れると最初からになる。
+   結界に閉ざされた下北沢を、2Dのフィールドを実際に歩き回って探索するミニRPG。
+   草むら状のエリアを歩くとまれに悪魔と遭遇し(常時ではない)、ボスを倒すとその
+   エリアの結界が解ける。宿屋・武器屋・転職・悪魔召喚の館は街の広場にある建物として
+   マップ上に配置されている。オリジナルのストーリー・悪魔データ、特定作品の
+   キャラクターやマップをそのまま使ってはいない。進行状況は保存されず、
+   画面を離れると最初からになる。
 */
 let smtGameState = null;
 const SMT_ENCOUNTERS = [
-  { zone:'一番街', name:'ゴースト', sprite:'👻', maxHp:26, atkMin:3, atkMax:6, strongChance:0.15, strongMin:8, strongMax:11, isBoss:false, canNegotiate:true },
-  { zone:'一番街', name:'ゴブリンの頭目', sprite:'👹', maxHp:50, atkMin:5, atkMax:9, strongChance:0.25, strongMin:12, strongMax:17, isBoss:true, canNegotiate:false },
-  { zone:'南口', name:'グール', sprite:'🧟', maxHp:34, atkMin:4, atkMax:7, strongChance:0.18, strongMin:9, strongMax:13, isBoss:false, canNegotiate:true },
-  { zone:'南口', name:'サキュバス', sprite:'🧛', maxHp:62, atkMin:6, atkMax:10, strongChance:0.28, strongMin:14, strongMax:19, isBoss:true, canNegotiate:false },
-  { zone:'下北沢駅前', name:'ジャックフロスト', sprite:'❄️', maxHp:40, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:15, isBoss:false, canNegotiate:true },
-  { zone:'下北沢駅前(最深部)', name:'幽閉の悪魔ザラキエル', sprite:'😈', maxHp:100, atkMin:8, atkMax:14, strongChance:0.32, strongMin:20, strongMax:28, isBoss:true, canNegotiate:false }
+  { corridor:'1', zone:'一番街', name:'ゴースト', sprite:'👻', maxHp:26, atkMin:3, atkMax:6, strongChance:0.15, strongMin:8, strongMax:11, isBoss:false, canNegotiate:true, weak:'fire', resist:'phys' },
+  { corridor:'1', zone:'一番街', name:'ゴブリンの頭目', sprite:'👹', maxHp:50, atkMin:5, atkMax:9, strongChance:0.25, strongMin:12, strongMax:17, isBoss:true, canNegotiate:false, weak:'elec', resist:'fire' },
+  { corridor:'2', zone:'南口', name:'グール', sprite:'🧟', maxHp:34, atkMin:4, atkMax:7, strongChance:0.18, strongMin:9, strongMax:13, isBoss:false, canNegotiate:true, weak:'ice', resist:'phys' },
+  { corridor:'2', zone:'南口', name:'サキュバス', sprite:'🧛', maxHp:62, atkMin:6, atkMax:10, strongChance:0.28, strongMin:14, strongMax:19, isBoss:true, canNegotiate:false, weak:'force', resist:'ice' },
+  { corridor:'3', zone:'下北沢駅前', name:'ジャックフロスト', sprite:'❄️', maxHp:40, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:15, isBoss:false, canNegotiate:true, weak:'fire', resist:'ice' },
+  { corridor:'3', zone:'下北沢駅前(最深部)', name:'幽閉の悪魔ザラキエル', sprite:'😈', maxHp:100, atkMin:8, atkMax:14, strongChance:0.32, strongMin:20, strongMax:28, isBoss:true, canNegotiate:false, weak:'force', resist:'fire' }
 ];
-// ゾーンごとのおおよその座標(下北沢マップと同じOpenStreetMapベース)。移動演出に使う。
-const SMT_ZONE_COORDS = {
-  '一番街': [35.6624, 139.6684],
-  '南口': [35.6601, 139.6677],
-  '下北沢駅前': [35.6613, 139.6683],
-  '下北沢駅前(最深部)': [35.6616, 139.6690]
+const SMT2_ZONE_REGULAR = { '1': SMT_ENCOUNTERS[0], '2': SMT_ENCOUNTERS[2], '3': SMT_ENCOUNTERS[4] };
+const SMT2_ZONE_BOSS = { '1': SMT_ENCOUNTERS[1], '2': SMT_ENCOUNTERS[3], '3': SMT_ENCOUNTERS[5] };
+const SMT2_BOSS_CHAR_CORRIDOR = { 'a':'1', 'b':'2', 'c':'3' };
+// フィールドマップ(25×19マス)。'#'=壁/侵入不可、'.'=広場(安全)、'1'/'2'/'3'=各エリアの草むら状の道(遭遇判定あり)、
+// 'a'/'b'/'c'=各エリアのボス部屋、'I'=宿屋、'W'=武器屋、'J'=転職の間、'D'=悪魔召喚の館。到達可能性は検証済み。
+const SMT2_TILE = 20;
+const SMT2_MAP_ROWS = [
+  "#########################",
+  "##########11a11##########",
+  "##########11111##########",
+  "##########11111##########",
+  "############1############",
+  "############1############",
+  "############1############",
+  "#########.I...W.#########",
+  "#########.......#########",
+  "#########.......#########",
+  "#########.......#########",
+  "#########.J...D.#########",
+  "#########2#####3#########",
+  "#########2#####3#########",
+  "#########2#####3#########",
+  "##2222###2#####3###33333#",
+  "##2b22###2#####3###333c3#",
+  "##22222222#####333333333#",
+  "#########################"
+];
+const SMT2_MAP_W = SMT2_MAP_ROWS[0].length;
+const SMT2_MAP_H = SMT2_MAP_ROWS.length;
+const SMT2_MAP_PW = SMT2_MAP_W * SMT2_TILE;
+const SMT2_MAP_PH = SMT2_MAP_H * SMT2_TILE;
+const SMT2_START_PX = 12 * SMT2_TILE + SMT2_TILE/2;
+const SMT2_START_PY = 9 * SMT2_TILE + SMT2_TILE/2;
+const SMT_JOBS = {
+  balance: { name:'バランス型・召喚士', atkMod:0, magicMod:0, desc:'物理も魔法も平均的な、素の召喚士のスタイル。' },
+  mage:    { name:'呪術師', atkMod:-2, magicMod:6, desc:'属性弾の威力が上がるが、直接攻撃はやや弱くなる。' },
+  fighter: { name:'拳士', atkMod:6, magicMod:-2, desc:'直接攻撃の威力が上がるが、属性弾はやや弱くなる。' }
 };
-const SMT_HUB_COORD = SMT_ZONE_COORDS['下北沢駅前'];
+const SMT_SPELLS = {
+  fire:  { label:'🔥 火炎弾', short:'火炎弾', mp:6 },
+  ice:   { label:'❄️ 氷結弾', short:'氷結弾', mp:6 },
+  elec:  { label:'⚡ 電撃弾', short:'電撃弾', mp:6 },
+  force: { label:'🌪️ 疾風弾', short:'疾風弾', mp:6 }
+};
+function smtElementLabel(el){
+  return el==='fire' ? '火' : el==='ice' ? '氷' : el==='elec' ? '電' : el==='force' ? '風' : '物理';
+}
 function newSmtGame(){
   return {
-    stage: 'intro',
-    idx: 0,
+    stage: 'overworld',
     defending: false,
     recruited: [],
     player: { hp:65, maxHp:65, mp:22, maxMp:22 },
+    atkBonus: 0, magicBonus: 0, job: 'balance', gold: 0,
+    clearedZones: { '1':false, '2':false, '3':false },
+    pos: { x: SMT2_START_PX, y: SMT2_START_PY },
+    lastTileX: Math.floor(SMT2_START_PX/SMT2_TILE), lastTileY: Math.floor(SMT2_START_PY/SMT2_TILE),
     enemy: null,
+    icons: 2,
+    magicMenuOpen: false,
     log: [],
     negotiateOutcome: null,
-    lastClearedName: null, lastClearedZone: null, lastWasBoss: false,
-    playerLatLng: SMT_HUB_COORD,
-    currentZone: '下北沢駅前',
-    travelTarget: null,
-    travelThen: null
+    lastResolvedViaTalk: false,
+    lastClearedName: null, lastClearedZone: null, lastWasBoss: false, lastGoldGain: 0
   };
 }
 function startSmtGame(){
   smtGameState = newSmtGame();
-  smtStartTravelTo(SMT_ENCOUNTERS[0].zone, 'spawn');
-}
-function restartSmtGame(){ stopSmtGameMap(); smtGameState = null; render(); }
-function smtStartTravelTo(zoneName, then){
-  const s = smtGameState;
-  if(!s) return;
-  s.travelTarget = zoneName;
-  s.travelThen = then;
-  s.stage = 'travel';
   render();
 }
-function smtCompleteTravel(){
-  const s = smtGameState;
-  if(!s || s.stage !== 'travel') return;
-  const target = s.travelTarget;
-  const then = s.travelThen;
-  s.playerLatLng = SMT_ZONE_COORDS[target] || s.playerLatLng;
-  s.currentZone = target;
-  s.travelTarget = null;
-  s.travelThen = null;
-  if(then === 'spawn'){
-    smtSpawnEncounter();
-  } else {
-    render();
-  }
+function restartSmtGame(){ stopSmtGameMap(); smtGameState = null; render(); }
+function smtMaxIcons(s){
+  return Math.min(4, 2 + Math.floor(s.recruited.length/2));
 }
-function smtSpawnEncounter(){
+function smtTileWalkable(px, py){
+  const tx = Math.floor(px/SMT2_TILE), ty = Math.floor(py/SMT2_TILE);
+  if(tx<0 || ty<0 || tx>=SMT2_MAP_W || ty>=SMT2_MAP_H) return false;
+  return SMT2_MAP_ROWS[ty][tx] !== '#';
+}
+function smtHandleTileEnter(tx, ty){
+  const s = smtGameState;
+  if(!s || s.stage !== 'overworld') return;
+  const ch = SMT2_MAP_ROWS[ty][tx];
+  if(ch==='1' || ch==='2' || ch==='3'){
+    if(!s.clearedZones[ch] && Math.random() < 0.15){
+      smtStartEncounter(SMT2_ZONE_REGULAR[ch]);
+    }
+    return;
+  }
+  if(ch==='a' || ch==='b' || ch==='c'){
+    const corridor = SMT2_BOSS_CHAR_CORRIDOR[ch];
+    if(!s.clearedZones[corridor]){
+      smtStartEncounter(SMT2_ZONE_BOSS[corridor]);
+    }
+    return;
+  }
+  if(ch==='I'){ smtVisitInn(); return; }
+  if(ch==='W'){ s.stage = 'facilityShop'; render(); return; }
+  if(ch==='J'){ s.stage = 'facilityJob'; render(); return; }
+  if(ch==='D'){ s.stage = 'facilityDemon'; render(); return; }
+}
+function smtVisitInn(){
   const s = smtGameState;
   if(!s) return;
-  const def = SMT_ENCOUNTERS[s.idx];
+  if(s.player.hp>=s.player.maxHp && s.player.mp>=s.player.maxMp){ return; }
+  s.player.hp = s.player.maxHp;
+  s.player.mp = s.player.maxMp;
+  toast('🏨 宿屋で傷を癒やした。HP・MPが全回復!');
+}
+function smtStartEncounter(def){
+  const s = smtGameState;
+  if(!s) return;
   s.enemy = { ...def, hp: def.maxHp };
   s.stage = 'encounter';
   s.defending = false;
   s.log = [];
+  s.lastResolvedViaTalk = false;
   render();
 }
 function smtProceedAfterVictory(){
   const s = smtGameState;
   if(!s) return;
-  const next = SMT_ENCOUNTERS[s.idx];
-  if(!next){ smtSpawnEncounter(); return; }
-  if(next.zone !== s.currentZone){
-    smtStartTravelTo(next.zone, 'spawn');
-  } else {
-    smtSpawnEncounter();
-  }
+  s.stage = 'overworld';
+  render();
 }
-let smtGameMapInstance = null;
-let smtGameMapPlayerMarker = null;
-let smtGameMapAnimRafId = null;
+let smtOverworldRafId = null;
+let smtOverworldKeyHandlerBound = false;
+let smtOverworldInput = { up:false, down:false, left:false, right:false };
+let smtOverworldLastTime = null;
+function smtOverworldKeyDown(e){
+  if(e.key==='ArrowUp') smtOverworldInput.up = true;
+  if(e.key==='ArrowDown') smtOverworldInput.down = true;
+  if(e.key==='ArrowLeft') smtOverworldInput.left = true;
+  if(e.key==='ArrowRight') smtOverworldInput.right = true;
+}
+function smtOverworldKeyUp(e){
+  if(e.key==='ArrowUp') smtOverworldInput.up = false;
+  if(e.key==='ArrowDown') smtOverworldInput.down = false;
+  if(e.key==='ArrowLeft') smtOverworldInput.left = false;
+  if(e.key==='ArrowRight') smtOverworldInput.right = false;
+}
+function smtOverworldSetInput(key, val){ smtOverworldInput[key] = val; }
+function smtOverworldTouch(e, key, val){
+  if(e && e.preventDefault) e.preventDefault();
+  smtOverworldSetInput(key, val);
+}
 function stopSmtGameMap(){
-  if(smtGameMapAnimRafId){ cancelAnimationFrame(smtGameMapAnimRafId); smtGameMapAnimRafId = null; }
-  if(smtGameMapInstance){ smtGameMapInstance.remove(); smtGameMapInstance = null; }
-  smtGameMapPlayerMarker = null;
+  if(smtOverworldRafId){ cancelAnimationFrame(smtOverworldRafId); smtOverworldRafId = null; }
+  if(smtOverworldKeyHandlerBound){
+    window.removeEventListener('keydown', smtOverworldKeyDown);
+    window.removeEventListener('keyup', smtOverworldKeyUp);
+    smtOverworldKeyHandlerBound = false;
+  }
 }
 function initSmtGameMap(){
   const s = smtGameState;
-  const container = document.getElementById('smtGameMap');
-  if(!container || typeof L === 'undefined' || !s || s.stage !== 'travel'){
+  const canvas = document.getElementById('smtOverworldCanvas');
+  if(!canvas || typeof canvas.getContext !== 'function' || !s || s.stage !== 'overworld'){
     stopSmtGameMap();
     return;
   }
-  // renderSmtGame()が毎回innerHTMLを差し替えるため、地図は毎回作り直す
-  stopSmtGameMap();
-  const from = s.playerLatLng || SMT_HUB_COORD;
-  const to = SMT_ZONE_COORDS[s.travelTarget] || from;
-  const map = L.map(container, { zoomControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, touchZoom:false, boxZoom:false, keyboard:false, tap:false });
-  const midLat = (from[0] + to[0]) / 2, midLng = (from[1] + to[1]) / 2;
-  map.setView([midLat, midLng], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map);
-  L.marker(to, {
-    icon: L.divIcon({ className:'smt-dest-marker-wrap', html:'<div class="smt-dest-marker">🌀</div>', iconSize:[26,26], iconAnchor:[13,22] })
-  }).addTo(map);
-  smtGameMapPlayerMarker = L.marker(from, {
-    icon: L.divIcon({ className:'smt-player-marker-wrap', html:'<div class="smt-player-marker">🧙</div>', iconSize:[26,26], iconAnchor:[13,13] })
-  }).addTo(map);
-  smtGameMapInstance = map;
-
-  const startTs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-  const duration = 1300;
-  function step(ts){
-    const t = Math.min(1, (ts - startTs) / duration);
-    const eased = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
-    const lat = from[0] + (to[0] - from[0]) * eased;
-    const lng = from[1] + (to[1] - from[1]) * eased;
-    if(smtGameMapPlayerMarker){ smtGameMapPlayerMarker.setLatLng([lat, lng]); }
-    if(t < 1){
-      smtGameMapAnimRafId = requestAnimationFrame(step);
-    } else {
-      smtGameMapAnimRafId = null;
-      smtCompleteTravel();
+  stopSmtGameMap(); // renderSmtGame()が毎回innerHTMLを差し替えるため、canvasごとループを作り直す
+  smtOverworldInput = { up:false, down:false, left:false, right:false };
+  smtOverworldLastTime = null;
+  // 再開時に現在地のタイルで再発火しないよう同期しておく
+  s.lastTileX = Math.floor(s.pos.x/SMT2_TILE);
+  s.lastTileY = Math.floor(s.pos.y/SMT2_TILE);
+  window.addEventListener('keydown', smtOverworldKeyDown);
+  window.addEventListener('keyup', smtOverworldKeyUp);
+  smtOverworldKeyHandlerBound = true;
+  smtOverworldRafId = requestAnimationFrame(smtOverworldLoop);
+}
+function smtOverworldLoop(ts){
+  const s = smtGameState;
+  if(!s || s.stage !== 'overworld'){ smtOverworldRafId = null; return; }
+  if(smtOverworldLastTime==null) smtOverworldLastTime = ts;
+  const dt = Math.min(0.05, (ts - smtOverworldLastTime)/1000);
+  smtOverworldLastTime = ts;
+  smtOverworldUpdate(s, dt);
+  const canvas = document.getElementById('smtOverworldCanvas');
+  if(canvas && typeof canvas.getContext === 'function'){ smtOverworldDraw(s, canvas.getContext('2d'), canvas.width, canvas.height); }
+  if(smtGameState && smtGameState.stage === 'overworld'){
+    smtOverworldRafId = requestAnimationFrame(smtOverworldLoop);
+  } else {
+    smtOverworldRafId = null;
+  }
+}
+function smtOverworldUpdate(s, dt){
+  let dx = 0, dy = 0;
+  if(smtOverworldInput.left) dx -= 1;
+  if(smtOverworldInput.right) dx += 1;
+  if(smtOverworldInput.up) dy -= 1;
+  if(smtOverworldInput.down) dy += 1;
+  if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
+  const speed = 84;
+  const half = 6;
+  if(dx !== 0){
+    const nx = s.pos.x + dx*speed*dt;
+    const testX = dx>0 ? nx+half : nx-half;
+    if(smtTileWalkable(testX, s.pos.y-half+1) && smtTileWalkable(testX, s.pos.y+half-1)){
+      s.pos.x = nx;
     }
   }
-  smtGameMapAnimRafId = requestAnimationFrame(step);
+  if(dy !== 0){
+    const ny = s.pos.y + dy*speed*dt;
+    const testY = dy>0 ? ny+half : ny-half;
+    if(smtTileWalkable(s.pos.x-half+1, testY) && smtTileWalkable(s.pos.x+half-1, testY)){
+      s.pos.y = ny;
+    }
+  }
+  s.pos.x = Math.max(half, Math.min(SMT2_MAP_PW-half, s.pos.x));
+  s.pos.y = Math.max(half, Math.min(SMT2_MAP_PH-half, s.pos.y));
+
+  const tx = Math.floor(s.pos.x/SMT2_TILE), ty = Math.floor(s.pos.y/SMT2_TILE);
+  if(tx !== s.lastTileX || ty !== s.lastTileY){
+    s.lastTileX = tx; s.lastTileY = ty;
+    smtHandleTileEnter(tx, ty);
+  }
+}
+const SMT2_TILE_COLORS = {
+  '#': '#111318', '.': '#3a3d42',
+  'I': '#c98a3e', 'W': '#6c7a8a', 'J': '#8a6cae', 'D': '#4a3a6b'
+};
+const SMT2_TILE_ICON = { 'I':'🏨', 'W':'🗡️', 'J':'🔄', 'D':'😈' };
+function smtOverworldDraw(s, ctx, viewW, viewH){
+  let camX = s.pos.x - viewW/2, camY = s.pos.y - viewH/2;
+  camX = Math.max(0, Math.min(Math.max(0, SMT2_MAP_PW-viewW), camX));
+  camY = Math.max(0, Math.min(Math.max(0, SMT2_MAP_PH-viewH), camY));
+
+  ctx.fillStyle = '#0b0c0e';
+  ctx.fillRect(0,0,viewW,viewH);
+
+  const startTx = Math.max(0, Math.floor(camX/SMT2_TILE));
+  const endTx = Math.min(SMT2_MAP_W-1, Math.ceil((camX+viewW)/SMT2_TILE));
+  const startTy = Math.max(0, Math.floor(camY/SMT2_TILE));
+  const endTy = Math.min(SMT2_MAP_H-1, Math.ceil((camY+viewH)/SMT2_TILE));
+
+  for(let ty=startTy; ty<=endTy; ty++){
+    for(let tx=startTx; tx<=endTx; tx++){
+      const ch = SMT2_MAP_ROWS[ty][tx];
+      const sx = tx*SMT2_TILE - camX, sy = ty*SMT2_TILE - camY;
+      let color = SMT2_TILE_COLORS[ch];
+      let icon = SMT2_TILE_ICON[ch];
+      if(ch==='1' || ch==='2'){ color = s.clearedZones[ch] ? '#3a6b46' : '#7a3030'; }
+      if(ch==='3'){ color = s.clearedZones['3'] ? '#3a6b46' : '#2f4f7a'; }
+      if(ch==='a' || ch==='b' || ch==='c'){
+        const corridor = SMT2_BOSS_CHAR_CORRIDOR[ch];
+        color = s.clearedZones[corridor] ? '#3a6b46' : '#b0402c';
+        icon = s.clearedZones[corridor] ? '✅' : '⛩️';
+      }
+      if(!color) color = '#1c1e22';
+      ctx.fillStyle = color;
+      ctx.fillRect(sx, sy, SMT2_TILE, SMT2_TILE);
+      if(icon){
+        ctx.font = '13px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(icon, sx+SMT2_TILE/2, sy+SMT2_TILE/2+1);
+      }
+    }
+  }
+
+  const px = s.pos.x - camX, py = s.pos.y - camY;
+  ctx.font = '18px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('🧙', px, py);
 }
 function smtChooseFight(){
   const s = smtGameState;
   if(!s) return;
   s.stage = 'battle';
+  s.icons = smtMaxIcons(s);
+  s.magicMenuOpen = false;
   s.log = [`${s.enemy.name}との戦闘が始まった!`];
   render();
 }
@@ -2938,21 +3099,29 @@ function smtNegotiateContinue(){
   if(!s) return;
   if(s.negotiateOutcome==='angry'){
     s.stage = 'battle';
+    s.icons = smtMaxIcons(s);
+    s.magicMenuOpen = false;
     s.log = [`${s.enemy.name}が怒って襲いかかってきた!`];
     render();
     return;
   }
+  s.lastResolvedViaTalk = true;
   smtAdvanceAfterClear();
 }
 function smtAdvanceAfterClear(){
   const s = smtGameState;
   if(!s) return;
-  const cleared = SMT_ENCOUNTERS[s.idx];
+  const cleared = s.enemy;
   s.lastClearedName = cleared.name;
   s.lastClearedZone = cleared.zone;
   s.lastWasBoss = cleared.isBoss;
-  s.idx += 1;
-  if(s.idx >= SMT_ENCOUNTERS.length){
+  const goldGain = s.lastResolvedViaTalk ? 0 : (cleared.isBoss ? 25 : 8);
+  s.gold += goldGain;
+  s.lastGoldGain = goldGain;
+  if(cleared.isBoss){
+    s.clearedZones[cleared.corridor] = true;
+  }
+  if(Object.keys(s.clearedZones).every(k => s.clearedZones[k])){
     s.stage = 'ending';
     render();
     return;
@@ -2962,23 +3131,55 @@ function smtAdvanceAfterClear(){
   s.stage = 'victory';
   render();
 }
-function smtAction(action){
+function smtApplyElement(enemy, element, base){
+  if(enemy.weak === element) return { dmg: Math.round(base*1.5), outcome:'weak', tag:' 弱点!' };
+  if(enemy.resist === element) return { dmg: Math.max(1, Math.round(base*0.5)), outcome:'resist', tag:' (耐性)' };
+  return { dmg: base, outcome:'normal', tag:'' };
+}
+function smtToggleMagicMenu(open){
+  const s = smtGameState;
+  if(!s) return;
+  s.enemyHitFlash = false;
+  s.playerHitFlash = false;
+  s.magicMenuOpen = open;
+  render();
+}
+function smtAttemptFlee(){
+  const s = smtGameState;
+  if(!s || s.stage !== 'battle') return;
+  if(s.enemy.isBoss){ toast('🌀 結界の悪魔からは逃げられない!'); return; }
+  s.stage = 'overworld';
+  toast('🏃 逃げ出した');
+  render();
+}
+function smtAction(action, element){
   const s = smtGameState;
   if(!s || s.stage!=='battle') return;
   const enemy = s.enemy, player = s.player;
+  const job = SMT_JOBS[s.job] || SMT_JOBS.balance;
   const msgs = [];
+  let outcome = 'normal';
+  s.enemyHitFlash = false;
+  s.playerHitFlash = false;
 
   if(action==='attack'){
-    const dmg = 6 + Math.floor(Math.random()*6) + s.recruited.length;
-    enemy.hp = Math.max(0, enemy.hp - dmg);
-    msgs.push(`⚔️ ${dmg}のダメージを与えた!`);
-  } else if(action==='summon'){
-    if(player.mp < 10){ toast('MPが足りません'); return; }
-    player.mp -= 10;
-    const dmg = 14 + Math.floor(Math.random()*8) + s.recruited.length*3;
-    enemy.hp = Math.max(0, enemy.hp - dmg);
-    const skillName = s.recruited.length ? s.recruited[s.recruited.length-1] : null;
-    msgs.push(skillName ? `🌀 ${skillName}の力を借りた一撃! ${dmg}のダメージ!` : `🌀 渾身の一撃! ${dmg}のダメージ!`);
+    const base = 6 + Math.floor(Math.random()*6) + s.atkBonus + job.atkMod;
+    const r = smtApplyElement(enemy, 'phys', base);
+    enemy.hp = Math.max(0, enemy.hp - r.dmg);
+    outcome = r.outcome;
+    s.enemyHitFlash = true;
+    msgs.push(`⚔️ ${r.dmg}のダメージ!${r.tag}`);
+  } else if(action==='magic'){
+    const spell = SMT_SPELLS[element];
+    if(!spell) return;
+    if(player.mp < spell.mp){ toast('MPが足りません'); return; }
+    player.mp -= spell.mp;
+    const base = 11 + Math.floor(Math.random()*7) + s.magicBonus + job.magicMod;
+    const r = smtApplyElement(enemy, element, base);
+    enemy.hp = Math.max(0, enemy.hp - r.dmg);
+    outcome = r.outcome;
+    s.enemyHitFlash = true;
+    msgs.push(`${spell.label}! ${r.dmg}のダメージ!${r.tag}`);
   } else if(action==='defend'){
     s.defending = true;
     msgs.push('🛡️ 身を守った');
@@ -2992,8 +3193,20 @@ function smtAction(action){
     return;
   }
 
+  s.magicMenuOpen = false;
+
   if(enemy.hp <= 0){
+    s.log = msgs.slice(-4);
     smtAdvanceAfterClear();
+    return;
+  }
+
+  const iconCost = outcome==='weak' ? 0 : outcome==='resist' ? 2 : 1;
+  s.icons = Math.max(0, s.icons - iconCost);
+
+  if(s.icons > 0){
+    s.log = msgs.slice(-4);
+    render();
     return;
   }
 
@@ -3003,11 +3216,58 @@ function smtAction(action){
     : enemy.atkMin + Math.floor(Math.random()*(enemy.atkMax-enemy.atkMin+1));
   if(s.defending){ edmg = Math.floor(edmg/2); }
   player.hp = Math.max(0, player.hp - edmg);
+  s.playerHitFlash = true;
   msgs.push(`${enemy.name}の${isStrong?'強攻撃':'攻撃'}! ${edmg}のダメージを受けた`);
   s.defending = false;
+  s.icons = smtMaxIcons(s);
   s.log = msgs.slice(-4);
 
   if(player.hp <= 0){ s.stage = 'gameover'; }
+  render();
+}
+function smtBuyAtk(){
+  const s = smtGameState;
+  if(!s) return;
+  const price = 30 + s.atkBonus*5;
+  if(s.gold < price){ toast('Gが足りません'); return; }
+  s.gold -= price;
+  s.atkBonus += 3;
+  toast(`⚔️ 攻撃力+3(残りG:${s.gold})`);
+  render();
+}
+function smtBuyMagic(){
+  const s = smtGameState;
+  if(!s) return;
+  const price = 30 + s.magicBonus*5;
+  if(s.gold < price){ toast('Gが足りません'); return; }
+  s.gold -= price;
+  s.magicBonus += 3;
+  toast(`🔮 魔力+3(残りG:${s.gold})`);
+  render();
+}
+function smtChangeJob(job){
+  const s = smtGameState;
+  if(!s || !SMT_JOBS[job]) return;
+  s.job = job;
+  toast(`🔄 ${SMT_JOBS[job].name}に転職した`);
+  render();
+}
+function smtFuseDemons(){
+  const s = smtGameState;
+  if(!s || s.recruited.length < 2) return;
+  const a = s.recruited.shift(), b = s.recruited.shift();
+  const fused = `${a}&${b}の融合体`;
+  s.recruited.push(fused);
+  s.player.maxHp += 6;
+  s.player.hp += 6;
+  s.atkBonus += 3;
+  toast(`😈 ${fused}が生まれた!(攻撃力+3)`);
+  render();
+}
+function smtLeaveFacility(){
+  const s = smtGameState;
+  if(!s) return;
+  s.stage = 'overworld';
   render();
 }
 function renderSmtGame(){
@@ -3015,24 +3275,99 @@ function renderSmtGame(){
   const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🌀 封鎖された下北沢 <span class="tag">テスト機能</span></h2>`;
   const s = smtGameState;
 
-  if(!s || s.stage==='intro'){
+  if(!s){
     return `
       ${header}
       <div class="revenge-story-box">
         <p>下北沢に、突如として結界が張られた。</p>
         <p>結界の向こうから、悪魔たちの気配が忍び寄る。</p>
-        <p>あなたは新米の召喚士。悪魔と戦い、時には言葉を交わしながら、閉ざされた街を解放しなければならない。</p>
+        <p>あなたは新米の召喚士。フィールドを歩き回り、悪魔と戦い、時には言葉を交わしながら、閉ざされた街を解放しなければならない。</p>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">始める</button>
-      <div class="muted" style="margin-top:10px;">悪魔とは「戦う」か「話しかけて仲魔にする」かを選べる、短編のミニRPGです(3エリア・全6体)。下北沢マップの上を実際に移動しながら進みます。進行状況は保存されません。</div>
+      <div class="muted" style="margin-top:10px;">2Dのフィールドを移動する探索型のミニRPGです。草むら状の道を歩くとまれに悪魔と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。街の広場には宿屋・武器屋・転職・悪魔召喚の館があります。進行状況は保存されません。</div>
     `;
   }
-  if(s.stage==='travel'){
+  if(s.stage==='overworld'){
+    const clearedCount = Object.values(s.clearedZones).filter(Boolean).length;
     return `
       ${header}
-      <div class="muted" style="text-align:center;margin-bottom:8px;">🚶 ${escapeHtml(s.travelTarget || '')}へ向かっている…</div>
-      <div id="smtGameMap" style="height:260px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
-      <div class="muted" style="margin-top:10px;text-align:center;font-size:12px;">下北沢マップの上を移動中です。到着すると自動的に次に進みます。</div>
+      <div class="smt-hud">
+        <span>HP <b>${s.player.hp}/${s.player.maxHp}</b></span>
+        <span>MP <b>${s.player.mp}/${s.player.maxMp}</b></span>
+        <span>💰 <b>${s.gold}</b>G</span>
+        <span>😈 仲魔 <b>${s.recruited.length}</b></span>
+        <span>🔓 解放 <b>${clearedCount}/3</b></span>
+        <span>職 <b>${escapeHtml(SMT_JOBS[s.job].name)}</b></span>
+      </div>
+      <canvas id="smtOverworldCanvas" width="280" height="280" style="display:block;margin:0 auto;border-radius:12px;border:1px solid var(--line);"></canvas>
+      <div class="smt-dpad">
+        <div></div>
+        <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
+        <div></div>
+        <button class="invader-btn" style="grid-column:1;grid-row:2;" ontouchstart="smtOverworldTouch(event,'left',true)" ontouchend="smtOverworldTouch(event,'left',false)" onmousedown="smtOverworldSetInput('left',true)" onmouseup="smtOverworldSetInput('left',false)" onmouseleave="smtOverworldSetInput('left',false)">◀️</button>
+        <div style="grid-column:2;grid-row:2;"></div>
+        <button class="invader-btn" style="grid-column:3;grid-row:2;" ontouchstart="smtOverworldTouch(event,'right',true)" ontouchend="smtOverworldTouch(event,'right',false)" onmousedown="smtOverworldSetInput('right',true)" onmouseup="smtOverworldSetInput('right',false)" onmouseleave="smtOverworldSetInput('right',false)">▶️</button>
+        <div></div>
+        <button class="invader-btn" style="grid-column:2;grid-row:3;" ontouchstart="smtOverworldTouch(event,'down',true)" ontouchend="smtOverworldTouch(event,'down',false)" onmousedown="smtOverworldSetInput('down',true)" onmouseup="smtOverworldSetInput('down',false)" onmouseleave="smtOverworldSetInput('down',false)">▼</button>
+        <div></div>
+      </div>
+      <div class="muted" style="margin-top:10px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。色のついた道は各エリアの結界エリア(赤=一番街/南口、青=下北沢駅前)、緑は解放済みです。🏨宿屋 🗡️武器屋 🔄転職 😈悪魔召喚の館</div>
+    `;
+  }
+  if(s.stage==='facilityShop'){
+    return `
+      ${header}
+      <h3 style="margin-top:0;">🗡️ 武器屋</h3>
+      <div class="muted" style="margin-bottom:6px;">所持金: <b>${s.gold}</b>G</div>
+      <div class="smt-facility-list">
+        <div class="smt-facility-card">
+          <div class="row between"><b>⚔️ 攻撃力強化</b><span class="muted">現在+${s.atkBonus}</span></div>
+          <div class="muted" style="margin-bottom:8px;">直接攻撃のダメージが上がる。</div>
+          <button class="btn btn-primary" onclick="smtBuyAtk()">+3 強化する(${30 + s.atkBonus*5}G)</button>
+        </div>
+        <div class="smt-facility-card">
+          <div class="row between"><b>🔮 魔力強化</b><span class="muted">現在+${s.magicBonus}</span></div>
+          <div class="muted" style="margin-bottom:8px;">火・氷・電・風の属性弾のダメージが上がる。</div>
+          <button class="btn btn-primary" onclick="smtBuyMagic()">+3 強化する(${30 + s.magicBonus*5}G)</button>
+        </div>
+      </div>
+      <button class="btn btn-secondary" style="margin-top:14px;" onclick="smtLeaveFacility()">店を出る</button>
+    `;
+  }
+  if(s.stage==='facilityJob'){
+    return `
+      ${header}
+      <h3 style="margin-top:0;">🔄 転職の間</h3>
+      <div class="smt-facility-list">
+        ${Object.keys(SMT_JOBS).map(key=>{
+          const job = SMT_JOBS[key];
+          const active = s.job===key;
+          return `
+          <div class="smt-facility-card">
+            <div class="row between"><b>${escapeHtml(job.name)}</b>${active ? '<span class="tag">選択中</span>' : ''}</div>
+            <div class="muted" style="margin-bottom:8px;">${escapeHtml(job.desc)}</div>
+            ${active ? '' : `<button class="btn btn-secondary" onclick="smtChangeJob('${key}')">この職業になる</button>`}
+          </div>`;
+        }).join('')}
+      </div>
+      <button class="btn btn-secondary" style="margin-top:14px;" onclick="smtLeaveFacility()">部屋を出る</button>
+    `;
+  }
+  if(s.stage==='facilityDemon'){
+    return `
+      ${header}
+      <h3 style="margin-top:0;">😈 悪魔召喚の館</h3>
+      <div class="muted" style="margin-bottom:10px;">話しかけて仲魔にした悪魔がここに集まる。2体そろうと融合できる。</div>
+      ${s.recruited.length ? `
+        <div class="smt-facility-list">
+          <div class="smt-facility-card">
+            <div class="muted">仲魔一覧:</div>
+            <div style="margin-top:4px;">${s.recruited.map(escapeHtml).join('、')}</div>
+          </div>
+        </div>
+      ` : `<div class="muted">まだ仲魔はいない。フィールドで悪魔に話しかけてみよう。</div>`}
+      ${s.recruited.length>=2 ? `<button class="btn btn-primary" style="margin-top:12px;" onclick="smtFuseDemons()">🌀 先頭の2体を融合する</button>` : ''}
+      <button class="btn btn-secondary" style="margin-top:14px;" onclick="smtLeaveFacility()">館を出る</button>
     `;
   }
   if(s.stage==='encounter'){
@@ -3095,8 +3430,9 @@ function renderSmtGame(){
     return `
       ${header}
       <div class="revenge-story-box">
-        <p>${escapeHtml(s.lastClearedName)}を退けた。</p>
+        <p>${s.lastResolvedViaTalk ? escapeHtml(s.lastClearedName)+'は静かに去っていった。' : escapeHtml(s.lastClearedName)+'を退けた。'}</p>
         <p>${escapeHtml(text)}</p>
+        ${s.lastGoldGain ? `<p class="muted">💰 +${s.lastGoldGain}G</p>` : ''}
       </div>
       <button class="btn btn-primary" style="margin-top:12px;" onclick="smtProceedAfterVictory()">先に進む</button>
     `;
@@ -3107,32 +3443,42 @@ function renderSmtGame(){
   const enemyHpPct = Math.round(enemy.hp/enemy.maxHp*100);
   const playerHpPct = Math.round(player.hp/player.maxHp*100);
   const playerMpPct = Math.round(player.mp/player.maxMp*100);
-  const summonLabel = s.recruited.length ? `召喚:${s.recruited[s.recruited.length-1]}(MP10)` : '渾身の一撃(MP10)';
+  const iconsMax = smtMaxIcons(s);
+  const iconRow = Array.from({length: iconsMax}).map((_, i) => `<span class="smt-icon${i < s.icons ? ' on' : ''}"></span>`).join('');
   return `
     ${header}
     <div class="revenge-battle-wrap">
       <div class="revenge-enemy">
-        <div class="smt-zone-label">${escapeHtml(enemy.zone)}</div>
-        <div class="revenge-enemy-sprite">${enemy.sprite}</div>
+        <div class="smt-zone-label">${escapeHtml(enemy.zone)} ・ 弱点:${smtElementLabel(enemy.weak)} 耐性:${smtElementLabel(enemy.resist)}</div>
+        <div class="revenge-enemy-sprite${s.enemyHitFlash ? ' smt-hit-flash' : ''}">${enemy.sprite}</div>
         <div class="revenge-enemy-name">${escapeHtml(enemy.name)}</div>
         <div class="revenge-hp-bar"><div class="revenge-hp-fill" style="width:${enemyHpPct}%;"></div></div>
         <div class="muted" style="font-size:11px;">${enemy.hp} / ${enemy.maxHp}</div>
       </div>
+      <div class="smt-icon-row">${iconRow}</div>
       <div class="revenge-log">
         ${s.log.map(m=>`<div>${escapeHtml(m)}</div>`).join('')}
       </div>
-      <div class="revenge-player">
+      <div class="revenge-player${s.playerHitFlash ? ' smt-hit-flash' : ''}">
         <div class="row between" style="font-size:12px;margin-bottom:2px;"><span>召喚士(あなた)</span><span class="muted">HP ${player.hp}/${player.maxHp}</span></div>
         <div class="revenge-hp-bar"><div class="revenge-hp-fill player" style="width:${playerHpPct}%;"></div></div>
         <div class="row between" style="font-size:11px;margin:6px 0 2px;"><span class="muted">MP</span><span class="muted">${player.mp}/${player.maxMp}</span></div>
         <div class="revenge-mp-bar"><div class="revenge-mp-fill" style="width:${playerMpPct}%;"></div></div>
       </div>
+      ${s.magicMenuOpen ? `
+      <div class="smt-magic-grid">
+        ${Object.keys(SMT_SPELLS).map(el=>`<button class="btn btn-secondary" onclick="smtAction('magic','${el}')">${SMT_SPELLS[el].label}(MP${SMT_SPELLS[el].mp})</button>`).join('')}
+      </div>
+      <button class="btn btn-secondary" style="margin-top:8px;width:100%;" onclick="smtToggleMagicMenu(false)">← もどる</button>
+      ` : `
       <div class="revenge-actions">
         <button class="btn btn-secondary" onclick="smtAction('attack')">⚔️ 攻撃</button>
-        <button class="btn btn-secondary" onclick="smtAction('summon')">🌀 ${escapeHtml(summonLabel)}</button>
+        <button class="btn btn-secondary" onclick="smtToggleMagicMenu(true)">🔮 属性魔法</button>
         <button class="btn btn-secondary" onclick="smtAction('defend')">🛡️ 防御</button>
         <button class="btn btn-secondary" onclick="smtAction('heal')">✨ 回復(MP8)</button>
+        <button class="btn btn-secondary" onclick="smtAttemptFlee()">🏃 逃げる</button>
       </div>
+      `}
     </div>
   `;
 }
