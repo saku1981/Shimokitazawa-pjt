@@ -194,6 +194,9 @@
   .smt-zone-label{font-size:11px;color:var(--sub);margin-bottom:2px;}
   .smt-encounter-choice{display:flex;gap:10px;margin-top:14px;}
   .smt-encounter-choice .btn{flex:1;margin:0;}
+  .smt-player-marker-wrap, .smt-dest-marker-wrap{background:transparent;border:none;}
+  .smt-player-marker{font-size:22px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));}
+  .smt-dest-marker{font-size:22px;line-height:1;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));opacity:.85;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
     overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
@@ -892,6 +895,8 @@ function otherStoresFor(userId, excludeStoreId){
 /* ===================== 画面遷移 ===================== */
 async function go(screen){
   if(state.screen==='invaderGame' && screen!=='invaderGame'){ stopInvaderGame(); }
+  if(state.screen==='breakoutGame' && screen!=='breakoutGame'){ stopBreakoutGame(); }
+  if(state.screen==='smtGame' && screen!=='smtGame'){ stopSmtGameMap(); }
   state.screen = screen;
   render(); // まず今あるデータで即座に画面を切り替え、後から新しいデータで更新する(反応を速く感じさせるため)
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
@@ -1029,6 +1034,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
       ${store.is_test ? `<div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
+      ${store.is_test ? `<div class="nav-row" onclick="go('breakoutGame')"><span class="nav-label"><span class="nav-icon">🧱</span>ブロックくずし <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
       ${store.is_test ? `<div class="nav-row" onclick="go('smtGame')"><span class="nav-label"><span class="nav-icon">🌀</span>封鎖された下北沢 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
@@ -2367,6 +2373,226 @@ function renderInvaderGame(){
   `;
 }
 
+/* ===================== 下北沢ブロックくずし(テスト機能・遊びのみ) =====================
+   ファミコン時代のブロック崩しゲームにインスパイアされた、オリジナルデータの
+   シンプルな一人用ゲーム。特定の作品のブロック配置やグラフィックはそのまま使っていない。
+   スコアや進行状況はどこにも保存せず、画面を出入りするたびに最初からになる。
+*/
+let breakoutGameState = null;
+let breakoutGameRafId = null;
+let breakoutGameKeyHandlerBound = false;
+function breakoutGameKeyDown(e){
+  if(!breakoutGameState) return;
+  if(e.key==='ArrowLeft') breakoutGameState.input.left = true;
+  if(e.key==='ArrowRight') breakoutGameState.input.right = true;
+  if(e.key===' '){ e.preventDefault(); breakoutLaunchBall(); }
+}
+function breakoutGameKeyUp(e){
+  if(!breakoutGameState) return;
+  if(e.key==='ArrowLeft') breakoutGameState.input.left = false;
+  if(e.key==='ArrowRight') breakoutGameState.input.right = false;
+}
+function breakoutGameSetInput(key, val){
+  if(!breakoutGameState) return;
+  breakoutGameState.input[key] = val;
+}
+function breakoutGameTouch(e, key, val){
+  if(e && e.preventDefault) e.preventDefault();
+  breakoutGameSetInput(key, val);
+}
+function stopBreakoutGame(){
+  if(breakoutGameRafId){ cancelAnimationFrame(breakoutGameRafId); breakoutGameRafId = null; }
+  if(breakoutGameKeyHandlerBound){
+    window.removeEventListener('keydown', breakoutGameKeyDown);
+    window.removeEventListener('keyup', breakoutGameKeyUp);
+    breakoutGameKeyHandlerBound = false;
+  }
+  breakoutGameState = null;
+}
+const BREAKOUT_ROW_COLORS = ['#e05c5c','#e0a458','#e0d658','#6cc06c','#6ca0e0','#b06ce0'];
+function resetBreakoutBallOnPaddle(s){
+  s.ball = { x: s.paddle.x + s.paddle.w/2, y: s.paddle.y - 6, r:4, vx:0, vy:0 };
+  s.launched = false;
+}
+function newBreakoutLevel(s, level){
+  const cols = 8;
+  const rows = Math.min(6, 3 + (level-1));
+  const brickW = 32, brickH = 12, gap = 3;
+  const offsetX = (s.W - cols*(brickW+gap))/2, offsetY = 30;
+  const bricks = [];
+  for(let r=0;r<rows;r++){
+    for(let c=0;c<cols;c++){
+      bricks.push({ x: offsetX + c*(brickW+gap), y: offsetY + r*(brickH+gap), w:brickW, h:brickH, alive:true, color: BREAKOUT_ROW_COLORS[r % BREAKOUT_ROW_COLORS.length] });
+    }
+  }
+  s.bricks = bricks;
+  s.level = level;
+  s.speed = 150 + (level-1)*16;
+  resetBreakoutBallOnPaddle(s);
+}
+function initBreakoutGame(){
+  const canvas = document.getElementById('breakoutCanvas');
+  if(!canvas || typeof canvas.getContext !== 'function') return;
+  stopBreakoutGame(); // 念のため、前のループが残っていたら止める
+  const overlay = document.getElementById('breakoutEndOverlay');
+  if(overlay) overlay.style.display = 'none';
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const s = {
+    ctx, W, H,
+    paddle: { x: W/2-22, y: H-18, w:44, h:8, speed:230 },
+    ball: null, bricks: [],
+    input: { left:false, right:false },
+    score:0, lives:3, level:1, launched:false, speed:150,
+    over:false, lastTime:null
+  };
+  newBreakoutLevel(s, 1);
+  breakoutGameState = s;
+  window.addEventListener('keydown', breakoutGameKeyDown);
+  window.addEventListener('keyup', breakoutGameKeyUp);
+  breakoutGameKeyHandlerBound = true;
+  breakoutGameRafId = requestAnimationFrame(breakoutGameLoop);
+}
+function breakoutLaunchBall(){
+  const s = breakoutGameState;
+  if(!s || s.launched || s.over) return;
+  s.launched = true;
+  const angle = -Math.PI/2 + (Math.random()*0.6 - 0.3);
+  s.ball.vx = Math.cos(angle) * s.speed;
+  s.ball.vy = Math.sin(angle) * s.speed;
+}
+function breakoutGameLoop(ts){
+  const s = breakoutGameState;
+  if(!s) return;
+  if(s.lastTime==null) s.lastTime = ts;
+  const dt = Math.min(0.05, (ts - s.lastTime)/1000);
+  s.lastTime = ts;
+  if(!s.over){ breakoutGameUpdate(s, dt); }
+  breakoutGameDraw(s);
+  if(!s.over){
+    breakoutGameRafId = requestAnimationFrame(breakoutGameLoop);
+  } else {
+    breakoutGameRafId = null;
+    const endEl = document.getElementById('breakoutEndOverlay');
+    if(endEl){
+      endEl.style.display = 'flex';
+      const titleEl = endEl.querySelector('.invader-end-title');
+      const scoreEl = endEl.querySelector('.invader-end-score');
+      if(titleEl) titleEl.textContent = '💥 ゲームオーバー';
+      if(scoreEl) scoreEl.textContent = `スコア: ${s.score} (LV ${s.level})`;
+    }
+  }
+}
+function breakoutGameUpdate(s, dt){
+  if(s.input.left) s.paddle.x -= s.paddle.speed*dt;
+  if(s.input.right) s.paddle.x += s.paddle.speed*dt;
+  s.paddle.x = Math.max(0, Math.min(s.W - s.paddle.w, s.paddle.x));
+
+  const b = s.ball;
+  if(!s.launched){
+    b.x = s.paddle.x + s.paddle.w/2;
+    b.y = s.paddle.y - b.r - 2;
+    return;
+  }
+
+  b.x += b.vx*dt;
+  b.y += b.vy*dt;
+
+  if(b.x - b.r < 0){ b.x = b.r; b.vx *= -1; }
+  if(b.x + b.r > s.W){ b.x = s.W - b.r; b.vx *= -1; }
+  if(b.y - b.r < 0){ b.y = b.r; b.vy *= -1; }
+
+  if(b.vy > 0 && b.y + b.r >= s.paddle.y && b.y + b.r <= s.paddle.y + s.paddle.h + 8 &&
+     b.x >= s.paddle.x - 2 && b.x <= s.paddle.x + s.paddle.w + 2){
+    const hitPos = Math.max(-1, Math.min(1, (b.x - (s.paddle.x + s.paddle.w/2)) / (s.paddle.w/2)));
+    const angle = -Math.PI/2 + hitPos*(Math.PI/3);
+    const speed = Math.hypot(b.vx, b.vy);
+    b.vx = Math.cos(angle)*speed;
+    b.vy = Math.sin(angle)*speed;
+    b.y = s.paddle.y - b.r - 1;
+  }
+
+  for(const br of s.bricks){
+    if(!br.alive) continue;
+    if(b.x + b.r > br.x && b.x - b.r < br.x + br.w && b.y + b.r > br.y && b.y - b.r < br.y + br.h){
+      br.alive = false;
+      s.score += 10;
+      const overlapX = Math.min(b.x + b.r - br.x, br.x + br.w - (b.x - b.r));
+      const overlapY = Math.min(b.y + b.r - br.y, br.y + br.h - (b.y - b.r));
+      if(overlapX < overlapY){ b.vx *= -1; } else { b.vy *= -1; }
+      break;
+    }
+  }
+
+  if(b.y - b.r > s.H){
+    s.lives -= 1;
+    if(s.lives <= 0){
+      s.over = true;
+    } else {
+      resetBreakoutBallOnPaddle(s);
+    }
+  }
+
+  if(s.bricks.length && s.bricks.every(br=>!br.alive)){
+    newBreakoutLevel(s, s.level+1);
+  }
+}
+function breakoutGameDraw(s){
+  const { ctx, W, H } = s;
+  ctx.fillStyle = '#0b0c0e';
+  ctx.fillRect(0,0,W,H);
+
+  s.bricks.forEach(br=>{
+    if(!br.alive) return;
+    ctx.fillStyle = br.color;
+    ctx.fillRect(br.x, br.y, br.w, br.h);
+  });
+
+  ctx.fillStyle = '#7ad0e0';
+  ctx.fillRect(s.paddle.x, s.paddle.y, s.paddle.w, s.paddle.h);
+
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(s.ball.x, s.ball.y, s.ball.r, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`SCORE ${s.score}`, 6, 14);
+  ctx.textAlign = 'right';
+  ctx.fillText(`💛×${Math.max(0,s.lives)}`, W-6, 14);
+  ctx.textAlign = 'center';
+  ctx.fillText(`LV ${s.level}`, W/2, 14);
+
+  if(!s.launched && !s.over){
+    ctx.fillStyle = 'rgba(255,255,255,0.85)';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('タップ / スペースで発射', W/2, H/2);
+  }
+}
+function renderBreakoutGame(){
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>🧱 下北沢ブロックくずし <span class="tag">テスト機能</span></h2>
+    <div class="muted" style="margin-bottom:10px;">ファミコン時代のブロック崩しゲームのような、シンプルな一人用ゲームです。左右ボタンでバーを動かし、画面タップ・🚀ボタン・スペースキーでボールを発射してブロックを崩しましょう。スコアなどは保存されず、画面を出入りするたびに最初からになります。</div>
+    <div class="invader-game-wrap">
+      <canvas id="breakoutCanvas" width="300" height="360" onclick="breakoutLaunchBall()" ontouchstart="breakoutLaunchBall()"></canvas>
+      <div id="breakoutEndOverlay" class="invader-end-overlay" style="display:none;">
+        <div class="invader-end-title">💥 ゲームオーバー</div>
+        <div class="invader-end-score muted">スコア: 0</div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="initBreakoutGame()">もう一度あそぶ</button>
+      </div>
+    </div>
+    <div class="invader-controls">
+      <button class="invader-btn" ontouchstart="breakoutGameTouch(event,'left',true)" ontouchend="breakoutGameTouch(event,'left',false)" onmousedown="breakoutGameSetInput('left',true)" onmouseup="breakoutGameSetInput('left',false)" onmouseleave="breakoutGameSetInput('left',false)">◀️</button>
+      <button class="invader-btn invader-btn-fire" onclick="breakoutLaunchBall()">🚀</button>
+      <button class="invader-btn" ontouchstart="breakoutGameTouch(event,'right',true)" ontouchend="breakoutGameTouch(event,'right',false)" onmousedown="breakoutGameSetInput('right',true)" onmouseup="breakoutGameSetInput('right',false)" onmouseleave="breakoutGameSetInput('right',false)">▶️</button>
+    </div>
+  `;
+}
+
 /* ===================== 復讐の断章(テスト機能・遊びのみ) =====================
    ターン制の短編ミニRPG。オリジナルのストーリー・敵データで、
    特定の作品の文章やキャラクターをそのまま使ってはいない。
@@ -2561,6 +2787,14 @@ const SMT_ENCOUNTERS = [
   { zone:'下北沢駅前', name:'ジャックフロスト', sprite:'❄️', maxHp:40, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:15, isBoss:false, canNegotiate:true },
   { zone:'下北沢駅前(最深部)', name:'幽閉の悪魔ザラキエル', sprite:'😈', maxHp:100, atkMin:8, atkMax:14, strongChance:0.32, strongMin:20, strongMax:28, isBoss:true, canNegotiate:false }
 ];
+// ゾーンごとのおおよその座標(下北沢マップと同じOpenStreetMapベース)。移動演出に使う。
+const SMT_ZONE_COORDS = {
+  '一番街': [35.6624, 139.6684],
+  '南口': [35.6601, 139.6677],
+  '下北沢駅前': [35.6613, 139.6683],
+  '下北沢駅前(最深部)': [35.6616, 139.6690]
+};
+const SMT_HUB_COORD = SMT_ZONE_COORDS['下北沢駅前'];
 function newSmtGame(){
   return {
     stage: 'intro',
@@ -2571,11 +2805,41 @@ function newSmtGame(){
     enemy: null,
     log: [],
     negotiateOutcome: null,
-    lastClearedName: null, lastClearedZone: null, lastWasBoss: false
+    lastClearedName: null, lastClearedZone: null, lastWasBoss: false,
+    playerLatLng: SMT_HUB_COORD,
+    currentZone: '下北沢駅前',
+    travelTarget: null,
+    travelThen: null
   };
 }
-function startSmtGame(){ smtGameState = newSmtGame(); render(); }
-function restartSmtGame(){ smtGameState = null; render(); }
+function startSmtGame(){
+  smtGameState = newSmtGame();
+  smtStartTravelTo(SMT_ENCOUNTERS[0].zone, 'spawn');
+}
+function restartSmtGame(){ stopSmtGameMap(); smtGameState = null; render(); }
+function smtStartTravelTo(zoneName, then){
+  const s = smtGameState;
+  if(!s) return;
+  s.travelTarget = zoneName;
+  s.travelThen = then;
+  s.stage = 'travel';
+  render();
+}
+function smtCompleteTravel(){
+  const s = smtGameState;
+  if(!s || s.stage !== 'travel') return;
+  const target = s.travelTarget;
+  const then = s.travelThen;
+  s.playerLatLng = SMT_ZONE_COORDS[target] || s.playerLatLng;
+  s.currentZone = target;
+  s.travelTarget = null;
+  s.travelThen = null;
+  if(then === 'spawn'){
+    smtSpawnEncounter();
+  } else {
+    render();
+  }
+}
 function smtSpawnEncounter(){
   const s = smtGameState;
   if(!s) return;
@@ -2585,6 +2849,68 @@ function smtSpawnEncounter(){
   s.defending = false;
   s.log = [];
   render();
+}
+function smtProceedAfterVictory(){
+  const s = smtGameState;
+  if(!s) return;
+  const next = SMT_ENCOUNTERS[s.idx];
+  if(!next){ smtSpawnEncounter(); return; }
+  if(next.zone !== s.currentZone){
+    smtStartTravelTo(next.zone, 'spawn');
+  } else {
+    smtSpawnEncounter();
+  }
+}
+let smtGameMapInstance = null;
+let smtGameMapPlayerMarker = null;
+let smtGameMapAnimRafId = null;
+function stopSmtGameMap(){
+  if(smtGameMapAnimRafId){ cancelAnimationFrame(smtGameMapAnimRafId); smtGameMapAnimRafId = null; }
+  if(smtGameMapInstance){ smtGameMapInstance.remove(); smtGameMapInstance = null; }
+  smtGameMapPlayerMarker = null;
+}
+function initSmtGameMap(){
+  const s = smtGameState;
+  const container = document.getElementById('smtGameMap');
+  if(!container || typeof L === 'undefined' || !s || s.stage !== 'travel'){
+    stopSmtGameMap();
+    return;
+  }
+  // renderSmtGame()が毎回innerHTMLを差し替えるため、地図は毎回作り直す
+  stopSmtGameMap();
+  const from = s.playerLatLng || SMT_HUB_COORD;
+  const to = SMT_ZONE_COORDS[s.travelTarget] || from;
+  const map = L.map(container, { zoomControl:false, dragging:false, scrollWheelZoom:false, doubleClickZoom:false, touchZoom:false, boxZoom:false, keyboard:false, tap:false });
+  const midLat = (from[0] + to[0]) / 2, midLng = (from[1] + to[1]) / 2;
+  map.setView([midLat, midLng], 16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
+  L.marker(to, {
+    icon: L.divIcon({ className:'smt-dest-marker-wrap', html:'<div class="smt-dest-marker">🌀</div>', iconSize:[26,26], iconAnchor:[13,22] })
+  }).addTo(map);
+  smtGameMapPlayerMarker = L.marker(from, {
+    icon: L.divIcon({ className:'smt-player-marker-wrap', html:'<div class="smt-player-marker">🧙</div>', iconSize:[26,26], iconAnchor:[13,13] })
+  }).addTo(map);
+  smtGameMapInstance = map;
+
+  const startTs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+  const duration = 1300;
+  function step(ts){
+    const t = Math.min(1, (ts - startTs) / duration);
+    const eased = t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+    const lat = from[0] + (to[0] - from[0]) * eased;
+    const lng = from[1] + (to[1] - from[1]) * eased;
+    if(smtGameMapPlayerMarker){ smtGameMapPlayerMarker.setLatLng([lat, lng]); }
+    if(t < 1){
+      smtGameMapAnimRafId = requestAnimationFrame(step);
+    } else {
+      smtGameMapAnimRafId = null;
+      smtCompleteTravel();
+    }
+  }
+  smtGameMapAnimRafId = requestAnimationFrame(step);
 }
 function smtChooseFight(){
   const s = smtGameState;
@@ -2697,8 +3023,16 @@ function renderSmtGame(){
         <p>結界の向こうから、悪魔たちの気配が忍び寄る。</p>
         <p>あなたは新米の召喚士。悪魔と戦い、時には言葉を交わしながら、閉ざされた街を解放しなければならない。</p>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame(); smtSpawnEncounter();">始める</button>
-      <div class="muted" style="margin-top:10px;">悪魔とは「戦う」か「話しかけて仲魔にする」かを選べる、短編のミニRPGです(3エリア・全6体)。進行状況は保存されません。</div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">始める</button>
+      <div class="muted" style="margin-top:10px;">悪魔とは「戦う」か「話しかけて仲魔にする」かを選べる、短編のミニRPGです(3エリア・全6体)。下北沢マップの上を実際に移動しながら進みます。進行状況は保存されません。</div>
+    `;
+  }
+  if(s.stage==='travel'){
+    return `
+      ${header}
+      <div class="muted" style="text-align:center;margin-bottom:8px;">🚶 ${escapeHtml(s.travelTarget || '')}へ向かっている…</div>
+      <div id="smtGameMap" style="height:260px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+      <div class="muted" style="margin-top:10px;text-align:center;font-size:12px;">下北沢マップの上を移動中です。到着すると自動的に次に進みます。</div>
     `;
   }
   if(s.stage==='encounter'){
@@ -2764,7 +3098,7 @@ function renderSmtGame(){
         <p>${escapeHtml(s.lastClearedName)}を退けた。</p>
         <p>${escapeHtml(text)}</p>
       </div>
-      <button class="btn btn-primary" style="margin-top:12px;" onclick="smtSpawnEncounter()">先に進む</button>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="smtProceedAfterVictory()">先に進む</button>
     `;
   }
 
@@ -3742,13 +4076,15 @@ function render(){
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
-    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, revengeGame: renderRevengeGame,
-    smtGame: renderSmtGame
+    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
+    revengeGame: renderRevengeGame, smtGame: renderSmtGame
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
   if(state.screen==='shimokitaMap'){ initShimokitaLeafletMap(); }
   if(state.screen==='invaderGame'){ initInvaderGame(); }
+  if(state.screen==='breakoutGame'){ initBreakoutGame(); }
+  if(state.screen==='smtGame'){ initSmtGameMap(); }
 }
 
 init();
