@@ -1029,7 +1029,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
       ${store.is_test ? `<div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
-      ${store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
+      ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
       ${store.is_test ? `<div class="nav-row" onclick="go('smtGame')"><span class="nav-label"><span class="nav-icon">🌀</span>封鎖された下北沢 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
     </div>
