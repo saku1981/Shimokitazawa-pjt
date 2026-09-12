@@ -174,6 +174,23 @@
   .invader-btn{width:60px;height:52px;font-size:20px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;}
   .invader-btn:active{background:var(--panel);}
   .invader-btn-fire{background:#c0453c;border-color:#c0453c;color:#fff;}
+  .revenge-story-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .revenge-story-box p{margin:0 0 8px;line-height:1.6;font-size:13.5px;}
+  .revenge-story-box p:last-child{margin-bottom:0;}
+  .revenge-battle-wrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .revenge-enemy{text-align:center;margin-bottom:10px;}
+  .revenge-enemy-sprite{font-size:44px;line-height:1;}
+  .revenge-enemy-name{font-weight:bold;margin:4px 0 6px;}
+  .revenge-hp-bar{height:8px;border-radius:5px;background:#2a2c31;overflow:hidden;}
+  .revenge-hp-fill{height:100%;background:#c0453c;transition:width .25s ease;}
+  .revenge-hp-fill.player{background:#2f9e52;}
+  .revenge-mp-bar{height:6px;border-radius:4px;background:#2a2c31;overflow:hidden;}
+  .revenge-mp-fill{height:100%;background:#5aa0d8;transition:width .25s ease;}
+  .revenge-log{min-height:58px;max-height:80px;overflow-y:auto;background:#15161a;border:1px solid var(--line);border-radius:8px;padding:8px 10px;font-size:12px;color:var(--sub);margin-bottom:10px;}
+  .revenge-log div{margin-bottom:3px;}
+  .revenge-log div:last-child{margin-bottom:0;color:var(--text);}
+  .revenge-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
+  .revenge-actions .btn{margin:0;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
     overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
@@ -1009,6 +1026,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
       ${store.is_test ? `<div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
+      ${store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
     </div>
   `;
@@ -2345,6 +2363,186 @@ function renderInvaderGame(){
   `;
 }
 
+/* ===================== 復讐の断章(テスト機能・遊びのみ) =====================
+   ターン制の短編ミニRPG。オリジナルのストーリー・敵データで、
+   特定の作品の文章やキャラクターをそのまま使ってはいない。
+   進行状況はどこにも保存せず、画面を離れると最初からになる。
+*/
+let revengeGameState = null;
+const REVENGE_ENEMIES = [
+  { key:'soldier', name:'見張りの兵', maxHp:32, atkMin:3, atkMax:7, strongChance:0.15, strongMin:9, strongMax:13, sprite:'💂' },
+  { key:'captain', name:'隊長ガルダ', maxHp:55, atkMin:5, atkMax:10, strongChance:0.25, strongMin:13, strongMax:19, sprite:'🗡️' },
+  { key:'lord', name:'業火の将ヴァルガ', maxHp:88, atkMin:7, atkMax:13, strongChance:0.3, strongMin:18, strongMax:26, sprite:'🔥' }
+];
+function newRevengeGame(){
+  return {
+    stage: 'intro',
+    enemyIndex: 0,
+    defending: false,
+    player: { name:'旅の剣士', hp:60, maxHp:60, mp:20, maxMp:20 },
+    enemy: null,
+    log: []
+  };
+}
+function startRevengeGame(){
+  revengeGameState = newRevengeGame();
+  render();
+}
+function restartRevengeGame(){
+  revengeGameState = null;
+  render();
+}
+function startRevengeBattle(){
+  const s = revengeGameState;
+  if(!s) return;
+  const def = REVENGE_ENEMIES[s.enemyIndex];
+  s.enemy = { ...def, hp: def.maxHp };
+  s.stage = 'battle';
+  s.defending = false;
+  s.log = [`${def.name}が現れた!`];
+  render();
+}
+function revengeNextBattle(){
+  const s = revengeGameState;
+  if(!s) return;
+  s.enemyIndex += 1;
+  s.player.hp = Math.min(s.player.maxHp, s.player.hp + Math.floor(s.player.maxHp*0.3));
+  s.player.mp = Math.min(s.player.maxMp, s.player.mp + Math.floor(s.player.maxMp*0.5));
+  startRevengeBattle();
+}
+function revengeAction(action){
+  const s = revengeGameState;
+  if(!s || s.stage!=='battle') return;
+  const enemy = s.enemy, player = s.player;
+  const msgs = [];
+
+  if(action==='attack'){
+    const dmg = 6 + Math.floor(Math.random()*6);
+    enemy.hp = Math.max(0, enemy.hp - dmg);
+    msgs.push(`⚔️ ${dmg}のダメージを与えた!`);
+  } else if(action==='fire'){
+    if(player.mp < 10){ toast('MPが足りません'); return; }
+    player.mp -= 10;
+    const dmg = 14 + Math.floor(Math.random()*8);
+    enemy.hp = Math.max(0, enemy.hp - dmg);
+    msgs.push(`🔥 業火の一撃! ${dmg}のダメージ!`);
+  } else if(action==='defend'){
+    s.defending = true;
+    msgs.push('🛡️ 身を守った');
+  } else if(action==='heal'){
+    if(player.mp < 8){ toast('MPが足りません'); return; }
+    player.mp -= 8;
+    const heal = 12 + Math.floor(Math.random()*6);
+    player.hp = Math.min(player.maxHp, player.hp + heal);
+    msgs.push(`✨ HPが${heal}回復した`);
+  } else {
+    return;
+  }
+
+  if(enemy.hp <= 0){
+    msgs.push(`${enemy.name}を倒した!`);
+    s.log = msgs.slice(-4);
+    s.stage = (s.enemyIndex >= REVENGE_ENEMIES.length-1) ? 'ending' : 'victory';
+    render();
+    return;
+  }
+
+  const isStrong = Math.random() < enemy.strongChance;
+  let edmg = isStrong
+    ? enemy.strongMin + Math.floor(Math.random()*(enemy.strongMax-enemy.strongMin+1))
+    : enemy.atkMin + Math.floor(Math.random()*(enemy.atkMax-enemy.atkMin+1));
+  if(s.defending){ edmg = Math.floor(edmg/2); }
+  player.hp = Math.max(0, player.hp - edmg);
+  msgs.push(`${enemy.name}の${isStrong?'強攻撃':'攻撃'}! ${edmg}のダメージを受けた`);
+  s.defending = false;
+  s.log = msgs.slice(-4);
+
+  if(player.hp <= 0){ s.stage = 'gameover'; }
+  render();
+}
+function renderRevengeGame(){
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🔥復讐の断章 <span class="tag">テスト機能</span></h2>`;
+  const s = revengeGameState;
+
+  if(!s || s.stage==='intro'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>炎に焼かれた故郷。奪われた、すべて。</p>
+        <p>残されたのは、ただひとつ―― 復讐の炎だけだった。</p>
+        <p>剣を取り、かつて全てを奪った者たちのもとへ向かう。</p>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="startRevengeGame(); startRevengeBattle();">戦いを始める</button>
+      <div class="muted" style="margin-top:10px;">ターン制のシンプルな戦闘が3戦続く、短編のミニRPGです。進行状況は保存されません。</div>
+    `;
+  }
+  if(s.stage==='gameover'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>目の前が、暗くなる。</p>
+        <p>復讐は、ここで途切れた――</p>
+      </div>
+      <div class="banner" style="margin-top:10px;">💀 敗北しました</div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="restartRevengeGame()">もう一度挑戦する</button>
+    `;
+  }
+  if(s.stage==='ending'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>最後の敵が、力尽きて崩れ落ちる。</p>
+        <p>胸の中の炎は、静かに消えていった。</p>
+        <p>取り戻せないものを抱えたまま、剣士は歩き出す。</p>
+      </div>
+      <div class="banner" style="margin-top:10px;">🏆 ── 完 ──</div>
+      <button class="btn btn-secondary" style="margin-top:12px;" onclick="restartRevengeGame()">もう一度最初から</button>
+    `;
+  }
+  if(s.stage==='victory'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>${escapeHtml(s.enemy.name)}が、力尽きて崩れ落ちた。</p>
+        <p>だが、道はまだ終わらない。</p>
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="revengeNextBattle()">次の敵へ進む</button>
+    `;
+  }
+
+  const enemy = s.enemy, player = s.player;
+  const enemyHpPct = Math.round(enemy.hp/enemy.maxHp*100);
+  const playerHpPct = Math.round(player.hp/player.maxHp*100);
+  const playerMpPct = Math.round(player.mp/player.maxMp*100);
+  return `
+    ${header}
+    <div class="revenge-battle-wrap">
+      <div class="revenge-enemy">
+        <div class="revenge-enemy-sprite">${enemy.sprite}</div>
+        <div class="revenge-enemy-name">${escapeHtml(enemy.name)}</div>
+        <div class="revenge-hp-bar"><div class="revenge-hp-fill" style="width:${enemyHpPct}%;"></div></div>
+        <div class="muted" style="font-size:11px;">${enemy.hp} / ${enemy.maxHp}</div>
+      </div>
+      <div class="revenge-log">
+        ${s.log.map(m=>`<div>${escapeHtml(m)}</div>`).join('')}
+      </div>
+      <div class="revenge-player">
+        <div class="row between" style="font-size:12px;margin-bottom:2px;"><span>${escapeHtml(player.name)}</span><span class="muted">HP ${player.hp}/${player.maxHp}</span></div>
+        <div class="revenge-hp-bar"><div class="revenge-hp-fill player" style="width:${playerHpPct}%;"></div></div>
+        <div class="row between" style="font-size:11px;margin:6px 0 2px;"><span class="muted">MP</span><span class="muted">${player.mp}/${player.maxMp}</span></div>
+        <div class="revenge-mp-bar"><div class="revenge-mp-fill" style="width:${playerMpPct}%;"></div></div>
+      </div>
+      <div class="revenge-actions">
+        <button class="btn btn-secondary" onclick="revengeAction('attack')">⚔️ 攻撃</button>
+        <button class="btn btn-secondary" onclick="revengeAction('fire')">🔥 業火の一撃(MP10)</button>
+        <button class="btn btn-secondary" onclick="revengeAction('defend')">🛡️ 防御</button>
+        <button class="btn btn-secondary" onclick="revengeAction('heal')">✨ 回復(MP8)</button>
+      </div>
+    </div>
+  `;
+}
+
 function gachaMachineHtml(){
   const useShaker = Math.random() < 0.5;
   if(useShaker){
@@ -3284,7 +3482,7 @@ function render(){
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
-    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame
+    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, revengeGame: renderRevengeGame
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
