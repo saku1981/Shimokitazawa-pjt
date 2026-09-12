@@ -295,6 +295,7 @@
     background:linear-gradient(115deg, transparent 20%, rgba(255,255,255,.5) 42%, transparent 64%);
     background-size:220% 220%;animation:holoSheen 1.7s linear infinite;}
   @keyframes supremePulse{0%,100%{box-shadow:0 0 14px rgba(255,224,138,.55);}50%{box-shadow:0 0 28px rgba(255,224,138,.95);}}
+  .card-visual-achv{width:100%;height:100%;background:linear-gradient(160deg,#3a2f12,#1c1608);}
   .card-sparkle{position:absolute;width:8px;height:8px;pointer-events:none;
     background:radial-gradient(circle, #fff 0%, rgba(255,255,255,0) 70%);
     animation:sparkleTwinkle 1.4s ease-in-out infinite;}
@@ -885,6 +886,31 @@ async function loadMyCards(){
   cache.myCards = error ? [] : (data || []);
   return cache.myCards;
 }
+// ミニゲーム(インベーダー/ブロックくずし)のハイスコア実績カード。
+// 通常のガチャ抽選には出てこない専用カードで、1店舗につき1回だけ手に入る。
+const ACHIEVEMENT_CARDS = {
+  invader:  { sceneKey:'achv_invader',  threshold:300, message:'👾 実績カード「インベーダーマスター」を獲得!集めたカードに追加されました。' },
+  breakout: { sceneKey:'achv_breakout', threshold:200, message:'🧱 実績カード「ブロックくずしマスター」を獲得!集めたカードに追加されました。' }
+};
+async function maybeAwardGameAchievement(gameKey, score){
+  const def = ACHIEVEMENT_CARDS[gameKey];
+  const storeId = state.currentStoreId;
+  if(!def || !storeId || score < def.threshold) return;
+  try {
+    const { data: existing, error: selectError } = await sb.from('owner_gacha_cards').select('id')
+      .eq('store_id', storeId).eq('scene_key', def.sceneKey).limit(1);
+    if(selectError || (existing && existing.length>0)) return; // 既に獲得済み、または確認できなければ何もしない
+    const { error: insertError } = await sb.from('owner_gacha_cards').insert({
+      store_id: storeId, character_store_id: storeId, scene_key: def.sceneKey, costume_key: 'illustrated', rarity: 'supreme'
+    });
+    if(!insertError){
+      toast(def.message);
+      await loadMyCards();
+    }
+  } catch(e) {
+    // 実績カードの付与に失敗しても、ゲーム自体はそのまま遊べるようにする
+  }
+}
 async function loadStoreMates(storeId){
   const { data } = await sb.from('memberships').select('*').eq('store_id', storeId).eq('role','regular').eq('show_nickname', true);
   cache.storeMates[storeId] = data || [];
@@ -1055,8 +1081,8 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
-      ${store.is_test ? `<div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
-      ${store.is_test ? `<div class="nav-row" onclick="go('breakoutGame')"><span class="nav-label"><span class="nav-icon">🧱</span>ブロックくずし <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
+      <div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('breakoutGame')"><span class="nav-label"><span class="nav-icon">🧱</span>ブロックくずし</span><span class="muted">→</span></div>
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
       ${store.is_test ? `<div class="nav-row" onclick="go('smtGame')"><span class="nav-label"><span class="nav-icon">🌀</span>封鎖された下北沢 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
@@ -1954,6 +1980,9 @@ const CARD_POSES = [
   { key:'mascot_omikuji', label:'さんサク・おみくじ大吉', tiers:['ultra'], mascot:true },
   { key:'mascot_heart', label:'さんサク・ラブラブハート', tiers:['ultra'], mascot:true },
   { key:'mascot_rainbow', label:'さんサク・にじを見つけた', tiers:['ultra'], mascot:true },
+  // 実績カード: 通常のガチャ抽選には出てこず(rollCard側で除外)、ミニゲームのハイスコア達成時に直接付与される。
+  { key:'achv_invader', label:'実績・インベーダーマスター', tiers:['supreme'], achievement:true, achvEmoji:'👾' },
+  { key:'achv_breakout', label:'実績・ブロックくずしマスター', tiers:['supreme'], achievement:true, achvEmoji:'🧱' },
 ];
 function charKeyForStore(store){
   if(!store) return null;
@@ -1993,7 +2022,7 @@ function rollCard(forceRarity){
   const rarity = rollCardRarity(forceRarity);
   // レア度ごとに使えるポーズだけから選ぶ(ノーマル/ちょいレア/キラキラ/超レアで絵柄が変わる)。
   // chars指定があるポーズ(例: U7限定の燻製フード)は、そのキャラを引いた時だけ対象にする
-  const eligible = CARD_POSES.filter(p=>p.tiers.includes(rarity) && (!p.chars || p.chars.includes(charKey)));
+  const eligible = CARD_POSES.filter(p=>p.tiers.includes(rarity) && !p.achievement && (!p.chars || p.chars.includes(charKey)));
   // その中を「グッズ」と「キャラ」に分け、まずどちらの枠から引くかを決める(約20%がグッズ)。
   // 選んだ枠が(レア度・キャラの組み合わせによっては)空の場合は、もう片方の枠から引く。
   const goodsPool = eligible.filter(isGoodsPose);
@@ -2027,15 +2056,15 @@ function renderCardVisual(card, opts){
   opts = opts || {};
   const size = opts.size || 'md'; // 'sm' | 'md'
   const { character, pose, rarityDef } = cardMeta(card);
-  if(!character) return '';
-  const charKey = charKeyForStore(character);
-  const art = pose.team
+  if(!pose.achievement && !character) return '';
+  const charKey = pose.achievement ? null : charKeyForStore(character);
+  const art = pose.achievement ? null : pose.team
     ? (CARD_ART.team && CARD_ART.team[pose.key] ? CARD_ART.team[pose.key].ultra : null)
     : pose.mascot
     ? (CARD_ART.mascot && CARD_ART.mascot[pose.key] ? CARD_ART.mascot[pose.key][rarityDef.key] : null)
     : (charKey && CARD_ART[charKey] && CARD_ART[charKey][pose.key] ? CARD_ART[charKey][pose.key][rarityDef.key] : null);
-  const displayName = pose.team ? '🤝 3店舗合同' : pose.mascot ? 'さんサク' : character.name;
-  const displaySub = pose.team ? pose.label.replace('三店舗そろい踏み・','') : pose.label;
+  const displayName = pose.achievement ? pose.label.replace('実績・','') : pose.team ? '🤝 3店舗合同' : pose.mascot ? 'さんサク' : character.name;
+  const displaySub = pose.achievement ? '🏆 実績カード' : pose.team ? pose.label.replace('三店舗そろい踏み・','') : pose.label;
   const sparkles = rarityDef.key==='supreme'
     ? `<span class="card-sparkle" style="top:6%;left:10%;animation-delay:0s;"></span>
        <span class="card-sparkle" style="top:14%;left:50%;animation-delay:.2s;"></span>
@@ -2055,7 +2084,9 @@ function renderCardVisual(card, opts){
   return `
     <div class="card-visual card-visual-${size} rarity-${rarityDef.key}">
       ${sparkles}
-      ${art ? `<img class="card-visual-img" src="${art}">` : `<div class="card-visual-char" style="display:flex;align-items:center;justify-content:center;font-size:28px;">🏮</div>`}
+      ${pose.achievement
+        ? `<div class="card-visual-char card-visual-achv" style="display:flex;align-items:center;justify-content:center;font-size:34px;">${pose.achvEmoji}</div>`
+        : art ? `<img class="card-visual-img" src="${art}">` : `<div class="card-visual-char" style="display:flex;align-items:center;justify-content:center;font-size:28px;">🏮</div>`}
       <div class="card-visual-foot">
         <div class="card-visual-name">${displayName}</div>
         <div class="card-visual-sub">${displaySub}</div>
@@ -2267,6 +2298,7 @@ function invaderGameLoop(ts){
       if(titleEl) titleEl.textContent = s.over ? '💥 ゲームオーバー' : '🎉 とりあえずクリア!';
       if(scoreEl) scoreEl.textContent = `スコア: ${s.score} (WAVE ${s.wave})`;
     }
+    if(!s.achievementChecked){ s.achievementChecked = true; maybeAwardGameAchievement('invader', s.score); }
   }
 }
 function invaderGameUpdate(s, dt, ts){
@@ -2503,6 +2535,7 @@ function breakoutGameLoop(ts){
       if(titleEl) titleEl.textContent = '💥 ゲームオーバー';
       if(scoreEl) scoreEl.textContent = `スコア: ${s.score} (LV ${s.level})`;
     }
+    if(!s.achievementChecked){ s.achievementChecked = true; maybeAwardGameAchievement('breakout', s.score); }
   }
 }
 function breakoutGameUpdate(s, dt){
