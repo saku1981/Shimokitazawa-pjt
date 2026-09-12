@@ -166,7 +166,7 @@
   .home-hero-card{text-align:center;margin-bottom:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
   .card-visual-hero{height:24vh;min-height:160px;max-height:230px;aspect-ratio:5/7;width:auto;margin:0 auto;}
   .invader-game-wrap{position:relative;text-align:center;}
-  #invaderCanvas, #blockTowerCanvas{border-radius:10px;border:1px solid var(--line);background:#0b0c0e;display:block;margin:0 auto;max-width:100%;height:auto;}
+  #invaderCanvas, #blockTowerCanvas, #batterBoxCanvas{border-radius:10px;border:1px solid var(--line);background:#0b0c0e;display:block;margin:0 auto;max-width:100%;height:auto;}
   .invader-end-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(11,12,14,.9);border-radius:10px;color:#fff;}
   .invader-end-title{font-size:18px;font-weight:bold;}
   .invader-end-score{margin-top:6px;font-size:13px;}
@@ -191,12 +191,6 @@
   .hanafuda-captured-group{display:flex;flex-wrap:wrap;gap:3px;}
   .hanafuda-koikoi-modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;z-index:60;padding:20px;}
   .hanafuda-koikoi-box{background:var(--panel);border-radius:16px;padding:20px;max-width:320px;text-align:center;}
-  .batterbox-track{position:relative;height:52px;background:#123320;border-radius:10px;margin:14px 0;overflow:hidden;border:1px solid var(--line);}
-  .batterbox-zone{position:absolute;top:0;bottom:0;background:rgba(255,213,79,0.35);border-left:2px solid #ffd54f;border-right:2px solid #ffd54f;}
-  .batterbox-zone-center{position:absolute;top:0;bottom:0;width:2px;background:#ff7043;}
-  .batterbox-indicator{position:absolute;top:4px;bottom:4px;width:6px;background:#fff;border-radius:3px;
-    box-shadow:0 0 6px rgba(255,255,255,.8);left:0;animation-name:batterboxSweep;animation-timing-function:linear;animation-fill-mode:forwards;}
-  @keyframes batterboxSweep{ from{ left:0%; } to{ left:calc(100% - 6px); } }
   .revenge-story-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
   .revenge-story-box p{margin:0 0 8px;line-height:1.6;font-size:13.5px;}
   .revenge-story-box p:last-child{margin-bottom:0;}
@@ -3569,6 +3563,10 @@ function renderHanafudaGame(){
    打席に立ってタイミングよくスイングするだけの、シンプルな野球ミニゲーム。
    北海道日本ハムファイターズが好きな店主向けの遊び心という設定のみで、
    実在の選手名・球団のロゴや公式マークなどは一切使用していない。
+   パースをつけたCanvas 2D描画でピッチャー〜ボール〜バットを疑似3Dで表現しており、
+   外部の3Dライブラリには依存していない(オフラインでも確実に動作する)。
+   当たり判定のロジックは「投球開始からの経過時間の割合(0〜1)」を使った
+   タイミング判定のみで、見た目の3D表現とは独立している。
    進行状況はどこにも保存せず、画面を出入りするたびに最初からになる。
 */
 const BATTERBOX_TOTAL_PITCHES = 10;
@@ -3579,6 +3577,10 @@ const BATTERBOX_RESULTS = {
   miss: { label:'空振り三振', points:0 },
   lookingStrikeout: { label:'見逃し三振', points:0 }
 };
+const BATTERBOX_FIELD_DEPTH = 18;
+const BATTERBOX_CAMERA_Z = -2;
+const BATTERBOX_FOCAL = 5.0;
+const BATTERBOX_EYE_HEIGHT = 1.6;
 function newBatterBoxGame(){
   return {
     pitchNumber: 0,
@@ -3590,19 +3592,36 @@ function newBatterBoxGame(){
     pitchStartTime: null,
     timeoutId: null,
     lastResult: null,
+    swingAnim: null,
+    ballExitAnim: null,
     over: false
   };
 }
 let batterBoxGameState = null;
+let batterBoxRafId = null;
+let batterBoxCtx = null;
 function stopBatterBoxGame(){
   const s = batterBoxGameState;
   if(s && s.timeoutId){ clearTimeout(s.timeoutId); s.timeoutId = null; }
+  if(batterBoxRafId){ cancelAnimationFrame(batterBoxRafId); batterBoxRafId = null; }
   batterBoxGameState = null;
+  batterBoxCtx = null;
 }
 function initBatterBoxGame(){
   stopBatterBoxGame();
   batterBoxGameState = newBatterBoxGame();
+  render(); // ここで一度だけキャンバス等の骨組みを描画する。以降は直接DOM更新のみで、
+            // render()は再度呼ばない(呼ぶとcanvasが作り直されてしまうため)。
+  const canvas = document.getElementById('batterBoxCanvas');
+  batterBoxCtx = canvas ? canvas.getContext('2d') : null;
+  if(batterBoxRafId) cancelAnimationFrame(batterBoxRafId);
+  batterBoxRafId = requestAnimationFrame(batterBoxRenderLoop);
   batterBoxStartPitch();
+}
+function batterBoxUpdateStatsLine(){
+  const s = batterBoxGameState;
+  const el = document.getElementById('batterBoxStatsLine');
+  if(el && s) el.textContent = `${s.pitchNumber} / ${s.totalPitches}打席目 ・ ${s.stats.hits}安打(${s.stats.homeruns}本塁打) ${s.stats.strikeouts}三振`;
 }
 function batterBoxStartPitch(){
   const s = batterBoxGameState;
@@ -3610,19 +3629,24 @@ function batterBoxStartPitch(){
   s.pitchNumber += 1;
   s.phase = 'pitching';
   s.lastResult = null;
+  s.swingAnim = null;
+  s.ballExitAnim = null;
   s.zoneCenter = 0.32 + Math.random()*0.36;
   s.zoneHalfWidth = Math.max(0.09, 0.17 - s.pitchNumber*0.006);
   s.pitchDuration = Math.max(0.65, 1.5 - s.pitchNumber*0.07);
   s.pitchStartTime = performance.now();
   if(s.timeoutId) clearTimeout(s.timeoutId);
   s.timeoutId = setTimeout(()=>{ batterBoxResolveSwing(1); }, s.pitchDuration*1000 + 40);
-  render();
+  batterBoxUpdateStatsLine();
+  const overlay = document.getElementById('batterBoxResultOverlay');
+  if(overlay) overlay.style.display = 'none';
 }
 function batterBoxSwing(){
   const s = batterBoxGameState;
   if(!s || s.phase!=='pitching') return;
   const elapsed = (performance.now() - s.pitchStartTime)/1000;
   const pos = Math.min(1, elapsed / s.pitchDuration);
+  s.swingAnim = { startTime: performance.now() };
   batterBoxResolveSwing(pos);
 }
 function batterBoxResolveSwing(pos){
@@ -3640,13 +3664,24 @@ function batterBoxResolveSwing(pos){
     else resultKey = 'miss';
   }
   const result = BATTERBOX_RESULTS[resultKey];
-  s.lastResult = { key: resultKey, label: result.label };
+  s.lastResult = { key: resultKey, label: result.label, atPos: pos };
+  s.ballExitAnim = { key: resultKey, startTime: performance.now(), atPos: pos };
   if(resultKey==='homerun'){ s.stats.homeruns++; s.stats.hits++; }
   else if(resultKey==='hit'){ s.stats.hits++; }
   else if(resultKey==='foul'){ s.stats.fouls++; }
   else { s.stats.strikeouts++; }
   s.phase = 'result';
-  render();
+  batterBoxUpdateStatsLine();
+  batterBoxShowResult(result.label);
+}
+function batterBoxShowResult(label){
+  const s = batterBoxGameState;
+  const overlay = document.getElementById('batterBoxResultOverlay');
+  const title = document.getElementById('batterBoxResultTitle');
+  const btn = document.getElementById('batterBoxNextBtn');
+  if(title) title.textContent = label;
+  if(btn) btn.textContent = (s.pitchNumber>=s.totalPitches) ? '結果を見る' : '次の球へ';
+  if(overlay) overlay.style.display = 'flex';
 }
 function batterBoxNextPitch(){
   const s = batterBoxGameState;
@@ -3654,7 +3689,9 @@ function batterBoxNextPitch(){
   if(s.pitchNumber >= s.totalPitches){
     s.over = true;
     s.phase = 'over';
-    render();
+    const overlay = document.getElementById('batterBoxResultOverlay');
+    if(overlay) overlay.style.display = 'none';
+    batterBoxShowOver();
     return;
   }
   batterBoxStartPitch();
@@ -3664,6 +3701,168 @@ function batterBoxBattingAverage(s){
   const avg = s.stats.hits / s.totalPitches;
   return avg.toFixed(3).replace(/^0\./,'.');
 }
+function batterBoxShowOver(){
+  const s = batterBoxGameState;
+  const overlay = document.getElementById('batterBoxOverOverlay');
+  const statsEl = document.getElementById('batterBoxFinalStats');
+  if(statsEl) statsEl.textContent = `${s.totalPitches}打席 ${s.stats.hits}安打(うち${s.stats.homeruns}本塁打) ${s.stats.strikeouts}三振 ${s.stats.fouls}ファウル ・ 打率${batterBoxBattingAverage(s)}`;
+  if(overlay) overlay.style.display = 'flex';
+}
+function batterBoxProject(x, y, z, W, H){
+  const distFromCam = Math.max(0.6, z - BATTERBOX_CAMERA_Z);
+  const scale = BATTERBOX_FOCAL / distFromCam;
+  const unit = W * 0.5;
+  return {
+    sx: W/2 + x * scale * unit,
+    sy: H*0.62 - (y - BATTERBOX_EYE_HEIGHT) * scale * unit,
+    scale
+  };
+}
+function batterBoxRenderLoop(ts){
+  const s = batterBoxGameState;
+  const ctx = batterBoxCtx;
+  if(!s || !ctx){ batterBoxRafId = null; return; }
+  batterBoxDrawScene(ctx, s, ts);
+  batterBoxRafId = requestAnimationFrame(batterBoxRenderLoop);
+}
+function batterBoxDrawScene(ctx, s, ts){
+  const W = ctx.canvas.width, H = ctx.canvas.height;
+  // 夜のスタジアム風の背景
+  const skyGrad = ctx.createLinearGradient(0,0,0,H*0.6);
+  skyGrad.addColorStop(0, '#0a0e18');
+  skyGrad.addColorStop(1, '#12202a');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0,0,W,H);
+
+  // フィールド(遠近感のある台形の芝生)
+  const nearL = batterBoxProject(-6, 0, 0, W, H);
+  const nearR = batterBoxProject(6, 0, 0, W, H);
+  const farL = batterBoxProject(-1.6, 0, BATTERBOX_FIELD_DEPTH, W, H);
+  const farR = batterBoxProject(1.6, 0, BATTERBOX_FIELD_DEPTH, W, H);
+  ctx.fillStyle = '#1c3d24';
+  ctx.beginPath();
+  ctx.moveTo(nearL.sx, H);
+  ctx.lineTo(nearR.sx, H);
+  ctx.lineTo(farR.sx, farR.sy);
+  ctx.lineTo(farL.sx, farL.sy);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+  ctx.beginPath(); ctx.moveTo(0, farL.sy); ctx.lineTo(W, farL.sy); ctx.stroke();
+
+  // マウンド
+  const mound = batterBoxProject(0, 0, BATTERBOX_FIELD_DEPTH*0.9, W, H);
+  ctx.fillStyle = '#6b4a2f';
+  ctx.beginPath();
+  ctx.ellipse(mound.sx, mound.sy, 22*mound.scale, 8*mound.scale, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // ピッチャー(オリジナルの簡易シルエット。実在選手・ロゴは使用しない)
+  const elapsedForPose = s.pitchStartTime!=null ? (ts - s.pitchStartTime)/1000 : 999;
+  const windUp = s.phase==='pitching' && elapsedForPose < 0.22;
+  const pBase = batterBoxProject(0, 0, BATTERBOX_FIELD_DEPTH*0.88, W, H);
+  const pScale = pBase.scale;
+  ctx.fillStyle = '#2f5fa8';
+  ctx.fillRect(pBase.sx-9*pScale, pBase.sy-46*pScale, 18*pScale, 32*pScale);
+  ctx.fillStyle = '#e0b48c';
+  ctx.beginPath(); ctx.arc(pBase.sx, pBase.sy-54*pScale, 8*pScale, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = '#e0b48c'; ctx.lineWidth = Math.max(1, 4*pScale);
+  ctx.beginPath();
+  ctx.moveTo(pBase.sx+8*pScale, pBase.sy-40*pScale);
+  if(windUp){ ctx.lineTo(pBase.sx+20*pScale, pBase.sy-58*pScale); }
+  else { ctx.lineTo(pBase.sx+18*pScale, pBase.sy-20*pScale); }
+  ctx.stroke();
+
+  // ミートゲート(投球のタイミング判定ゾーンを、光る輪っかとして可視化する)
+  if(s.phase==='pitching'){
+    const gateZ = BATTERBOX_FIELD_DEPTH * (1 - s.zoneCenter);
+    const gateProj = batterBoxProject(0, 0.9, gateZ, W, H);
+    const pulse = 0.75 + 0.25*Math.sin(ts/120);
+    const gateRadius = (14 + s.zoneHalfWidth*60) * gateProj.scale;
+    ctx.strokeStyle = `rgba(255,213,79,${0.55*pulse})`;
+    ctx.lineWidth = Math.max(1.5, 3*gateProj.scale);
+    ctx.beginPath();
+    ctx.ellipse(gateProj.sx, gateProj.sy, gateRadius, gateRadius*0.55, 0, 0, Math.PI*2);
+    ctx.stroke();
+  }
+
+  // ホームベース
+  const plate = batterBoxProject(0, 0, 0.2, W, H);
+  ctx.fillStyle = '#eee';
+  ctx.beginPath();
+  ctx.moveTo(plate.sx-14*plate.scale, plate.sy);
+  ctx.lineTo(plate.sx+14*plate.scale, plate.sy);
+  ctx.lineTo(plate.sx+14*plate.scale, plate.sy+8*plate.scale);
+  ctx.lineTo(plate.sx, plate.sy+16*plate.scale);
+  ctx.lineTo(plate.sx-14*plate.scale, plate.sy+8*plate.scale);
+  ctx.closePath();
+  ctx.fill();
+
+  // ボール
+  batterBoxDrawBall(ctx, s, ts, W, H);
+
+  // バット(画面手前・右下に固定表示、スイング時に振り抜くアニメーション)
+  batterBoxDrawBat(ctx, s, ts, W, H);
+}
+function batterBoxDrawBall(ctx, s, ts, W, H){
+  if(s.phase==='pitching' && s.pitchStartTime!=null){
+    const elapsed = (ts - s.pitchStartTime)/1000;
+    const pos = Math.max(0, Math.min(1, elapsed / s.pitchDuration));
+    const z = BATTERBOX_FIELD_DEPTH * (1 - pos);
+    const wobble = Math.sin(pos*Math.PI*3) * 0.15 * (1-pos);
+    const y = 1.8 + (0.85 - 1.8) * pos;
+    const proj = batterBoxProject(wobble, y, z, W, H);
+    const sy = Math.min(proj.sy, H*0.94); // ボールが画面下にはみ出て消えないようにクランプ
+    const r = Math.max(2, 5.5 * proj.scale);
+    ctx.fillStyle = '#fdfdfd';
+    ctx.beginPath(); ctx.arc(proj.sx, sy, r, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = '#c0392b'; ctx.lineWidth = Math.max(0.5, r*0.18);
+    ctx.beginPath(); ctx.arc(proj.sx, sy, r*0.7, 0.3, 2.2); ctx.stroke();
+    return;
+  }
+  if(s.ballExitAnim){
+    const t = Math.min(1, (ts - s.ballExitAnim.startTime) / 550);
+    if(t>=1) return; // アニメーション終了、以後は描画しない
+    const basePos = s.ballExitAnim.atPos!=null ? s.ballExitAnim.atPos : 1;
+    const baseZ = BATTERBOX_FIELD_DEPTH * (1 - Math.min(1,basePos));
+    let x=0, y=0.9, z=Math.max(0, baseZ);
+    if(s.ballExitAnim.key==='homerun'){ z = baseZ - t*22; y = 0.9 + t*9; x = Math.sin(t*2)*0.6; }
+    else if(s.ballExitAnim.key==='hit'){ z = Math.max(0.3, baseZ - t*7); x = 2.2*t; y = 0.85 - t*0.5; }
+    else if(s.ballExitAnim.key==='foul'){ x = (Math.random()<0.5?-1:1) * (4*t); z = Math.max(0.3, baseZ - t*3); y = 0.9 + t*1.5; }
+    else { z = Math.max(-1.4, baseZ - t*4); y = 0.85 - t*0.3; }
+    const proj = batterBoxProject(x, y, z, W, H);
+    const sy = Math.max(-H*0.2, Math.min(proj.sy, H*0.98)); // 上(ホームラン演出)は多少許容、下へのはみ出し消失は防ぐ
+    const r = Math.max(1.5, 5.5 * proj.scale * (1 - t*0.4));
+    ctx.globalAlpha = Math.max(0, 1-t*0.6);
+    ctx.fillStyle = '#fdfdfd';
+    ctx.beginPath(); ctx.arc(proj.sx, sy, r, 0, Math.PI*2); ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+function batterBoxDrawBat(ctx, s, ts, W, H){
+  const cx = W*0.82, cy = H*0.86;
+  let angle = -0.55;
+  if(s.swingAnim){
+    const t = Math.min(1, (ts - s.swingAnim.startTime) / 260);
+    angle = -0.55 + t * 2.4;
+    if(t>=1) angle = -0.55 + 2.4;
+  }
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(angle);
+  const batLen = Math.min(W,H) * 0.34;
+  const grad = ctx.createLinearGradient(0,0,-batLen,0);
+  grad.addColorStop(0, '#caa06a');
+  grad.addColorStop(1, '#7a5330');
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 10;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(0,0);
+  ctx.lineTo(-batLen, -batLen*0.55);
+  ctx.stroke();
+  ctx.restore();
+}
 function renderBatterBoxGame(){
   const backScreen = state.role==='owner' ? 'home' : 'vlist';
   const s = batterBoxGameState;
@@ -3671,43 +3870,30 @@ function renderBatterBoxGame(){
     return `
       <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
       <h2>⚾ 下北沢バッターボックス <span class="tag">テスト機能</span></h2>
-      <div class="muted" style="margin-bottom:14px;">打席に立って、タイミングよくスイングするだけのシンプルな野球ミニゲームです。北海道日本ハムファイターズが好きな店主のために作った設定で、実在の選手名やチームのロゴ・公式マークなどは使用していません。白いバーが黄色いミートゾーンに入った瞬間にスイングボタンをタップしましょう。ちょうど真ん中で打てるとホームランです。全${BATTERBOX_TOTAL_PITCHES}打席、進行状況は保存されず画面を出入りするたびに最初からになります。</div>
+      <div class="muted" style="margin-bottom:14px;">打席に立って、タイミングよくスイングするだけのシンプルな野球ミニゲームです。北海道日本ハムファイターズが好きな店主のために作った設定で、実在の選手名やチームのロゴ・公式マークなどは使用していません。パースのついたピッチャー視点のCanvas描画で、ボールが手前に迫ってくる様子を疑似3Dで再現しています(外部の3Dライブラリは使わず、オフラインでも確実に動作します)。ボールが光るゲートに重なった瞬間にスイングボタンをタップしましょう。ちょうど中心で捉えるとホームランです。全${BATTERBOX_TOTAL_PITCHES}打席、進行状況は保存されず画面を出入りするたびに最初からになります。</div>
       <button class="btn btn-primary" onclick="initBatterBoxGame()">打席に入る</button>
-    `;
-  }
-  if(s.phase==='over'){
-    return `
-      <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
-      <h2>⚾ 下北沢バッターボックス <span class="tag">テスト機能</span></h2>
-      <div class="card" style="text-align:center;padding:24px;">
-        <div style="font-size:20px;margin-bottom:10px;">🏟️ 結果発表</div>
-        <div class="muted" style="margin-bottom:6px;">${s.totalPitches}打席 ${s.stats.hits}安打(うち${s.stats.homeruns}本塁打) ${s.stats.strikeouts}三振 ${s.stats.fouls}ファウル</div>
-        <div class="muted">打率 ${batterBoxBattingAverage(s)}</div>
-        <button class="btn btn-primary" style="margin-top:16px;" onclick="initBatterBoxGame()">もう一度あそぶ</button>
-      </div>
     `;
   }
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
     <h2>⚾ 下北沢バッターボックス <span class="tag">テスト機能</span></h2>
-    <div class="muted" style="margin-bottom:8px;">${s.pitchNumber} / ${s.totalPitches}打席目 ・ ${s.stats.hits}安打(${s.stats.homeruns}本塁打) ${s.stats.strikeouts}三振</div>
-    ${s.phase==='pitching' ? `
-      <div class="batterbox-track">
-        <div class="batterbox-zone" style="left:${((s.zoneCenter-s.zoneHalfWidth)*100).toFixed(1)}%;width:${(s.zoneHalfWidth*2*100).toFixed(1)}%;"></div>
-        <div class="batterbox-zone-center" style="left:${(s.zoneCenter*100).toFixed(1)}%;"></div>
-        <div class="batterbox-indicator" style="animation-duration:${s.pitchDuration}s;"></div>
+    <div class="muted" id="batterBoxStatsLine" style="margin-bottom:8px;">${s.pitchNumber} / ${s.totalPitches}打席目 ・ ${s.stats.hits}安打(${s.stats.homeruns}本塁打) ${s.stats.strikeouts}三振</div>
+    <div class="invader-game-wrap">
+      <canvas id="batterBoxCanvas" width="320" height="260"></canvas>
+      <div id="batterBoxResultOverlay" class="invader-end-overlay" style="display:none;">
+        <div class="invader-end-title" id="batterBoxResultTitle"></div>
+        <button class="btn btn-primary" id="batterBoxNextBtn" style="margin-top:12px;" onclick="batterBoxNextPitch()">次の球へ</button>
       </div>
-      <div class="muted" style="text-align:center;margin-bottom:6px;">白いバーが黄色いゾーンに入ったらスイング!</div>
-      <div class="invader-controls">
-        <button class="invader-btn invader-btn-fire" style="width:140px;" onclick="batterBoxSwing()">🏏 スイング!</button>
+      <div id="batterBoxOverOverlay" class="invader-end-overlay" style="display:none;">
+        <div class="invader-end-title">🏟️ 結果発表</div>
+        <div class="invader-end-score muted" id="batterBoxFinalStats"></div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="initBatterBoxGame()">もう一度あそぶ</button>
       </div>
-    ` : ''}
-    ${s.phase==='result' && s.lastResult ? `
-      <div class="card" style="text-align:center;padding:16px;">
-        <div style="font-size:18px;">${s.lastResult.label}</div>
-        <button class="btn btn-primary" style="margin-top:10px;" onclick="batterBoxNextPitch()">${s.pitchNumber>=s.totalPitches ? '結果を見る' : '次の球へ'}</button>
-      </div>
-    ` : ''}
+    </div>
+    <div class="muted" style="text-align:center;margin:8px 0;">ボールが光るゲートに重なった瞬間にスイング!</div>
+    <div class="invader-controls">
+      <button class="invader-btn invader-btn-fire" style="width:140px;" onclick="batterBoxSwing()">🏏 スイング!</button>
+    </div>
   `;
 }
 
