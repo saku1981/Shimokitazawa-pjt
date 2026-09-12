@@ -1080,8 +1080,7 @@ function renderOwnerHome(){
     <div class="nav-list">
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('sansakuMap')"><span class="nav-label"><span class="nav-icon">🚶</span>さんサクっと下北沢マップ</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🚶</span>さんサクっと下北沢マップ</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('breakoutGame')"><span class="nav-label"><span class="nav-icon">🧱</span>ブロックくずし</span><span class="muted">→</span></div>
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
@@ -2191,12 +2190,13 @@ function renderShimokitaMap(){
   const spots = SHIMOKITA_SPOTS;
   const visitedCount = spots.filter(s=>hasVisitedSpot(s.id)).length;
   const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const isOwnerView = state.role==='owner';
   return `
     <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
-    <h2>🗺️ 下北沢マップ</h2>
-    <div class="muted" style="margin-bottom:12px;">ピンをタップすると、お店の名前と「行った/まだ」を切り替えるボタンが出ます。<br>${visitedCount} / ${spots.length} のお店に行きました。</div>
+    <h2>${isOwnerView ? '🚶 さんサクっと下北沢マップ' : '🗺️ 下北沢マップ'}</h2>
+    <div class="muted" style="margin-bottom:12px;">${isOwnerView ? '「さんサク」の名前を借りた、下北沢一番街商店街の散歩マップです。' : ''}ピンをタップすると、お店の名前と「行った/まだ」を切り替えるボタンが出ます。<br>${visitedCount} / ${spots.length} のお店に行きました。</div>
     <div id="shimokitaLeafletMap" style="height:420px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
-    <div class="banner" style="margin-top:14px;">${legendFlagSvg('#d9362a')} 赤い旗は未訪問、${legendFlagSvg('#2f9e52')} 緑の旗は訪問済みです。地図はOpenStreetMapの実際の下北沢の地図で、ピンの位置は多くのお店で実際の場所に近い位置にしていますが、一部のお店(住所がはっきり特定できなかったもの)はおおよその位置になっています。表示しているのはあなた個人の下北沢のお店メモです(お店の名前・ジャンルのみで、個人名などは含まれていません)。</div>
+    <div class="banner" style="margin-top:14px;">${legendFlagSvg('#d9362a')} 赤い旗は未訪問、${legendFlagSvg('#2f9e52')} 緑の旗は訪問済みです。地図はOpenStreetMapの実際の下北沢の地図で、ピンの位置は多くのお店で実際の場所に近い位置にしていますが、一部のお店(住所がはっきり特定できなかったもの)はおおよその位置になっています。表示しているのはあなた個人の下北沢のお店メモです(お店の名前・ジャンルのみで、個人名などは含まれていません)。${isOwnerView ? 'ご近所の店主とすれ違ったら、「今度あの店行ってみようかな」なんて話のきっかけにどうぞ。' : ''}</div>
 
     <h3 style="margin-top:18px;">お店一覧から探す</h3>
     <div class="shimokita-spot-list">
@@ -2210,52 +2210,6 @@ function renderShimokitaMap(){
         </div>`;
       }).join('')}
     </div>
-  `;
-}
-
-/* ===================== さんサクっと下北沢マップ(店主向け・閲覧のみ) =====================
-   店主同士の「ゆるいコミュニケーション」のきっかけとして、下北沢一番街商店街の全店舗を
-   実際の地図上に眺められる共有ビュー。個人の訪問記録やゲーム要素は一切なく、あくまで
-   「さんサクの散歩スポットをみんなで眺める」だけのシンプルな地図。全店主に共通で同じ
-   表示になる(個人ごとの状態を持たない)。
-*/
-let sansakuLeafletMapInstance = null;
-let sansakuLastMapView = null;
-function sansakuSpotIconHtml(){
-  return `<div style="font-size:16px;line-height:1;filter:drop-shadow(0 1px 1px rgba(0,0,0,.5));">🏮</div>`;
-}
-function initSansakuMap(){
-  const container = document.getElementById('sansakuLeafletMap');
-  if(!container || typeof L === 'undefined') return;
-  if(sansakuLeafletMapInstance){
-    sansakuLastMapView = { center: sansakuLeafletMapInstance.getCenter(), zoom: sansakuLeafletMapInstance.getZoom() };
-    sansakuLeafletMapInstance.remove();
-    sansakuLeafletMapInstance = null;
-  }
-  const view = sansakuLastMapView;
-  const map = L.map(container, { zoomControl: true });
-  if(view){ map.setView(view.center, view.zoom); } else { map.setView(SHIMOKITA_STATION_CENTER, 16); }
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map);
-  SHIMOKITA_SPOTS.forEach(s=>{
-    if(typeof s.lat !== 'number' || typeof s.lng !== 'number') return;
-    const marker = L.marker([s.lat, s.lng], {
-      icon: L.divIcon({ className:'smt-shop-marker-wrap', html: sansakuSpotIconHtml(), iconSize:[20,20], iconAnchor:[10,10] })
-    }).addTo(map);
-    marker.bindTooltip(`${escapeHtml(s.name)}${s.genre ? ' ・ ' + escapeHtml(s.genre) : ''}`, { direction:'top', offset:[0,-8] });
-  });
-  sansakuLeafletMapInstance = map;
-}
-function renderSansakuMap(){
-  const backScreen = state.role==='owner' ? 'home' : 'vlist';
-  return `
-    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
-    <h2>🚶 さんサクっと下北沢マップ</h2>
-    <div class="muted" style="margin-bottom:12px;">「さんサク」の名前を借りた、店主のみなさん向けの散歩マップです。下北沢一番街商店街の全${SHIMOKITA_SPOTS.length}店舗を実際の地図上でまとめて眺められます。訪問記録やゲーム要素はなく、あくまで散歩コースを眺めて楽しむための共有ビューです。ピンには店名とジャンルだけを表示しており、個人情報は含まれていません。</div>
-    <div id="sansakuLeafletMap" style="height:420px;border-radius:16px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
-    <div class="banner" style="margin-top:14px;">🏮のピンをタップすると店名とジャンルが表示されます。近くのお店の店主とすれ違ったら、「今度あの店行ってみようかな」なんて話のきっかけにどうぞ。</div>
   `;
 }
 
@@ -4588,12 +4542,11 @@ function render(){
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
     shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
-    revengeGame: renderRevengeGame, smtGame: renderSmtGame, sansakuMap: renderSansakuMap
+    revengeGame: renderRevengeGame, smtGame: renderSmtGame
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
   if(state.screen==='shimokitaMap'){ initShimokitaLeafletMap(); }
-  if(state.screen==='sansakuMap'){ initSansakuMap(); }
   if(state.screen==='invaderGame'){ initInvaderGame(); }
   if(state.screen==='breakoutGame'){ initBreakoutGame(); }
   if(state.screen==='smtGame'){ initSmtGameMap(); }
