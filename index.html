@@ -191,6 +191,9 @@
   .revenge-log div:last-child{margin-bottom:0;color:var(--text);}
   .revenge-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px;}
   .revenge-actions .btn{margin:0;}
+  .smt-zone-label{font-size:11px;color:var(--sub);margin-bottom:2px;}
+  .smt-encounter-choice{display:flex;gap:10px;margin-top:14px;}
+  .smt-encounter-choice .btn{flex:1;margin:0;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
     overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
@@ -1027,6 +1030,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🗺️</span>下北沢マップ</span><span class="muted">→</span></div>
       ${store.is_test ? `<div class="nav-row" onclick="go('invaderGame')"><span class="nav-label"><span class="nav-icon">👾</span>インベーダーゲーム <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       ${store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
+      ${store.is_test ? `<div class="nav-row" onclick="go('smtGame')"><span class="nav-label"><span class="nav-icon">🌀</span>封鎖された下北沢 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
     </div>
   `;
@@ -2543,6 +2547,262 @@ function renderRevengeGame(){
   `;
 }
 
+/* ===================== 封鎖された下北沢(テスト機能・遊びのみ) =====================
+   悪魔と出会い、戦うか話しかけるかを選びながら、結界に閉ざされた街を
+   ゾーンごとに解放していく短編ミニRPG。オリジナルのストーリー・悪魔データ。
+   進行状況はどこにも保存せず、画面を離れると最初からになる。
+*/
+let smtGameState = null;
+const SMT_ENCOUNTERS = [
+  { zone:'一番街', name:'ゴースト', sprite:'👻', maxHp:26, atkMin:3, atkMax:6, strongChance:0.15, strongMin:8, strongMax:11, isBoss:false, canNegotiate:true },
+  { zone:'一番街', name:'ゴブリンの頭目', sprite:'👹', maxHp:50, atkMin:5, atkMax:9, strongChance:0.25, strongMin:12, strongMax:17, isBoss:true, canNegotiate:false },
+  { zone:'南口', name:'グール', sprite:'🧟', maxHp:34, atkMin:4, atkMax:7, strongChance:0.18, strongMin:9, strongMax:13, isBoss:false, canNegotiate:true },
+  { zone:'南口', name:'サキュバス', sprite:'🧛', maxHp:62, atkMin:6, atkMax:10, strongChance:0.28, strongMin:14, strongMax:19, isBoss:true, canNegotiate:false },
+  { zone:'下北沢駅前', name:'ジャックフロスト', sprite:'❄️', maxHp:40, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:15, isBoss:false, canNegotiate:true },
+  { zone:'下北沢駅前(最深部)', name:'幽閉の悪魔ザラキエル', sprite:'😈', maxHp:100, atkMin:8, atkMax:14, strongChance:0.32, strongMin:20, strongMax:28, isBoss:true, canNegotiate:false }
+];
+function newSmtGame(){
+  return {
+    stage: 'intro',
+    idx: 0,
+    defending: false,
+    recruited: [],
+    player: { hp:65, maxHp:65, mp:22, maxMp:22 },
+    enemy: null,
+    log: [],
+    negotiateOutcome: null,
+    lastClearedName: null, lastClearedZone: null, lastWasBoss: false
+  };
+}
+function startSmtGame(){ smtGameState = newSmtGame(); render(); }
+function restartSmtGame(){ smtGameState = null; render(); }
+function smtSpawnEncounter(){
+  const s = smtGameState;
+  if(!s) return;
+  const def = SMT_ENCOUNTERS[s.idx];
+  s.enemy = { ...def, hp: def.maxHp };
+  s.stage = 'encounter';
+  s.defending = false;
+  s.log = [];
+  render();
+}
+function smtChooseFight(){
+  const s = smtGameState;
+  if(!s) return;
+  s.stage = 'battle';
+  s.log = [`${s.enemy.name}との戦闘が始まった!`];
+  render();
+}
+function smtChooseTalk(){
+  const s = smtGameState;
+  if(!s || !s.enemy.canNegotiate) return;
+  const roll = Math.random();
+  const outcome = roll < 0.32 ? 'join' : roll < 0.62 ? 'leave' : 'angry';
+  s.negotiateOutcome = outcome;
+  if(outcome==='join'){
+    s.recruited.push(s.enemy.name);
+    s.player.maxHp += 8;
+    s.player.hp += 8;
+  }
+  s.stage = 'negotiateResult';
+  render();
+}
+function smtNegotiateContinue(){
+  const s = smtGameState;
+  if(!s) return;
+  if(s.negotiateOutcome==='angry'){
+    s.stage = 'battle';
+    s.log = [`${s.enemy.name}が怒って襲いかかってきた!`];
+    render();
+    return;
+  }
+  smtAdvanceAfterClear();
+}
+function smtAdvanceAfterClear(){
+  const s = smtGameState;
+  if(!s) return;
+  const cleared = SMT_ENCOUNTERS[s.idx];
+  s.lastClearedName = cleared.name;
+  s.lastClearedZone = cleared.zone;
+  s.lastWasBoss = cleared.isBoss;
+  s.idx += 1;
+  if(s.idx >= SMT_ENCOUNTERS.length){
+    s.stage = 'ending';
+    render();
+    return;
+  }
+  s.player.hp = Math.min(s.player.maxHp, s.player.hp + Math.floor(s.player.maxHp*0.3));
+  s.player.mp = Math.min(s.player.maxMp, s.player.mp + Math.floor(s.player.maxMp*0.5));
+  s.stage = 'victory';
+  render();
+}
+function smtAction(action){
+  const s = smtGameState;
+  if(!s || s.stage!=='battle') return;
+  const enemy = s.enemy, player = s.player;
+  const msgs = [];
+
+  if(action==='attack'){
+    const dmg = 6 + Math.floor(Math.random()*6) + s.recruited.length;
+    enemy.hp = Math.max(0, enemy.hp - dmg);
+    msgs.push(`⚔️ ${dmg}のダメージを与えた!`);
+  } else if(action==='summon'){
+    if(player.mp < 10){ toast('MPが足りません'); return; }
+    player.mp -= 10;
+    const dmg = 14 + Math.floor(Math.random()*8) + s.recruited.length*3;
+    enemy.hp = Math.max(0, enemy.hp - dmg);
+    const skillName = s.recruited.length ? s.recruited[s.recruited.length-1] : null;
+    msgs.push(skillName ? `🌀 ${skillName}の力を借りた一撃! ${dmg}のダメージ!` : `🌀 渾身の一撃! ${dmg}のダメージ!`);
+  } else if(action==='defend'){
+    s.defending = true;
+    msgs.push('🛡️ 身を守った');
+  } else if(action==='heal'){
+    if(player.mp < 8){ toast('MPが足りません'); return; }
+    player.mp -= 8;
+    const heal = 12 + Math.floor(Math.random()*6);
+    player.hp = Math.min(player.maxHp, player.hp + heal);
+    msgs.push(`✨ HPが${heal}回復した`);
+  } else {
+    return;
+  }
+
+  if(enemy.hp <= 0){
+    smtAdvanceAfterClear();
+    return;
+  }
+
+  const isStrong = Math.random() < enemy.strongChance;
+  let edmg = isStrong
+    ? enemy.strongMin + Math.floor(Math.random()*(enemy.strongMax-enemy.strongMin+1))
+    : enemy.atkMin + Math.floor(Math.random()*(enemy.atkMax-enemy.atkMin+1));
+  if(s.defending){ edmg = Math.floor(edmg/2); }
+  player.hp = Math.max(0, player.hp - edmg);
+  msgs.push(`${enemy.name}の${isStrong?'強攻撃':'攻撃'}! ${edmg}のダメージを受けた`);
+  s.defending = false;
+  s.log = msgs.slice(-4);
+
+  if(player.hp <= 0){ s.stage = 'gameover'; }
+  render();
+}
+function renderSmtGame(){
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🌀 封鎖された下北沢 <span class="tag">テスト機能</span></h2>`;
+  const s = smtGameState;
+
+  if(!s || s.stage==='intro'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>下北沢に、突如として結界が張られた。</p>
+        <p>結界の向こうから、悪魔たちの気配が忍び寄る。</p>
+        <p>あなたは新米の召喚士。悪魔と戦い、時には言葉を交わしながら、閉ざされた街を解放しなければならない。</p>
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame(); smtSpawnEncounter();">始める</button>
+      <div class="muted" style="margin-top:10px;">悪魔とは「戦う」か「話しかけて仲魔にする」かを選べる、短編のミニRPGです(3エリア・全6体)。進行状況は保存されません。</div>
+    `;
+  }
+  if(s.stage==='encounter'){
+    const e = s.enemy;
+    return `
+      ${header}
+      <div class="revenge-story-box" style="text-align:center;">
+        <div class="smt-zone-label">${escapeHtml(e.zone)}</div>
+        <div style="font-size:40px;">${e.sprite}</div>
+        <p style="margin-top:6px;">${escapeHtml(e.name)}が現れた!${e.isBoss ? '(この先の結界の要だ)' : ''}</p>
+      </div>
+      <div class="smt-encounter-choice">
+        <button class="btn btn-primary" onclick="smtChooseFight()">⚔️ 戦う</button>
+        ${e.canNegotiate ? `<button class="btn btn-secondary" onclick="smtChooseTalk()">💬 話しかける</button>` : ''}
+      </div>
+      <div class="muted" style="margin-top:10px;">仲魔: ${s.recruited.length}体${s.recruited.length ? '(' + s.recruited.map(escapeHtml).join('、') + ')' : ''}</div>
+    `;
+  }
+  if(s.stage==='negotiateResult'){
+    const e = s.enemy;
+    const text = s.negotiateOutcome==='join'
+      ? `${e.name}は、静かにあなたの元へ歩み寄ってきた。仲魔になった!`
+      : s.negotiateOutcome==='leave'
+      ? `${e.name}は、興味なさそうに闇の中へ消えていった。`
+      : `${e.name}は、こちらの気配に気づき、牙をむいた!`;
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>${escapeHtml(text)}</p>
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="smtNegotiateContinue()">${s.negotiateOutcome==='angry' ? '身構える' : '先に進む'}</button>
+    `;
+  }
+  if(s.stage==='gameover'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>意識が、闇に飲まれていく――</p>
+      </div>
+      <div class="banner" style="margin-top:10px;">💀 力及ばず、倒れてしまった</div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="restartSmtGame()">もう一度挑戦する</button>
+    `;
+  }
+  if(s.stage==='ending'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>最後の結界が砕け散り、下北沢に陽の光が戻ってくる。</p>
+        <p>街の人々の声が、少しずつ戻り始めた。</p>
+        <p class="muted" style="margin-top:8px;">仲魔にした悪魔: ${s.recruited.length ? s.recruited.map(escapeHtml).join('、') : 'なし'}</p>
+      </div>
+      <div class="banner" style="margin-top:10px;">🏆 下北沢、解放!</div>
+      <button class="btn btn-secondary" style="margin-top:12px;" onclick="restartSmtGame()">もう一度最初から</button>
+    `;
+  }
+  if(s.stage==='victory'){
+    const text = s.lastWasBoss
+      ? `${s.lastClearedZone}を包んでいた結界が、静かに解けていく。${s.lastClearedZone}は解放された!`
+      : '道の先が、少しだけ開けたようだ。';
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>${escapeHtml(s.lastClearedName)}を退けた。</p>
+        <p>${escapeHtml(text)}</p>
+      </div>
+      <button class="btn btn-primary" style="margin-top:12px;" onclick="smtSpawnEncounter()">先に進む</button>
+    `;
+  }
+
+  // battle
+  const enemy = s.enemy, player = s.player;
+  const enemyHpPct = Math.round(enemy.hp/enemy.maxHp*100);
+  const playerHpPct = Math.round(player.hp/player.maxHp*100);
+  const playerMpPct = Math.round(player.mp/player.maxMp*100);
+  const summonLabel = s.recruited.length ? `召喚:${s.recruited[s.recruited.length-1]}(MP10)` : '渾身の一撃(MP10)';
+  return `
+    ${header}
+    <div class="revenge-battle-wrap">
+      <div class="revenge-enemy">
+        <div class="smt-zone-label">${escapeHtml(enemy.zone)}</div>
+        <div class="revenge-enemy-sprite">${enemy.sprite}</div>
+        <div class="revenge-enemy-name">${escapeHtml(enemy.name)}</div>
+        <div class="revenge-hp-bar"><div class="revenge-hp-fill" style="width:${enemyHpPct}%;"></div></div>
+        <div class="muted" style="font-size:11px;">${enemy.hp} / ${enemy.maxHp}</div>
+      </div>
+      <div class="revenge-log">
+        ${s.log.map(m=>`<div>${escapeHtml(m)}</div>`).join('')}
+      </div>
+      <div class="revenge-player">
+        <div class="row between" style="font-size:12px;margin-bottom:2px;"><span>召喚士(あなた)</span><span class="muted">HP ${player.hp}/${player.maxHp}</span></div>
+        <div class="revenge-hp-bar"><div class="revenge-hp-fill player" style="width:${playerHpPct}%;"></div></div>
+        <div class="row between" style="font-size:11px;margin:6px 0 2px;"><span class="muted">MP</span><span class="muted">${player.mp}/${player.maxMp}</span></div>
+        <div class="revenge-mp-bar"><div class="revenge-mp-fill" style="width:${playerMpPct}%;"></div></div>
+      </div>
+      <div class="revenge-actions">
+        <button class="btn btn-secondary" onclick="smtAction('attack')">⚔️ 攻撃</button>
+        <button class="btn btn-secondary" onclick="smtAction('summon')">🌀 ${escapeHtml(summonLabel)}</button>
+        <button class="btn btn-secondary" onclick="smtAction('defend')">🛡️ 防御</button>
+        <button class="btn btn-secondary" onclick="smtAction('heal')">✨ 回復(MP8)</button>
+      </div>
+    </div>
+  `;
+}
+
 function gachaMachineHtml(){
   const useShaker = Math.random() < 0.5;
   if(useShaker){
@@ -3482,7 +3742,8 @@ function render(){
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
-    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, revengeGame: renderRevengeGame
+    shimokitaMap: renderShimokitaMap, invaderGame: renderInvaderGame, revengeGame: renderRevengeGame,
+    smtGame: renderSmtGame
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
