@@ -239,6 +239,17 @@
   .rpg-map.cave .rpg-tile-floor.v2{background:#3c372d;}
   .rpg-map.cave .rpg-tile-door{background:#5a4326;}
   .rpg-player{font-size:14px;}
+  .y2k-map{display:inline-block;border:2px solid #6b5a3a;border-radius:8px;overflow:hidden;background:#2a2318;margin:8px auto;}
+  .y2k-row{display:flex;}
+  .y2k-tile{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;box-sizing:border-box;line-height:1;}
+  .y2k-tile-wall{background:linear-gradient(135deg,#5a4a30 0%,#3a2f1e 55%,#4d3f28 100%);}
+  .y2k-tile-floor{background:#8a7a54;}
+  .y2k-tile-track{background:#332a1c;box-shadow:inset 0 0 0 1px rgba(0,0,0,.3);}
+  .y2k-tile-crossing{background:#7a6a3f;}
+  .y2k-tile-market{background:#5e4d2e;box-shadow:inset 0 0 5px rgba(0,0,0,.5);}
+  .y2k-tile-boss{background:#7a2e3a;}
+  .y2k-tile-flavor{background:#9a8a5a;box-shadow:inset 0 0 5px rgba(255,220,150,.4);}
+  .y2k-player{font-size:13px;}
   .rpg-duel-arena{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0;padding:16px 8px;
     background:linear-gradient(180deg,#1c2a1c,#0f1a0f);border:1px solid var(--line);border-radius:12px;}
   .rpg-duel-side{flex:1;text-align:center;}
@@ -1182,7 +1193,7 @@ const GAMES_HUB_ENTRIES = [
   { screen:'moGame',        icon:'📡', label:'下北沢エイリアン騒動', hidden:true }, // 下北沢クロニクルとゲーム感覚が重複するため、いったん一本化してコードのみ残し非表示
   { screen:'kmGame',        icon:'🤖', label:'下北沢からくり武者伝', hidden:true }, // 同上、いったん一本化してコードのみ残し非表示
   { screen:'hanafudaGame',  icon:'🎴', label:'花札(こいこい)', testOnly:true },
-  { screen:'smtGame',       icon:'🌀', label:'封鎖された下北沢', testOnly:true }
+  { screen:'smtGame',       icon:'🕰️', label:'下北沢開発プロジェクト', testOnly:true }
 ];
 function renderGamesHub(){
   const store = storeById(state.currentStoreId);
@@ -6982,19 +6993,190 @@ function renderKmGame(){
   `;
 }
 
-/* ===================== 封鎖された下北沢(テスト機能・遊びのみ) =====================
-   結界に閉ざされた下北沢を、実際の地図(下北沢マップと同じOpenStreetMapベース)の上で
-   歩き回って探索するミニRPG。地図はピンチ/スクロールで自由にズームできる。
+/* ===================== 下北沢開発プロジェクト(テスト機能・遊びのみ) =====================
+   「現在編」と「2000年編」を切り替えながら遊ぶタイムワープ探索ミニRPG。
+   現在編:実際の下北沢の地図(下北沢マップと同じOpenStreetMapベース)の上を
+   歩き回って探索する。地図はピンチ/スクロールで自由にズームできる。
    エリア内を歩くとまれに悪魔と遭遇し(常時ではない)、ボスを倒すとそのエリアの
    結界が解ける。下北沢マップに載っている実在のお店(名前・ジャンルのみ、個人名は
    含まない)が地図上にすべて表示され、近づくとマスター(店主)との軽い会話イベントが
    起き、HP/MP回復やアイテム・武器・魔力などのボーナスが1店舗につき1回もらえる。
+   2000年編:再開発が始まる前、駅前に戦後の闇市を起源とする食品市場や、開かずの
+   踏切、まだ地上を走っていた小田急線があったころの下北沢をオリジナルのドット絵風
+   タイルマップで散策する。要所要所で当時の街の様子についての一口メモ(公開情報・
+   実在の年表をもとにしたオリジナルの解説文)が読め、3つのエリアに潜む「時の亡霊」
+   のような存在と戦ったり話しかけたりしながら進む。
    戦うか話しかけるかの選択はロウ(秩序・右回り)/カオス(自由・左回り)という属性の
    ゲージに影響し、プレイヤーのアイコンの色と回転方向に反映される。
    オリジナルのストーリー・悪魔データ、特定作品のキャラクターやマップをそのまま
-   使ってはいない。進行状況は保存されず、画面を離れると最初からになる。
+   使ってはいない。実在の人物名は登場しない。進行状況は保存されず、画面を離れると
+   最初からになる。
 */
 let smtGameState = null;
+/* 2000年編:再開発前の下北沢駅前をイメージしたオリジナルのタイルマップ。
+   実在の年表(小田急線1927年開業、京王井の頭線1933年開業、戦後の闇市を起源とする
+   駅前食品市場、一番街の1964年組合設立、茶沢通り周辺のファッションの街化など)を
+   参考にしたオリジナルの一口解説を各所に配置している。 */
+const Y2K_MAP = [
+  "##############",
+  "#....S.......#",
+  "#..mmmmmm....#",
+  "#..mAmmPm....#",
+  "#..mmmmmm....#",
+  "#............#",
+  "==x========x==",
+  "#............#",
+  "#....C....Q..#",
+  "#............#",
+  "#............#",
+  "#..D......R..#",
+  "#............#",
+  "#............#",
+  "#.....E......#",
+  "#............#",
+  "##############"
+];
+const Y2K_FLAVOR_SPOTS = {
+  S: { title:'高架の下北沢駅', reward:'heal', lines:[
+    '見上げると、下北沢駅は線路ごと高架の上に乗っている。',
+    '1927年に小田急線が、1933年には京王井の頭線が開業し、この街は農村から一気に商店の街へと変わっていったという。',
+    '地下化されるまで、この高架の駅がずっと下北沢の顔だった。'
+  ]},
+  A: { title:'駅前食品市場', reward:'heal', lines:[
+    'トタン屋根に覆われた、迷路のように入り組んだ路地。昼間でも薄暗い。',
+    '終戦直後、近くの農家が駅前に屋台を出して野菜を売り始めたのが始まりだったらしい。',
+    'やがて衣類や日用品なども並ぶようになり、闇市と呼ばれる市場へと姿を変えていったそうだ。',
+    'なつかしい匂いがして、旅の疲れがすっと抜けていく気がした。'
+  ]},
+  C: { title:'一番街', reward:'atk', lines:[
+    '賑やかな商店街。1964年に組合として認められ、翌年から「一番街」と名乗るようになったそうだ。',
+    '1966年からは阿波踊りも始まり、夏になるとこの通りは一気に華やぐという。',
+    '威勢のいい声を聞いていると、こちらまで元気が出てくる。'
+  ]},
+  D: { title:'茶沢通り', reward:'magic', lines:[
+    '駅から南へ伸びる通り。このころにはもう、古着屋や小さなライブハウスが並ぶ街になっていたらしい。',
+    '道行く人の服装は自由で、思い思いのスタイルを楽しんでいるようだった。'
+  ]},
+  E: { title:'南口', reward:'gold', lines:[
+    '南口の広場。踏切の音と人の話し声が入り混じる、下北沢らしい賑やかさがここにある。',
+    'この街はこのあと、駅の地下化や再開発を経て、少しずつ姿を変えていくことになる。',
+    'けれど路地の匂いや人のざわめきは、きっとどこかに残り続けるのだろう。'
+  ]}
+};
+const Y2K_ZONE_LABEL = { market:'駅前食品市場', ichibangai:'一番街', chazawa:'茶沢通り' };
+const Y2K_ENCOUNTERS_ARR = [
+  { corridor:'market', zone:'駅前食品市場', name:'担ぎ屋の亡霊', sprite:'🏮', maxHp:28, atkMin:4, atkMax:7, strongChance:0.18, strongMin:9, strongMax:13, isBoss:false, canNegotiate:true, weak:'fire', resist:'ice', era:'y2000' },
+  { corridor:'market', zone:'駅前食品市場', name:'闇市の元締めの影', sprite:'🕯️', maxHp:70, atkMin:6, atkMax:10, strongChance:0.28, strongMin:15, strongMax:20, isBoss:true, canNegotiate:false, weak:'elec', resist:'fire', era:'y2000' },
+  { corridor:'ichibangai', zone:'一番街', name:'露天商のなごり', sprite:'🧺', maxHp:34, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:14, isBoss:false, canNegotiate:true, weak:'ice', resist:'phys', era:'y2000' },
+  { corridor:'ichibangai', zone:'一番街', name:'再開発計画のまぼろし', sprite:'📐', maxHp:90, atkMin:7, atkMax:11, strongChance:0.3, strongMin:18, strongMax:24, isBoss:true, canNegotiate:false, weak:'force', resist:'elec', era:'y2000' },
+  { corridor:'chazawa', zone:'茶沢通り', name:'流行を追う亡霊', sprite:'👗', maxHp:32, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:14, isBoss:false, canNegotiate:true, weak:'elec', resist:'ice', era:'y2000' },
+  { corridor:'chazawa', zone:'茶沢通り', name:'時の踏切番', sprite:'🚦', maxHp:110, atkMin:8, atkMax:13, strongChance:0.32, strongMin:20, strongMax:27, isBoss:true, canNegotiate:false, weak:'fire', resist:'force', era:'y2000' }
+];
+const Y2K_ZONE_REGULAR = { market:Y2K_ENCOUNTERS_ARR[0], ichibangai:Y2K_ENCOUNTERS_ARR[2], chazawa:Y2K_ENCOUNTERS_ARR[4] };
+const Y2K_ZONE_BOSS = { market:Y2K_ENCOUNTERS_ARR[1], ichibangai:Y2K_ENCOUNTERS_ARR[3], chazawa:Y2K_ENCOUNTERS_ARR[5] };
+function y2000TileAt(x, y){
+  if(y<0 || y>=Y2K_MAP.length) return '#';
+  const row = Y2K_MAP[y];
+  if(x<0 || x>=row.length) return '#';
+  return row[x];
+}
+function y2000Blocked(tile){ return tile==='#' || tile==='='; }
+function y2000ZoneForY(ty){
+  if(ty>=1 && ty<=5) return 'market';
+  if(ty>=7 && ty<=9) return 'ichibangai';
+  if(ty>=10 && ty<=13) return 'chazawa';
+  return null;
+}
+function y2000ApplyReward(s, type){
+  if(type==='heal'){ s.player.hp = s.player.maxHp; s.player.mp = s.player.maxMp; return '❤️ HP・MPが全回復した!'; }
+  if(type==='atk'){ s.atkBonus += 2; return '⚔️ 攻撃力+2!'; }
+  if(type==='magic'){ s.magicBonus += 2; return '🔮 魔力+2!'; }
+  if(type==='gold'){ const g = 12 + Math.floor(Math.random()*8); s.gold += g; return `💰 ${g}Gをもらった!`; }
+  return '';
+}
+function y2000ToggleEra(){
+  const s = smtGameState;
+  if(!s || s.stage!=='overworld') return;
+  s.era = s.era==='today' ? 'y2000' : 'today';
+  render();
+}
+function y2000Move(dx, dy){
+  const s = smtGameState;
+  if(!s || s.era!=='y2000' || s.stage!=='overworld') return;
+  const y = s.y2000;
+  const nx = y.tx+dx, ny = y.ty+dy;
+  const tile = y2000TileAt(nx, ny);
+  if(y2000Blocked(tile)) return;
+  y.tx = nx; y.ty = ny;
+  y2000HandleTile(s, tile);
+  render();
+}
+function y2000HandleTile(s, tile){
+  const y = s.y2000;
+  if(tile==='x'){
+    toast('🚦 カンカンカン…踏切の警報が鳴り、電車が高架を渡っていった。');
+    return;
+  }
+  const flavor = Y2K_FLAVOR_SPOTS[tile];
+  if(flavor){
+    if(!y.visited[tile]){
+      y.visited[tile] = true;
+      y.pendingFlavor = flavor;
+      s.stage = 'y2000Dialogue';
+    }
+    return;
+  }
+  if(tile==='P' || tile==='Q' || tile==='R'){
+    const corridor = tile==='P' ? 'market' : tile==='Q' ? 'ichibangai' : 'chazawa';
+    if(y.clearedZones[corridor]) return;
+    smtStartEncounter(Y2K_ZONE_BOSS[corridor]);
+    return;
+  }
+  if(tile==='.' || tile==='m'){
+    const zone = y2000ZoneForY(y.ty);
+    if(zone && !y.clearedZones[zone] && Math.random() < 0.14){
+      smtStartEncounter(Y2K_ZONE_REGULAR[zone]);
+    }
+  }
+}
+function y2000CloseDialogue(){
+  const s = smtGameState;
+  if(!s || s.stage!=='y2000Dialogue') return;
+  const flavor = s.y2000.pendingFlavor;
+  const effectText = flavor ? y2000ApplyReward(s, flavor.reward) : '';
+  s.y2000.lastFlavorEffect = effectText;
+  s.stage = 'overworld';
+  render();
+  if(effectText) toast(effectText);
+}
+function y2000RenderMap(s){
+  const y = s.y2000;
+  let rows = '';
+  for(let ty=0; ty<Y2K_MAP.length; ty++){
+    let cells = '';
+    for(let tx=0; tx<Y2K_MAP[ty].length; tx++){
+      const tile = Y2K_MAP[ty][tx];
+      let cls = 'y2k-tile-floor', label = '';
+      if(tile==='#'){ cls='y2k-tile-wall'; }
+      else if(tile==='='){ cls='y2k-tile-track'; }
+      else if(tile==='x'){ cls='y2k-tile-crossing'; label='🚦'; }
+      else if(tile==='m'){ cls='y2k-tile-market'; }
+      else if(tile==='P' || tile==='Q' || tile==='R'){
+        const corridor = tile==='P' ? 'market' : tile==='Q' ? 'ichibangai' : 'chazawa';
+        const cleared = y.clearedZones[corridor];
+        cls = cleared ? 'y2k-tile-floor' : 'y2k-tile-boss';
+        label = cleared ? '' : '👹';
+      } else if(Y2K_FLAVOR_SPOTS[tile]){
+        cls = y.visited[tile] ? 'y2k-tile-floor' : 'y2k-tile-flavor';
+        label = y.visited[tile] ? '' : '💭';
+      }
+      const isPlayer = (tx===y.tx && ty===y.ty);
+      cells += `<div class="y2k-tile ${cls}">${isPlayer ? '<span class="y2k-player">🚶</span>' : label}</div>`;
+    }
+    rows += `<div class="y2k-row">${cells}</div>`;
+  }
+  return `<div class="y2k-map">${rows}</div>`;
+}
 const SMT_ENCOUNTERS = [
   { corridor:'1', zone:'一番街', name:'ゴースト', sprite:'👻', maxHp:26, atkMin:3, atkMax:6, strongChance:0.15, strongMin:8, strongMax:11, isBoss:false, canNegotiate:true, weak:'fire', resist:'phys' },
   { corridor:'1', zone:'一番街', name:'ゴブリンの頭目', sprite:'👹', maxHp:50, atkMin:5, atkMax:9, strongChance:0.25, strongMin:12, strongMax:17, isBoss:true, canNegotiate:false, weak:'elec', resist:'fire' },
@@ -7036,6 +7218,7 @@ function smtElementLabel(el){
 function newSmtGame(){
   return {
     stage: 'overworld',
+    era: 'today',
     defending: false,
     recruited: [],
     player: { hp:65, maxHp:65, mp:22, maxMp:22 },
@@ -7053,7 +7236,14 @@ function newSmtGame(){
     log: [],
     negotiateOutcome: null,
     lastResolvedViaTalk: false,
-    lastClearedName: null, lastClearedZone: null, lastWasBoss: false, lastGoldGain: 0
+    lastClearedName: null, lastClearedZone: null, lastWasBoss: false, lastGoldGain: 0,
+    y2000: {
+      tx: 1, ty: 1,
+      visited: {},
+      clearedZones: { market:false, ichibangai:false, chazawa:false },
+      pendingFlavor: null,
+      lastFlavorEffect: null
+    }
   };
 }
 function startSmtGame(){
@@ -7191,7 +7381,7 @@ function smtShopIconHtml(claimed){
 function initSmtGameMap(){
   const s = smtGameState;
   const container = document.getElementById('smtOverworldMap');
-  if(!container || typeof L === 'undefined' || !s || s.stage !== 'overworld'){
+  if(!container || typeof L === 'undefined' || !s || s.stage !== 'overworld' || s.era !== 'today'){
     stopSmtGameMap();
     return;
   }
@@ -7349,15 +7539,18 @@ function smtAdvanceAfterClear(){
   const cleared = s.enemy;
   s.lastClearedName = cleared.name;
   s.lastClearedZone = cleared.zone;
+  s.lastClearedEra = cleared.era || 'today';
   s.lastWasBoss = cleared.isBoss;
   const goldGain = s.lastResolvedViaTalk ? 0 : (cleared.isBoss ? 25 : 8);
   s.gold += goldGain;
   s.lastGoldGain = goldGain;
+  const isY2000 = cleared.era === 'y2000';
+  const zonesObj = isY2000 ? s.y2000.clearedZones : s.clearedZones;
   if(cleared.isBoss){
-    s.clearedZones[cleared.corridor] = true;
+    zonesObj[cleared.corridor] = true;
   }
-  if(Object.keys(s.clearedZones).every(k => s.clearedZones[k])){
-    s.stage = 'ending';
+  if(Object.keys(zonesObj).every(k => zonesObj[k])){
+    s.stage = isY2000 ? 'y2000Ending' : 'ending';
     render();
     return;
   }
@@ -7382,7 +7575,7 @@ function smtToggleMagicMenu(open){
 function smtAttemptFlee(){
   const s = smtGameState;
   if(!s || s.stage !== 'battle') return;
-  if(s.enemy.isBoss){ toast('🌀 結界の悪魔からは逃げられない!'); return; }
+  if(s.enemy.isBoss){ toast(s.enemy.era==='y2000' ? '🌀 この気配からは逃げられない!' : '🌀 結界の悪魔からは逃げられない!'); return; }
   s.stage = 'overworld';
   toast('🏃 逃げ出した');
   render();
@@ -7507,22 +7700,63 @@ function smtLeaveFacility(){
 }
 function renderSmtGame(){
   const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
-  const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🌀 封鎖された下北沢 <span class="tag">テスト機能</span></h2>`;
+  const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🕰️ 下北沢開発プロジェクト <span class="tag">テスト機能</span></h2>`;
   const s = smtGameState;
 
   if(!s){
     return `
       ${header}
       <div class="revenge-story-box">
-        <p>下北沢に、突如として結界が張られた。</p>
-        <p>結界の向こうから、悪魔たちの気配が忍び寄る。</p>
-        <p>あなたは新米の召喚士。実際の下北沢の地図の上を歩き回り、悪魔と戦い、時には言葉を交わしながら、閉ざされた街を解放しなければならない。</p>
+        <p>ある日、下北沢の駅前で不思議な光を見た。</p>
+        <p>気がつくと、あなたは時の狭間をさまよう旅人になっていた。</p>
+        <p>「現在の下北沢」と「再開発前・2000年の下北沢」を行き来しながら、街の記憶に触れ、時おり現れる不思議な気配と戦ったり、言葉を交わしたりしていく物語。</p>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">始める</button>
-      <div class="muted" style="margin-top:10px;">実際の下北沢マップ(下北沢マップと同じ地図)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。エリア内を歩くとまれに悪魔と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。地図には下北沢マップのお店がすべて表示され、近づくとマスターとの会話でHP/MP回復やアイテム・魔力などのボーナスが1店舗につき1回もらえます。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転に表れます。進行状況は保存されません。</div>
+      <div class="muted" style="margin-top:10px;">現在編は実際の下北沢マップ(下北沢マップと同じ地図)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編は、再開発が始まる前の下北沢駅前(戦後の闇市を起源とする駅前食品市場や、まだ地上を走っていた線路、一番街・茶沢通りなど)をイメージしたオリジナルのドット絵風タイルマップを歩いて探索します。どちらもエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転に表れます。進行状況は保存されません。</div>
     `;
   }
   if(s.stage==='overworld'){
+    if(s.era==='y2000'){
+      const y = s.y2000;
+      const clearedCount = Object.values(y.clearedZones).filter(Boolean).length;
+      const alignLabel = s.alignment > 10 ? 'ロウ寄り(右回り)' : s.alignment < -10 ? 'カオス寄り(左回り)' : 'ニュートラル';
+      const alignPct = Math.max(0, Math.min(100, (s.alignment + 100) / 2));
+      return `
+        ${header}
+        <div class="smt-hud">
+          <span>HP <b>${s.player.hp}/${s.player.maxHp}</b></span>
+          <span>MP <b>${s.player.mp}/${s.player.maxMp}</b></span>
+          <span>💰 <b>${s.gold}</b>G</span>
+          <span>😈 仲魔 <b>${s.recruited.length}</b></span>
+          <span>🔓 解放 <b>${clearedCount}/3</b></span>
+          <span>職 <b>${escapeHtml(SMT_JOBS[s.job].name)}</b></span>
+        </div>
+        <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b></div>
+        <div class="smt-align-bar"><div class="smt-align-fill" style="left:${alignPct}%;"></div></div>
+        <div class="row" style="justify-content:center;margin-bottom:6px;">
+          <span class="tag">🕰️ 2000年編(再開発前)</span>
+        </div>
+        ${y2000RenderMap(s)}
+        <div class="smt-dpad">
+          <div></div>
+          <button class="invader-btn" style="grid-column:2;grid-row:1;" onclick="y2000Move(0,-1)">▲</button>
+          <div></div>
+          <button class="invader-btn" style="grid-column:1;grid-row:2;" onclick="y2000Move(-1,0)">◀️</button>
+          <div style="grid-column:2;grid-row:2;"></div>
+          <button class="invader-btn" style="grid-column:3;grid-row:2;" onclick="y2000Move(1,0)">▶️</button>
+          <div></div>
+          <button class="invader-btn" style="grid-column:2;grid-row:3;" onclick="y2000Move(0,1)">▼</button>
+          <div></div>
+        </div>
+        <div class="row" style="gap:8px;margin:12px 0 4px;flex-wrap:wrap;">
+          <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityJob')">🔄 転職</button>
+          <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityDemon')">😈 召喚の館</button>
+          <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityShop')">🗡️ 強化(G)</button>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:2px;" onclick="y2000ToggleEra()">🏙️ 現在の下北沢へ戻る</button>
+        <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">上のボタンで移動できます。💭は当時の街についての一口メモ、👹は気配の出現地点、🚦は踏切です。</div>
+      `;
+    }
     const clearedCount = Object.values(s.clearedZones).filter(Boolean).length;
     const alignLabel = s.alignment > 10 ? 'ロウ寄り(右回り)' : s.alignment < -10 ? 'カオス寄り(左回り)' : 'ニュートラル';
     const alignPct = Math.max(0, Math.min(100, (s.alignment + 100) / 2));
@@ -7538,6 +7772,9 @@ function renderSmtGame(){
       </div>
       <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b></div>
       <div class="smt-align-bar"><div class="smt-align-fill" style="left:${alignPct}%;"></div></div>
+      <div class="row" style="justify-content:center;margin-bottom:6px;">
+        <span class="tag">🏙️ 現在の下北沢</span>
+      </div>
       <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
       <div class="smt-dpad">
         <div></div>
@@ -7555,6 +7792,7 @@ function renderSmtGame(){
         <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityDemon')">😈 召喚の館</button>
         <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityShop')">🗡️ 強化(G)</button>
       </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:2px;" onclick="y2000ToggleEra()">🕰️ 2000年の下北沢へ(再開発前)</button>
       <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。地図はピンチ・スクロールでズームできます。赤/青い円は結界エリア(緑は解放済み)、⛩️はボスの出現地点、🏮は下北沢マップのお店です。</div>
     `;
   }
@@ -7627,6 +7865,30 @@ function renderSmtGame(){
       <button class="btn btn-secondary" style="margin-top:14px;" onclick="smtLeaveFacility()">館を出る</button>
     `;
   }
+  if(s.stage==='y2000Dialogue'){
+    const f = s.y2000.pendingFlavor || { title:'', lines:[] };
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <div class="smt-zone-label">🕰️ ${escapeHtml(f.title)}</div>
+        ${f.lines.map(l=>`<p>${escapeHtml(l)}</p>`).join('')}
+      </div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="y2000CloseDialogue()">先に進む</button>
+    `;
+  }
+  if(s.stage==='y2000Ending'){
+    return `
+      ${header}
+      <div class="revenge-story-box">
+        <p>3つのエリアに残っていた、時の狭間の気配がすべて静まった。</p>
+        <p>目の前がまぶしく光り、気がつくと、あなたは現在の下北沢に立っていた。</p>
+        <p>この街はこのあと、駅の地下化や再開発を経て、少しずつ姿を変えていくことになる。けれど路地の匂いや人のざわめきは、きっと今も、どこかに残り続けている。</p>
+        <p class="muted" style="margin-top:8px;">仲魔にした気配: ${s.recruited.length ? s.recruited.map(escapeHtml).join('、') : 'なし'}</p>
+      </div>
+      <div class="banner" style="margin-top:10px;">🏆 2000年の下北沢、探索完了!</div>
+      <button class="btn btn-secondary" style="margin-top:12px;" onclick="restartSmtGame()">もう一度最初から</button>
+    `;
+  }
   if(s.stage==='encounter'){
     const e = s.enemy;
     return `
@@ -7634,7 +7896,7 @@ function renderSmtGame(){
       <div class="revenge-story-box" style="text-align:center;">
         <div class="smt-zone-label">${escapeHtml(e.zone)}</div>
         <div style="font-size:40px;">${e.sprite}</div>
-        <p style="margin-top:6px;">${escapeHtml(e.name)}が現れた!${e.isBoss ? '(この先の結界の要だ)' : ''}</p>
+        <p style="margin-top:6px;">${escapeHtml(e.name)}が現れた!${e.isBoss ? (e.era==='y2000' ? '(時の狭間に浮かぶ、重要な気配のようだ)' : '(この先の結界の要だ)') : ''}</p>
       </div>
       <div class="smt-encounter-choice">
         <button class="btn btn-primary" onclick="smtChooseFight()">⚔️ 戦う</button>
@@ -7682,7 +7944,9 @@ function renderSmtGame(){
   }
   if(s.stage==='victory'){
     const text = s.lastWasBoss
-      ? `${s.lastClearedZone}を包んでいた結界が、静かに解けていく。${s.lastClearedZone}は解放された!`
+      ? (s.lastClearedEra==='y2000'
+        ? `${s.lastClearedZone}に残っていた、時の狭間の気配が静まっていく。${s.lastClearedZone}のあたりは静かになった!`
+        : `${s.lastClearedZone}を包んでいた結界が、静かに解けていく。${s.lastClearedZone}は解放された!`)
       : '道の先が、少しだけ開けたようだ。';
     return `
       ${header}
@@ -7717,7 +7981,7 @@ function renderSmtGame(){
         ${s.log.map(m=>`<div>${escapeHtml(m)}</div>`).join('')}
       </div>
       <div class="revenge-player${s.playerHitFlash ? ' smt-hit-flash' : ''}">
-        <div class="row between" style="font-size:12px;margin-bottom:2px;"><span>召喚士(あなた)</span><span class="muted">HP ${player.hp}/${player.maxHp}</span></div>
+        <div class="row between" style="font-size:12px;margin-bottom:2px;"><span>${s.era==='y2000' ? '旅人(あなた)' : '召喚士(あなた)'}</span><span class="muted">HP ${player.hp}/${player.maxHp}</span></div>
         <div class="revenge-hp-bar"><div class="revenge-hp-fill player" style="width:${playerHpPct}%;"></div></div>
         <div class="row between" style="font-size:11px;margin:6px 0 2px;"><span class="muted">MP</span><span class="muted">${player.mp}/${player.maxMp}</span></div>
         <div class="revenge-mp-bar"><div class="revenge-mp-fill" style="width:${playerMpPct}%;"></div></div>
