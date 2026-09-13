@@ -6999,7 +6999,10 @@ function renderKmGame(){
    2000年編は3体のボスそれぞれに固有の遭遇時セリフ・撃破後セリフを持たせ、
    「闇市の名残」「迫りくる再開発計画」「移りゆく時間そのもの」という3つの
    小さな物語として語られるようにしている。最終エンディングもロウ/カオスの
-   傾向によって結びの一文が変わる。
+   傾向によって結びの一文が変わる。探索スポット(Y2K_SPOTS)は実在の年表を
+   もとに7箇所に増量し(駅前市場・駅前広場・一番街・ライブハウス街・劇場・
+   茶沢通り・古着屋)、見つけた一口解説は「街の記録帳」画面(y2000Archive)
+   でいつでも読み返せるようにしている。
    オリジナルのストーリー・悪魔データ、特定作品のキャラクターやマップをそのまま
    使ってはいない。実在の人物名は登場しない。進行状況は保存されず、画面を離れると
    最初からになる。
@@ -7016,21 +7019,45 @@ const Y2K_CORRIDOR_MAP = { '1':'ichibangai', '2':'chazawa', '3':'market' };
 const Y2K_SPOTS = [
   // 座標は各エリア(SMT_ZONE_CENTER)の近くだが、駅前(corridor 3)はプレイヤーの初期位置と
   // 完全に重なってしまうため、少しずらした地点に目印を置いている。
+  // 実在の年表(小田急線1927年開業、京王井の頭線1933年開業、戦後の闇市を起源とする
+  // 駅前食品市場、一番街の1964年組合設立/1966年阿波踊り開始、1982年本多劇場開場、
+  // 1986年ライブハウス「屋根裏」移転、1990年前後の古着屋の広がりなど)を参考にした
+  // オリジナルの一口解説を7箇所に配置し、探索して集める楽しさを増やしている。
   { id:'y2kMarket', corridor:'3', lat:35.6617, lng:139.6683, title:'駅前食品市場(北口)', reward:'heal', lines:[
     '駅前は、トタン屋根に覆われた、迷路のように入り組んだ路地に覆われている。昼間でも薄暗い。',
     '終戦直後、近くの農家が駅前に屋台を出して野菜を売り始めたのが始まりだったらしい。',
     'やがて衣類や日用品なども並ぶようになり、闇市と呼ばれる市場へと姿を変えていったそうだ。',
     '見上げると、下北沢駅は線路ごと高架の上に乗っている。1927年に小田急線が、1933年には京王井の頭線が開業し、この街は農村から一気に商店の街へと変わっていったという。'
   ]},
+  { id:'y2kStationPlaza', corridor:'3', lat:35.6611, lng:139.6679, title:'手狭な駅前広場', reward:'gold', lines:[
+    '目の前に広がる駅前広場は、今よりずっと手狭で、人と自転車とバスが所狭しとひしめき合っている。',
+    'この街ではもう何年も前から「街づくり懇談会」が開かれ、駅前をどう変えていくかが話し合われているらしい。1984年に発足したというその懇談会は、今もまだ議論を続けているという。',
+    '広々とした駅前広場ができるのは、まだ何年も先の話になりそうだ。'
+  ]},
   { id:'y2kIchibangai', corridor:'1', lat:35.6627, lng:139.6681, title:'一番街', reward:'atk', lines:[
     '賑やかな商店街。1964年に組合として認められ、翌年から「一番街」と名乗るようになったそうだ。',
     '1966年からは阿波踊りも始まり、夏になるとこの通りは一気に華やぐという。',
     '威勢のいい声を聞いていると、こちらまで元気が出てくる。'
   ]},
+  { id:'y2kLiveHouse', corridor:'1', lat:35.6632, lng:139.6687, title:'路地裏のライブハウス街', reward:'magic', lines:[
+    '雑居ビルの地下から、重低音の轟くような音が漏れ聞こえてくる。',
+    '1986年に渋谷から移転してきたという「屋根裏」をはじめ、1992年開店の「シェルター」、1994年開店の「Que」や「GARAGE」など、小さなライブハウスがひしめくように増えてきたそうだ。',
+    '地方から出てきた若いミュージシャンたちが安い家賃に惹かれて住み着き、いつしかこの街は「音楽の街」と呼ばれるようになったという。'
+  ]},
+  { id:'y2kHondaGekijo', corridor:'2', lat:35.6606, lng:139.6673, title:'演劇の街の劇場', reward:'atk', lines:[
+    '大きな看板の下、開演を待つ人たちの列ができている。',
+    '1982年に開場したというこの劇場のこけら落としは、劇作家による芝居だったそうだ。',
+    '以来、小劇場演劇の中心地として、数え切れないほどの劇団がここで芝居を打ってきたという。下北沢が「演劇の街」と呼ばれる理由は、この劇場の存在が大きいらしい。'
+  ]},
   { id:'y2kChazawa', corridor:'2', lat:35.6598, lng:139.6680, title:'南口・茶沢通り', reward:'magic', lines:[
     '南口から茶沢通りへ伸びる一帯。踏切の音と人の話し声が入り混じる、下北沢らしい賑やかさがここにある。',
     'このころにはもう、古着屋や小さなライブハウスが並ぶ街になっていたらしい。道行く人の服装は自由で、思い思いのスタイルを楽しんでいるようだった。',
     'この街はこのあと、駅の地下化や再開発を経て、少しずつ姿を変えていくことになる。けれど路地の匂いや人のざわめきは、きっとどこかに残り続けるのだろう。'
+  ]},
+  { id:'y2kFurugi', corridor:'2', lat:35.6593, lng:139.6675, title:'広がる古着屋の輪', reward:'gold', lines:[
+    '軒先に古びたジャケットやミリタリーウェアがずらりと並んでいる。',
+    '1985年に南口で老舗の古着屋が店を開いたころは、この街にまだ古着屋は数えるほどしかなかったという。',
+    '1990年代に入ると古着ブームが巻き起こり、3か月に1軒のペースで新しい古着屋ができていった時期もあったそうだ。'
   ]}
 ];
 const Y2K_ENCOUNTERS_ARR = [
@@ -7079,6 +7106,18 @@ function y2000CloseDialogue(){
   s.stage = 'overworld';
   render();
   if(effectText) toast(effectText);
+}
+function y2000OpenArchive(){
+  const s = smtGameState;
+  if(!s || s.stage!=='overworld' || s.era!=='y2000') return;
+  s.stage = 'y2000Archive';
+  render();
+}
+function y2000CloseArchive(){
+  const s = smtGameState;
+  if(!s || s.stage!=='y2000Archive') return;
+  s.stage = 'overworld';
+  render();
 }
 function smtY2kSpotIconHtml(claimed){
   return `<div style="font-size:15px;line-height:1;opacity:${claimed?0.35:1};filter:drop-shadow(0 1px 1px rgba(0,0,0,.6));">💭</div>`;
@@ -7648,13 +7687,14 @@ function renderSmtGame(){
         <p class="muted" style="margin-top:6px;">探索の途中でいつでもボタンひとつで「現在の下北沢」にも行き来できます。</p>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">🕰️ 2000年の下北沢から始める</button>
-      <div class="muted" style="margin-top:10px;">2000年編・現在編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編では地図全体がセピア色に変わり、表示される目印も、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、一番街、茶沢通りなど)についての実在の年表をもとにしたオリジナルの一口解説スポットに差し替わります。3体のボスにはそれぞれ固有の物語があり、倒すたびにこの街の移り変わりが少しずつ見えてきます。どちらの時代もエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転、そして2000年編のエンディングの結びの一文にも表れます。進行状況は保存されません。</div>
+      <div class="muted" style="margin-top:10px;">2000年編・現在編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編では地図全体がセピア色に変わり、表示される目印も、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、駅前広場の様子、一番街、音楽の街としてのライブハウス街、演劇の街の劇場、茶沢通り、古着屋文化など)についての実在の年表をもとにしたオリジナルの一口解説スポット7箇所に差し替わります。見つけた記憶は「街の記録帳」にたまっていきます。3体のボスにはそれぞれ固有の物語があり、倒すたびにこの街の移り変わりが少しずつ見えてきます。どちらの時代もエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転、そして2000年編のエンディングの結びの一文にも表れます。進行状況は保存されません。</div>
     `;
   }
   if(s.stage==='overworld'){
     if(s.era==='y2000'){
       const y = s.y2000;
       const clearedCount = Object.values(y.clearedZones).filter(Boolean).length;
+      const visitedCount = Object.values(y.visited).filter(Boolean).length;
       const alignLabel = s.alignment > 10 ? 'ロウ寄り(右回り)' : s.alignment < -10 ? 'カオス寄り(左回り)' : 'ニュートラル';
       const alignPct = Math.max(0, Math.min(100, (s.alignment + 100) / 2));
       return `
@@ -7665,6 +7705,7 @@ function renderSmtGame(){
           <span>💰 <b>${s.gold}</b>G</span>
           <span>😈 仲魔 <b>${s.recruited.length}</b></span>
           <span>🔓 解放 <b>${clearedCount}/3</b></span>
+          <span>📖 記録 <b>${visitedCount}/${Y2K_SPOTS.length}</b></span>
           <span>職 <b>${escapeHtml(SMT_JOBS[s.job].name)}</b></span>
         </div>
         <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b></div>
@@ -7689,7 +7730,8 @@ function renderSmtGame(){
           <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityDemon')">😈 召喚の館</button>
           <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityShop')">🗡️ 強化(G)</button>
         </div>
-        <button class="btn btn-primary" style="width:100%;margin-top:2px;" onclick="y2000ToggleEra()">🏙️ 現在の下北沢へ戻る</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:2px;" onclick="y2000OpenArchive()">📖 街の記録帳を見る(${visitedCount}/${Y2K_SPOTS.length})</button>
+        <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="y2000ToggleEra()">🏙️ 現在の下北沢へ戻る</button>
         <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。地図は現在編と同じ実際の下北沢マップです。💭は当時の街についての一口メモのある場所、⛩️は気配の出現地点です。</div>
       `;
     }
@@ -7810,6 +7852,34 @@ function renderSmtGame(){
         ${f.lines.map(l=>`<p>${escapeHtml(l)}</p>`).join('')}
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="y2000CloseDialogue()">先に進む</button>
+    `;
+  }
+  if(s.stage==='y2000Archive'){
+    const visitedCount = Object.values(s.y2000.visited).filter(Boolean).length;
+    return `
+      ${header}
+      <h3 style="margin-top:0;">📖 街の記録帳(${visitedCount}/${Y2K_SPOTS.length})</h3>
+      <div class="muted" style="margin-bottom:8px;">2000年の下北沢を歩いて見つけた、街の記憶の記録。</div>
+      <div class="smt-facility-list">
+        ${Y2K_SPOTS.map(spot => {
+          const visited = !!s.y2000.visited[spot.id];
+          if(!visited){
+            return `
+              <div class="smt-facility-card">
+                <div class="row between"><b>❔ ???</b><span class="muted">未発見</span></div>
+                <div class="muted" style="margin-top:4px;">この街のどこかに、まだ見ぬ記憶が眠っているようだ。</div>
+              </div>
+            `;
+          }
+          return `
+            <div class="smt-facility-card">
+              <div class="row between"><b>🕰️ ${escapeHtml(spot.title)}</b><span class="muted">発見済み</span></div>
+              ${spot.lines.map(l=>`<p style="margin:4px 0;">${escapeHtml(l)}</p>`).join('')}
+            </div>
+          `;
+        }).join('')}
+      </div>
+      <button class="btn btn-secondary" style="margin-top:14px;" onclick="y2000CloseArchive()">街に戻る</button>
     `;
   }
   if(s.stage==='y2000Ending'){
