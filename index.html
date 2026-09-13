@@ -223,8 +223,9 @@
   .smt-hud b{color:var(--text);}
   .smt-dpad{display:grid;grid-template-columns:52px 52px 52px;grid-template-rows:44px 44px 44px;gap:5px;justify-content:center;margin-top:14px;}
   .rpg-map{display:inline-block;border:2px solid var(--line);border-radius:8px;overflow:hidden;background:#1a2a1a;margin:8px auto;}
+  .rpg-map.cave{background:#0d0c0a;border-color:#3a332a;}
   .rpg-row{display:flex;}
-  .rpg-tile{width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:12px;box-sizing:border-box;line-height:1;}
+  .rpg-tile{width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:13px;box-sizing:border-box;line-height:1;}
   .rpg-tile-wall{background:#3a3a42;}
   .rpg-tile-floor{background:#4c7a44;}
   .rpg-tile-door{background:#8a6237;}
@@ -232,7 +233,24 @@
   .rpg-tile-save{background:#3d6ea5;}
   .rpg-tile-item{background:#4c7a44;}
   .rpg-tile-boss{background:#7a2e3a;}
-  .rpg-player{font-size:13px;}
+  .rpg-tile-torch{background:#3a2f1a;box-shadow:inset 0 0 6px 1px rgba(255,170,60,.55), 0 0 7px rgba(255,150,40,.5);}
+  .rpg-map.cave .rpg-tile-wall{background:linear-gradient(135deg,#514f58 0%,#302e36 55%,#43414c 100%);box-shadow:inset 0 0 4px rgba(0,0,0,.6);}
+  .rpg-map.cave .rpg-tile-floor{background:#332f28;}
+  .rpg-map.cave .rpg-tile-floor.v2{background:#3c372d;}
+  .rpg-map.cave .rpg-tile-door{background:#5a4326;}
+  .rpg-player{font-size:14px;}
+  .rpg-duel-arena{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0;padding:16px 8px;
+    background:linear-gradient(180deg,#1c2a1c,#0f1a0f);border:1px solid var(--line);border-radius:12px;}
+  .rpg-duel-side{flex:1;text-align:center;}
+  .rpg-duel-icon{font-size:36px;line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));animation:rpgDuelPop .25s ease-out;}
+  .rpg-duel-side.enemy .rpg-duel-icon{transform:scaleX(-1);}
+  .rpg-duel-name{font-size:11px;font-weight:bold;margin-top:4px;}
+  .rpg-duel-vs{font-size:13px;font-weight:bold;color:var(--sub);padding:0 8px;flex-shrink:0;}
+  .rpg-duel-events{margin:8px 0;display:flex;flex-direction:column;gap:4px;align-items:center;}
+  .rpg-duel-event{font-size:12px;font-weight:bold;padding:3px 12px;border-radius:20px;background:var(--panel2);animation:rpgDuelPop .2s ease-out;}
+  .rpg-duel-event.dmg{color:#ff8a72;}
+  .rpg-duel-event.heal{color:#7ad18f;}
+  @keyframes rpgDuelPop{ from{ transform:scale(.6); opacity:0; } to{ transform:scale(1); opacity:1; } }
   .rpg-party-bar{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0;}
   .rpg-party-chip{flex:1;min-width:80px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 8px;}
   .rpg-party-chip.ko{opacity:.5;}
@@ -1161,14 +1179,14 @@ const GAMES_HUB_ENTRIES = [
   { screen:'shooterGame',   icon:'✨', label:'ギャラクシーシューター' },
   { screen:'islandGame',    icon:'🏃', label:'アイランドラン' },
   { screen:'rpgGame',       icon:'⚔️', label:'下北沢クロニクル' },
-  { screen:'moGame',        icon:'📡', label:'下北沢エイリアン騒動' },
-  { screen:'kmGame',        icon:'🤖', label:'下北沢からくり武者伝' },
+  { screen:'moGame',        icon:'📡', label:'下北沢エイリアン騒動', hidden:true }, // 下北沢クロニクルとゲーム感覚が重複するため、いったん一本化してコードのみ残し非表示
+  { screen:'kmGame',        icon:'🤖', label:'下北沢からくり武者伝', hidden:true }, // 同上、いったん一本化してコードのみ残し非表示
   { screen:'hanafudaGame',  icon:'🎴', label:'花札(こいこい)', testOnly:true },
   { screen:'smtGame',       icon:'🌀', label:'封鎖された下北沢', testOnly:true }
 ];
 function renderGamesHub(){
   const store = storeById(state.currentStoreId);
-  const entries = GAMES_HUB_ENTRIES.filter(e => !e.testOnly || (store && store.is_test));
+  const entries = GAMES_HUB_ENTRIES.filter(e => !e.hidden).filter(e => !e.testOnly || (store && store.is_test));
   return `
     <span class="back-link" onclick="go('home')">← 戻る</span>
     <h2>🕹️ レトロゲームをサクッと</h2>
@@ -4825,23 +4843,25 @@ function renderIslandGame(){
    進行状況はどこにも保存せず、画面を出入りするたびに最初からになる。
 */
 const RPG_JOB_DEFS = {
-  warrior: { label:'戦士', hp:34, mp:4,  atk:9, def:7, mag:2, spells:[] },
-  mage:    { label:'魔法使い', hp:22, mp:20, atk:4, def:3, mag:9, spells:['fire','heal'] },
-  priest:  { label:'僧侶', hp:26, mp:16, atk:5, def:5, mag:7, spells:['heal','guard'] },
-  thief:   { label:'盗賊', hp:28, mp:8,  atk:7, def:4, mag:4, spells:['heal'] }
+  warrior: { label:'戦士', hp:34, mp:4,  atk:9, def:7, mag:2, spd:6,  spells:[] },
+  mage:    { label:'魔法使い', hp:22, mp:20, atk:4, def:3, mag:9, spd:5,  spells:['fire','heal'] },
+  priest:  { label:'僧侶', hp:26, mp:16, atk:5, def:5, mag:7, spd:5,  spells:['heal','guard'] },
+  thief:   { label:'盗賊', hp:28, mp:8,  atk:7, def:4, mag:4, spd:11, spells:['heal'] }
 };
+const RPG_JOB_ICONS = { warrior:'⚔️', mage:'🔮', priest:'✨', thief:'🗡️' };
 const RPG_SPELLS = {
   fire:  { label:'ファイア', mpCost:4, power:1.6, target:'enemy', desc:'敵1体に魔法ダメージ' },
   heal:  { label:'ヒール', mpCost:3, power:1.4, target:'ally', desc:'味方1体のHPを回復' },
   guard: { label:'プロテク', mpCost:3, target:'partyBuff', desc:'味方全体の防御力を一時的に上げる' }
 };
 const RPG_ENEMY_DEFS = {
-  ghostClothes: { name:'古着のゆうれい', hp:14, atk:5, def:2, mdef:1, exp:6,  gold:4 },
-  neonMoth:     { name:'ネオン蛾',       hp:10, atk:4, def:1, mdef:2, exp:5,  gold:3 },
-  stationCat:   { name:'高架下のノラ猫又', hp:18, atk:6, def:3, mdef:2, exp:8,  gold:6 },
-  signSpirit:   { name:'看板の主',       hp:60, atk:9, def:5, mdef:4, exp:40, gold:30, boss:true },
-  lightEater:   { name:'灯りを喰らう者', hp:140,atk:13,def:7, mdef:8, exp:150,gold:120,boss:true }
+  ghostClothes: { name:'古着のゆうれい', hp:14, atk:5, def:2, mdef:1, spd:5, exp:6,  gold:4 },
+  neonMoth:     { name:'ネオン蛾',       hp:10, atk:4, def:1, mdef:2, spd:9, exp:5,  gold:3 },
+  stationCat:   { name:'高架下のノラ猫又', hp:18, atk:6, def:3, mdef:2, spd:7, exp:8,  gold:6 },
+  signSpirit:   { name:'看板の主',       hp:60, atk:9, def:5, mdef:4, spd:6, exp:40, gold:30, boss:true },
+  lightEater:   { name:'灯りを喰らう者', hp:140,atk:13,def:7, mdef:8, spd:8, exp:150,gold:120,boss:true }
 };
+const RPG_ENEMY_ICONS = { ghostClothes:'👻', neonMoth:'🦋', stationCat:'🐈‍⬛', signSpirit:'👹', lightEater:'🌑' };
 const RPG_ENCOUNTER_TABLES = {
   field1: [['ghostClothes'], ['neonMoth'], ['ghostClothes','neonMoth'], ['stationCat']],
   final:  [['stationCat','neonMoth'], ['ghostClothes','ghostClothes'], ['stationCat','stationCat']]
@@ -4864,39 +4884,41 @@ const RPG_AREAS = {
     ],
     exits: { D: { toArea:'field1', x:1, y:1 } },
     npcs: {
-      T: { type:'talk', lines:['この商店街の灯りが、最近少しずつ消えていっているんです…','裏通りの奥に何かいる気がします。気をつけて。'] },
+      T: { type:'talk', lines:['この商店街の灯りが、最近少しずつ消えていっているんです…','裏通りの奥、地下に洞窟が広がっているらしくて…何かがいる気がします。気をつけて。'] },
       G: { type:'guild' },
       S: { type:'save' }
     }
   },
   field1: {
-    name: '商店街裏通り',
+    name: '下北沢の地下洞窟',
+    cave: true,
     encounterRate: 0.12,
     tiles: [
       "##############",
       "#............#",
-      "#.##.....##..#",
+      "#.##..L..##..#",
       "#d...#....#..#",
-      "#.##.....##..#",
+      "#.##..L..##..#",
       "#........I...#",
-      "#.####.####..#",
+      "#.####L####..#",
       "#............B",
       "##############"
     ],
     entry: { x:1, y:1 },
     exits: { d: { toArea:'town', x:12, y:7 } },
-    npcs: { I: { type:'item', itemId:'herb', lines:['商店の隅に何か落ちている…'] } }
+    npcs: { I: { type:'item', itemId:'herb', lines:['岩の隙間に苔むした薬草が生えている…'] } }
   },
   final: {
-    name: '光の失われた本通り',
+    name: '洞窟の最奥',
+    cave: true,
     encounterRate: 0.16,
     tiles: [
       "##############",
       "#............#",
-      "#.##.####.##.#",
+      "#.##L####L##.#",
       "#d...#....#..#",
-      "#.##.####.##.#",
-      "#............#",
+      "#.##L####L##.#",
+      "#.....L......#",
       "#.####.####..#",
       "#............F",
       "##############"
@@ -4921,7 +4943,7 @@ function stopRpgGame(){
 }
 function newRpgPartyMember(job){
   const def = RPG_JOB_DEFS[job];
-  return { job, label: def.label, level:1, exp:0, maxHp:def.hp, hp:def.hp, maxMp:def.mp, mp:def.mp, atk:def.atk, def:def.def, mag:def.mag, guard:0 };
+  return { job, label: def.label, level:1, exp:0, maxHp:def.hp, hp:def.hp, maxMp:def.mp, mp:def.mp, atk:def.atk, def:def.def, mag:def.mag, spd:def.spd, guard:0 };
 }
 function rpgExpNeeded(level){ return level*25; }
 function rpgGrowStatsSilent(p, job){
@@ -4930,6 +4952,7 @@ function rpgGrowStatsSilent(p, job){
   p.atk += Math.max(1, Math.round(job.atk*0.12));
   p.def += Math.max(1, Math.round(job.def*0.1));
   p.mag += Math.max(1, Math.round(job.mag*0.12));
+  p.spd += Math.max(1, Math.round(job.spd*0.1));
 }
 function rpgGrowStats(p){
   rpgGrowStatsSilent(p, RPG_JOB_DEFS[p.job]);
@@ -4941,7 +4964,7 @@ function rpgSetJob(memberIdx, job){
   const newDef = RPG_JOB_DEFS[job];
   const hpRatio = p.hp/p.maxHp, mpRatio = p.maxMp>0 ? p.mp/p.maxMp : 1;
   p.job = job; p.label = newDef.label;
-  p.maxHp = newDef.hp; p.maxMp = newDef.mp; p.atk = newDef.atk; p.def = newDef.def; p.mag = newDef.mag;
+  p.maxHp = newDef.hp; p.maxMp = newDef.mp; p.atk = newDef.atk; p.def = newDef.def; p.mag = newDef.mag; p.spd = newDef.spd;
   for(let lv=1; lv<p.level; lv++){ rpgGrowStatsSilent(p, newDef); }
   p.hp = Math.max(1, Math.round(p.maxHp*hpRatio));
   p.mp = Math.round(p.maxMp*mpRatio);
@@ -5027,7 +5050,7 @@ function rpgHandleTile(s, tile){
     rpgStartBattle([RPG_BOSS_FIGHTS[s.areaId]], true, s.areaId);
     return;
   }
-  if(tile==='.'){
+  if(tile==='.' || tile==='L'){
     if(area.encounterRate>0 && Math.random() < area.encounterRate){
       const table = RPG_ENCOUNTER_TABLES[s.areaId];
       if(table && table.length){
@@ -5052,10 +5075,10 @@ function rpgStartBattle(enemyKeys, isBoss, bossKey){
     const def = RPG_ENEMY_DEFS[key];
     const sameKindCount = enemyKeys.filter(k=>k===key).length;
     const suffix = sameKindCount>1 ? String.fromCharCode(65 + enemyKeys.slice(0,i+1).filter(k=>k===key).length - 1) : '';
-    return { defKey:key, name: def.name+suffix, hp:def.hp, maxHp:def.hp, atk:def.atk, def:def.def, mdef:def.mdef, exp:def.exp, gold:def.gold, boss: !!def.boss };
+    return { defKey:key, name: def.name+suffix, hp:def.hp, maxHp:def.hp, atk:def.atk, def:def.def, mdef:def.mdef, spd:def.spd, exp:def.exp, gold:def.gold, boss: !!def.boss };
   });
   s.mode = 'battle';
-  s.battle = { enemies, turnPtr:0, commands:[], pending:null, log:[ isBoss ? `${enemies[0].name}があらわれた!` : '敵があらわれた!' ], isBoss: !!isBoss, bossKey, result:null, rewardText:'' };
+  s.battle = { enemies, turnPtr:0, pending:null, duel:null, enemyPhaseActive:false, enemyPhaseQueue:[], log:[ isBoss ? `${enemies[0].name}があらわれた!` : '敵があらわれた!' ], isBoss: !!isBoss, bossKey, result:null, rewardText:'' };
 }
 function rpgBattleLog(s, text){
   s.battle.log.push(text);
@@ -5071,7 +5094,7 @@ function rpgBattleNextActor(s){
 }
 function rpgAdvanceCommandPhase(s){
   const next = rpgBattleNextActor(s);
-  if(next<0){ rpgResolveRound(s); } else { render(); }
+  if(next<0){ rpgStartEnemyPhase(s); } else { render(); }
 }
 function rpgChooseCommand(cmdType){
   const s = rpgGameState; if(!s || !s.battle) return;
@@ -5104,36 +5127,130 @@ function rpgChooseCommand(cmdType){
     rpgAttemptFlee();
   }
 }
+// ファイヤーエンブレム風の一騎打ち演出: 攻撃側が斬りかかり、生きていれば防御側がすぐさま反撃、
+// 素早さの差が一定以上あれば追撃が発生する。1コマンドごとに即座に解決し、「つづける」で1件ずつ見せていく。
+const RPG_DUEL_SPD_THRESHOLD = 4;
+function rpgDamage(atk, def, guardMul){
+  return Math.max(1, Math.round((atk - def*0.5) * (guardMul||1) + (Math.random()*4-2)));
+}
+function rpgRunDuel(attacker, defender, opts){
+  const guardMul = (opts && opts.guardOnDefender) ? 0.6 : 1;
+  const events = [];
+  let dmg = rpgDamage(attacker.atk, defender.def, guardMul);
+  defender.hp = Math.max(0, defender.hp - dmg);
+  events.push({ side:'attacker', dmg, defeated: defender.hp<=0 });
+  if(defender.hp>0){
+    dmg = rpgDamage(defender.atk, attacker.def, 1);
+    attacker.hp = Math.max(0, attacker.hp - dmg);
+    events.push({ side:'defender', dmg, defeated: attacker.hp<=0 });
+  }
+  if(attacker.hp>0 && defender.hp>0){
+    if((attacker.spd||0) - (defender.spd||0) >= RPG_DUEL_SPD_THRESHOLD){
+      dmg = rpgDamage(attacker.atk, defender.def, guardMul);
+      defender.hp = Math.max(0, defender.hp - dmg);
+      events.push({ side:'attacker', dmg, defeated: defender.hp<=0, followUp:true });
+    } else if((defender.spd||0) - (attacker.spd||0) >= RPG_DUEL_SPD_THRESHOLD){
+      dmg = rpgDamage(defender.atk, attacker.def, 1);
+      attacker.hp = Math.max(0, attacker.hp - dmg);
+      events.push({ side:'defender', dmg, defeated: attacker.hp<=0, followUp:true });
+    }
+  }
+  return events;
+}
 function rpgQueueAttack(targetIdx){
   const s = rpgGameState; if(!s || !s.battle) return;
   const actorIdx = s.battle.pending ? s.battle.pending.actorIdx : rpgBattleNextActor(s);
-  s.battle.commands.push({ type:'attack', actorIdx, targetIdx });
-  s.battle.turnPtr++;
+  const actor = s.party[actorIdx];
   s.battle.pending = null;
-  rpgAdvanceCommandPhase(s);
+  const target = s.battle.enemies[targetIdx];
+  const realTarget = (target && target.hp>0) ? target : s.battle.enemies.find(e=>e.hp>0);
+  s.battle.turnPtr++;
+  if(!actor || !realTarget){ rpgAdvanceCommandPhase(s); return; }
+  const events = rpgRunDuel(actor, realTarget, {});
+  events.forEach(ev=>{
+    if(ev.side==='attacker') rpgBattleLog(s, `${actor.label}のこうげき!${ev.followUp?'(追撃)':''} ${realTarget.name}に${ev.dmg}のダメージ!${ev.defeated?` ${realTarget.name}をたおした!`:''}`);
+    else rpgBattleLog(s, `${realTarget.name}のはんげき!${ev.followUp?'(追撃)':''} ${actor.label}に${ev.dmg}のダメージ!${ev.defeated?` ${actor.label}はたおれた…`:''}`);
+  });
+  s.battle.duel = {
+    leftLabel: actor.label, leftSide:'party', leftIcon: RPG_JOB_ICONS[actor.job]||'🧑', leftHp: Math.max(0,actor.hp), leftMaxHp: actor.maxHp,
+    rightLabel: realTarget.name, rightSide:'enemy', rightIcon: RPG_ENEMY_ICONS[realTarget.defKey]||'👹', rightHp: Math.max(0,realTarget.hp), rightMaxHp: realTarget.maxHp,
+    events
+  };
+  render();
+}
+function rpgResolveSpell(actor, spellKey, targetIdx){
+  const s = rpgGameState; if(!s || !s.battle) return;
+  const spell = RPG_SPELLS[spellKey];
+  actor.mp -= spell.mpCost;
+  let duel = null;
+  if(spell.target==='enemy'){
+    const target = s.battle.enemies[targetIdx];
+    const realTarget = (target && target.hp>0) ? target : s.battle.enemies.find(e=>e.hp>0);
+    if(realTarget){
+      const dmg = Math.max(1, Math.round(actor.mag*spell.power - realTarget.mdef*0.3));
+      realTarget.hp = Math.max(0, realTarget.hp - dmg);
+      rpgBattleLog(s, `${actor.label}の${spell.label}! ${realTarget.name}に${dmg}のダメージ!${realTarget.hp<=0?` ${realTarget.name}をたおした!`:''}`);
+      duel = { leftLabel:actor.label, leftSide:'party', leftIcon:RPG_JOB_ICONS[actor.job]||'🧑', leftHp:Math.max(0,actor.hp), leftMaxHp:actor.maxHp,
+        rightLabel:realTarget.name, rightSide:'enemy', rightIcon:RPG_ENEMY_ICONS[realTarget.defKey]||'👹', rightHp:Math.max(0,realTarget.hp), rightMaxHp:realTarget.maxHp,
+        events:[{ side:'attacker', dmg, defeated:realTarget.hp<=0 }] };
+    }
+  } else if(spell.target==='ally'){
+    const target = s.party[targetIdx];
+    if(target && target.hp>0){
+      const heal = Math.max(3, Math.round(actor.mag*spell.power));
+      target.hp = Math.min(target.maxHp, target.hp+heal);
+      rpgBattleLog(s, `${actor.label}の${spell.label}! ${target.label}のHPが${heal}回復!`);
+      duel = { leftLabel:actor.label, leftSide:'party', leftIcon:RPG_JOB_ICONS[actor.job]||'🧑', leftHp:Math.max(0,actor.hp), leftMaxHp:actor.maxHp,
+        rightLabel:target.label, rightSide:'party', rightIcon:RPG_JOB_ICONS[target.job]||'🧑', rightHp:Math.max(0,target.hp), rightMaxHp:target.maxHp,
+        events:[{ side:'attacker', heal, defeated:false }] };
+    }
+  } else if(spell.target==='partyBuff'){
+    s.party.forEach(p=>{ if(p.hp>0) p.guard = (p.guard||0)+1; });
+    rpgBattleLog(s, `${actor.label}の${spell.label}! みかたの防御力が上がった!`);
+    duel = { leftLabel:actor.label, leftSide:'party', leftIcon:RPG_JOB_ICONS[actor.job]||'🧑', leftHp:Math.max(0,actor.hp), leftMaxHp:actor.maxHp,
+      rightLabel:'パーティー全体', rightSide:'party', rightIcon:'🛡️', rightHp:null, rightMaxHp:null,
+      events:[{ side:'attacker', buff:true, defeated:false }] };
+  }
+  s.battle.turnPtr++;
+  s.battle.duel = duel;
+  render();
 }
 function rpgQueueItem(targetIdx){
   const s = rpgGameState; if(!s || !s.battle) return;
   const actorIdx = s.battle.pending ? s.battle.pending.actorIdx : rpgBattleNextActor(s);
-  s.battle.commands.push({ type:'item', actorIdx, targetIdx });
-  s.battle.turnPtr++;
+  const actor = s.party[actorIdx];
   s.battle.pending = null;
-  rpgAdvanceCommandPhase(s);
+  s.battle.turnPtr++;
+  if((s.inventory.herb||0)<=0){ rpgAdvanceCommandPhase(s); return; }
+  const target = s.party[targetIdx];
+  let duel = null;
+  if(target && target.hp>0){
+    s.inventory.herb -= 1;
+    const heal = 18;
+    target.hp = Math.min(target.maxHp, target.hp+heal);
+    rpgBattleLog(s, `${actor.label}はげんき草をつかった! ${target.label}のHPが${heal}回復!`);
+    duel = { leftLabel:actor.label, leftSide:'party', leftIcon:RPG_JOB_ICONS[actor.job]||'🧑', leftHp:Math.max(0,actor.hp), leftMaxHp:actor.maxHp,
+      rightLabel:target.label, rightSide:'party', rightIcon:RPG_JOB_ICONS[target.job]||'🧑', rightHp:Math.max(0,target.hp), rightMaxHp:target.maxHp,
+      events:[{ side:'attacker', heal, defeated:false }] };
+  }
+  s.battle.duel = duel;
+  render();
 }
 function rpgPickSpell(spellKey){
   const s = rpgGameState; if(!s || !s.battle || !s.battle.pending) return;
   const pend = s.battle.pending;
   const spell = RPG_SPELLS[spellKey];
+  const actor = s.party[pend.actorIdx];
   if(spell.target==='partyBuff'){
-    s.battle.commands.push({ type:'spell', actorIdx:pend.actorIdx, spellKey, targetIdx:null });
-    s.battle.turnPtr++; s.battle.pending=null; rpgAdvanceCommandPhase(s);
+    s.battle.pending = null;
+    rpgResolveSpell(actor, spellKey, null);
     return;
   }
   const pool = spell.target==='ally' ? s.party.filter(p=>p.hp>0) : s.battle.enemies.filter(e=>e.hp>0);
   if(pool.length===1){
     const targetIdx = spell.target==='ally' ? s.party.indexOf(pool[0]) : s.battle.enemies.indexOf(pool[0]);
-    s.battle.commands.push({ type:'spell', actorIdx:pend.actorIdx, spellKey, targetIdx });
-    s.battle.turnPtr++; s.battle.pending=null; rpgAdvanceCommandPhase(s);
+    s.battle.pending = null;
+    rpgResolveSpell(actor, spellKey, targetIdx);
   } else {
     s.battle.pending = { actorIdx:pend.actorIdx, step:'targetPick', kind:'spell', spellKey };
     render();
@@ -5145,8 +5262,9 @@ function rpgPickTarget(targetIdx){
   if(pend.kind==='attack') rpgQueueAttack(targetIdx);
   else if(pend.kind==='item') rpgQueueItem(targetIdx);
   else if(pend.kind==='spell'){
-    s.battle.commands.push({ type:'spell', actorIdx:pend.actorIdx, spellKey:pend.spellKey, targetIdx });
-    s.battle.turnPtr++; s.battle.pending=null; rpgAdvanceCommandPhase(s);
+    const actor = s.party[pend.actorIdx];
+    s.battle.pending = null;
+    rpgResolveSpell(actor, pend.spellKey, targetIdx);
   }
 }
 function rpgAttemptFlee(){
@@ -5159,84 +5277,54 @@ function rpgAttemptFlee(){
     render();
   } else {
     rpgBattleLog(s, 'にげられなかった!');
-    s.battle.commands = [];
     s.battle.turnPtr = s.party.length;
-    rpgResolveRound(s);
+    rpgStartEnemyPhase(s);
   }
 }
 function rpgCloseFleeResult(){ const s = rpgGameState; if(!s) return; s.mode='field'; s.battle=null; render(); }
-function rpgResolveRound(s){
-  s.battle.commands.forEach(cmd=>{
-    const actor = s.party[cmd.actorIdx];
-    if(!actor || actor.hp<=0) return;
-    if(cmd.type==='attack'){
-      const target = s.battle.enemies[cmd.targetIdx];
-      const realTarget = (target && target.hp>0) ? target : s.battle.enemies.find(e=>e.hp>0);
-      if(!realTarget) return;
-      const dmg = Math.max(1, Math.round(actor.atk - realTarget.def*0.5 + (Math.random()*4-2)));
-      realTarget.hp = Math.max(0, realTarget.hp - dmg);
-      rpgBattleLog(s, `${actor.label}のこうげき! ${realTarget.name}に${dmg}のダメージ!`);
-      if(realTarget.hp<=0) rpgBattleLog(s, `${realTarget.name}をたおした!`);
-    } else if(cmd.type==='spell'){
-      const spell = RPG_SPELLS[cmd.spellKey];
-      if(actor.mp < spell.mpCost){ rpgBattleLog(s, `${actor.label}はMPが足りない!`); return; }
-      actor.mp -= spell.mpCost;
-      if(spell.target==='enemy'){
-        const target = s.battle.enemies[cmd.targetIdx];
-        const realTarget = (target && target.hp>0) ? target : s.battle.enemies.find(e=>e.hp>0);
-        if(!realTarget) return;
-        const dmg = Math.max(1, Math.round(actor.mag*spell.power - realTarget.mdef*0.3));
-        realTarget.hp = Math.max(0, realTarget.hp - dmg);
-        rpgBattleLog(s, `${actor.label}の${spell.label}! ${realTarget.name}に${dmg}のダメージ!`);
-        if(realTarget.hp<=0) rpgBattleLog(s, `${realTarget.name}をたおした!`);
-      } else if(spell.target==='ally'){
-        const target = s.party[cmd.targetIdx];
-        if(!target || target.hp<=0) return;
-        const heal = Math.max(3, Math.round(actor.mag*spell.power));
-        target.hp = Math.min(target.maxHp, target.hp+heal);
-        rpgBattleLog(s, `${actor.label}の${spell.label}! ${target.label}のHPが${heal}回復!`);
-      } else if(spell.target==='partyBuff'){
-        s.party.forEach(p=>{ if(p.hp>0) p.guard = (p.guard||0)+1; });
-        rpgBattleLog(s, `${actor.label}の${spell.label}! みかたの防御力が上がった!`);
-      }
-    } else if(cmd.type==='item'){
-      if((s.inventory.herb||0)<=0) return;
-      const target = s.party[cmd.targetIdx];
-      if(!target || target.hp<=0) return;
-      s.inventory.herb -= 1;
-      const heal = 18;
-      target.hp = Math.min(target.maxHp, target.hp+heal);
-      rpgBattleLog(s, `${actor.label}はげんき草をつかった! ${target.label}のHPが${heal}回復!`);
-    }
-  });
-  s.battle.commands = [];
-
-  if(s.battle.enemies.every(e=>e.hp<=0)){
-    rpgBattleVictory(s);
+function rpgStartEnemyPhase(s){
+  const aliveEnemyIdx = s.battle.enemies.map((e,i)=>i).filter(i=>s.battle.enemies[i].hp>0);
+  if(aliveEnemyIdx.length===0){ rpgBattleVictory(s); return; }
+  s.battle.enemyPhaseQueue = aliveEnemyIdx;
+  s.battle.enemyPhaseActive = true;
+  rpgRunNextEnemyStep(s);
+}
+function rpgRunNextEnemyStep(s){
+  if(!s.battle.enemyPhaseQueue.length){
+    s.battle.enemyPhaseActive = false;
+    s.party.forEach(p=>{ if(p.guard) p.guard = 0; });
+    if(s.party.every(p=>p.hp<=0)){ rpgBattleDefeat(s); return; }
+    s.battle.turnPtr = 0;
+    s.battle.pending = null;
+    render();
     return;
   }
-
-  s.battle.enemies.forEach(e=>{
-    if(e.hp<=0) return;
-    const aliveAllies = s.party.filter(p=>p.hp>0);
-    if(aliveAllies.length===0) return;
-    const target = aliveAllies[Math.floor(Math.random()*aliveAllies.length)];
-    const guardMul = target.guard>0 ? 0.6 : 1;
-    const dmg = Math.max(1, Math.round((e.atk - target.def*0.5) * guardMul + (Math.random()*3-1)));
-    target.hp = Math.max(0, target.hp - dmg);
-    rpgBattleLog(s, `${e.name}のこうげき! ${target.label}に${dmg}のダメージ!`);
-    if(target.hp<=0) rpgBattleLog(s, `${target.label}はたおれた…`);
+  const idx = s.battle.enemyPhaseQueue.shift();
+  const e = s.battle.enemies[idx];
+  if(e.hp<=0){ rpgRunNextEnemyStep(s); return; }
+  const aliveAllies = s.party.filter(p=>p.hp>0);
+  if(aliveAllies.length===0){ rpgBattleDefeat(s); return; }
+  const target = aliveAllies[Math.floor(Math.random()*aliveAllies.length)];
+  const guardOnDefender = target.guard>0;
+  const events = rpgRunDuel(e, target, { guardOnDefender });
+  events.forEach(ev=>{
+    if(ev.side==='attacker') rpgBattleLog(s, `${e.name}のこうげき!${ev.followUp?'(追撃)':''} ${target.label}に${ev.dmg}のダメージ!${ev.defeated?` ${target.label}はたおれた…`:''}`);
+    else rpgBattleLog(s, `${target.label}のはんげき!${ev.followUp?'(追撃)':''} ${e.name}に${ev.dmg}のダメージ!${ev.defeated?` ${e.name}をたおした!`:''}`);
   });
-  s.party.forEach(p=>{ if(p.guard) p.guard = 0; });
-
-  if(s.party.every(p=>p.hp<=0)){
-    rpgBattleDefeat(s);
-    return;
-  }
-
-  s.battle.turnPtr = 0;
-  s.battle.pending = null;
+  s.battle.duel = {
+    leftLabel: e.name, leftSide:'enemy', leftIcon: RPG_ENEMY_ICONS[e.defKey]||'👹', leftHp: Math.max(0,e.hp), leftMaxHp: e.maxHp,
+    rightLabel: target.label, rightSide:'party', rightIcon: RPG_JOB_ICONS[target.job]||'🧑', rightHp: Math.max(0,target.hp), rightMaxHp: target.maxHp,
+    events
+  };
   render();
+}
+function rpgContinueAfterDuel(){
+  const s = rpgGameState; if(!s || !s.battle) return;
+  s.battle.duel = null;
+  if(s.battle.enemies.every(e=>e.hp<=0)){ rpgBattleVictory(s); return; }
+  if(s.party.every(p=>p.hp<=0)){ rpgBattleDefeat(s); return; }
+  if(s.battle.enemyPhaseActive){ rpgRunNextEnemyStep(s); }
+  else { rpgAdvanceCommandPhase(s); }
 }
 function rpgBattleVictory(s){
   const totalExp = s.battle.enemies.reduce((a,e)=>a+e.exp,0);
@@ -5313,14 +5401,46 @@ function rpgRenderMap(s){
       else if(tile==='T'){ cls='rpg-tile-npc'; label='🧑'; }
       else if(tile==='G'){ cls='rpg-tile-npc'; label='📘'; }
       else if(tile==='S'){ cls='rpg-tile-save'; label='💺'; }
+      else if(tile==='L'){ cls='rpg-tile-torch'; label='🔥'; }
       else if(tile==='I'){ const taken = areaState.itemsTaken[tile]; cls = taken?'rpg-tile-floor':'rpg-tile-item'; label = taken?'':'🌿'; }
       else if(tile==='B' || tile==='F'){ const cleared = s.storyFlags[s.areaId+'BossCleared']; cls = cleared?'rpg-tile-floor':'rpg-tile-boss'; label = cleared?'':'👹'; }
+      if(area.cave && cls==='rpg-tile-floor' && (x+y)%3===0) cls += ' v2';
       const isPlayer = (x===s.tx && y===s.ty);
       cells += `<div class="rpg-tile ${cls}">${isPlayer?'<span class="rpg-player">🚶</span>':label}</div>`;
     }
     rows += `<div class="rpg-row">${cells}</div>`;
   }
-  return `<div class="rpg-map">${rows}</div>`;
+  return `<div class="rpg-map${area.cave?' cave':''}">${rows}</div>`;
+}
+function rpgRenderDuel(s){
+  const d = s.battle.duel;
+  const renderSide = (label, side, icon, hp, maxHp) => `
+    <div class="rpg-duel-side ${side==='enemy'?'enemy':''}">
+      <div class="rpg-duel-icon">${icon}</div>
+      <div class="rpg-duel-name">${escapeHtml(label)}</div>
+      ${maxHp!=null ? `
+        <div class="rpg-hpbar"><div class="rpg-hpbar-fill ${side==='enemy'?'enemy':''}" style="width:${Math.max(0,hp)/maxHp*100}%;"></div></div>
+        <div class="muted" style="font-size:10px;">HP ${Math.max(0,hp)}/${maxHp}</div>
+      ` : ''}
+    </div>
+  `;
+  return `
+    <h2>⚔️ ${s.battle.isBoss?'ボス戦':'戦闘'}</h2>
+    <div class="rpg-duel-arena">
+      ${renderSide(d.leftLabel, d.leftSide, d.leftIcon, d.leftHp, d.leftMaxHp)}
+      <div class="rpg-duel-vs">VS</div>
+      ${renderSide(d.rightLabel, d.rightSide, d.rightIcon, d.rightHp, d.rightMaxHp)}
+    </div>
+    <div class="rpg-duel-events">
+      ${d.events.map(ev=>{
+        if(ev.buff) return `<div class="rpg-duel-event">🛡️ みかたの防御力が上がった!</div>`;
+        if(ev.heal!=null) return `<div class="rpg-duel-event heal">+${ev.heal} HP回復</div>`;
+        return `<div class="rpg-duel-event dmg">${ev.followUp?'追撃! ':''}${ev.dmg}ダメージ!${ev.defeated?' 撃破!':''}</div>`;
+      }).join('')}
+    </div>
+    <div class="rpg-battle-log">${s.battle.log.slice(-4).map(l=>`<div>${escapeHtml(l)}</div>`).join('')}</div>
+    <button class="btn btn-primary" style="margin-top:10px;" onclick="rpgContinueAfterDuel()">つづける ▶</button>
+  `;
 }
 function rpgRenderBattle(s){
   const b = s.battle;
@@ -5347,6 +5467,9 @@ function rpgRenderBattle(s){
       <div class="banner" style="margin-top:10px;">🏃 うまく逃げ切った!</div>
       <button class="btn btn-primary" style="margin-top:12px;" onclick="rpgCloseFleeResult()">つづける</button>
     `;
+  }
+  if(b.duel){
+    return rpgRenderDuel(s);
   }
   const pend = b.pending;
   let menu = '';
@@ -5402,7 +5525,7 @@ function renderRpgGame(){
     return `
       <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
       <h2>⚔️ 下北沢クロニクル</h2>
-      <div class="muted" style="margin-bottom:10px;">商店街の灯りが少しずつ消えていく…3人の仲間と一緒に下北沢の裏通りを巡り、謎の存在に立ち向かうコマンド選択式のRPGです。戦って経験値を貯め、ギルドで転職しながら、灯りを取り戻しましょう。進行状況は保存されず、画面を出入りするたびに最初からになります。</div>
+      <div class="muted" style="margin-bottom:10px;">商店街の灯りが少しずつ消えていく…3人の仲間と一緒に下北沢の裏通りの奥に広がる地下洞窟を探検し、謎の存在に立ち向かうコマンド選択式のRPGです。戦闘は横に並んで斬り結ぶ一騎打ちスタイルで、素早さの差が大きいと追撃も発生します。経験値を貯め、ギルドで転職しながら、灯りを取り戻しましょう。進行状況は保存されず、画面を出入りするたびに最初からになります。</div>
       <div class="invader-controls">
         <button class="btn btn-primary" onclick="initRpgGame()">⚔️ 冒険をはじめる</button>
       </div>
@@ -5411,7 +5534,7 @@ function renderRpgGame(){
   if(s.mode==='ending'){
     return `
       <h2 style="text-align:center;margin-top:24px;">✨ 灯りが戻った ✨</h2>
-      <div class="muted" style="text-align:center;max-width:280px;margin:0 auto 16px;line-height:1.9;">「灯りを喰らう者」を倒し、下北沢一番街商店街に、いつもの灯りが戻ってきた。<br>3人(と、途中で加わった1人)の冒険は、ひとまずここで幕を閉じる――。</div>
+      <div class="muted" style="text-align:center;max-width:280px;margin:0 auto 16px;line-height:1.9;">洞窟の最奥で「灯りを喰らう者」を倒すと、下北沢一番街商店街に、いつもの灯りが戻ってきた。<br>3人(と、途中で加わった1人)の冒険は、ひとまずここで幕を閉じる――。</div>
       <div style="text-align:center;" class="muted">最終レベル: ${s.party.map(p=>`${p.label}Lv${p.level}`).join(' / ')}</div>
       <div class="invader-controls" style="margin-top:20px;">
         <button class="btn btn-primary" onclick="initRpgGame()">もう一度あそぶ</button>
