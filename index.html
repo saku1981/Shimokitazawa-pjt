@@ -239,7 +239,19 @@
   .rpg-map.cave .rpg-tile-floor.v2{background:#3c372d;}
   .rpg-map.cave .rpg-tile-door{background:#5a4326;}
   .rpg-player{font-size:14px;}
+  #smtOverworldMap{transition:filter .8s ease;}
   #smtOverworldMap.y2k-sepia{filter:sepia(0.75) contrast(1.08) brightness(0.92) saturate(1.35) hue-rotate(-6deg);}
+  @keyframes smtEraFlash{0%{opacity:0;}30%{opacity:1;}100%{opacity:0;}}
+  .smt-era-flash{position:absolute;inset:0;background:radial-gradient(circle,rgba(224,196,88,.55),rgba(224,196,88,0) 70%);
+    pointer-events:none;animation:smtEraFlash .8s ease-out;z-index:5;}
+  @keyframes smtBossGlow{0%,100%{filter:drop-shadow(0 0 4px rgba(255,120,80,.55));}50%{filter:drop-shadow(0 0 15px rgba(255,120,80,.95));}}
+  .smt-boss-glow{animation:smtBossGlow 1.6s ease-in-out infinite;}
+  @keyframes smtMysteryPulse{0%,100%{opacity:.65;}50%{opacity:1;}}
+  .smt-archive-mystery{animation:smtMysteryPulse 2.4s ease-in-out infinite;}
+  @keyframes smtFadeInUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+  .smt-fade-in{animation:smtFadeInUp .3s ease both;}
+  @keyframes smtBadgePop{0%{transform:scale(.5);opacity:0;}60%{transform:scale(1.12);opacity:1;}100%{transform:scale(1);opacity:1;}}
+  .smt-archive-badge{display:inline-block;animation:smtBadgePop .4s ease-out;}
   .rpg-duel-arena{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:10px 0;padding:16px 8px;
     background:linear-gradient(180deg,#1c2a1c,#0f1a0f);border:1px solid var(--line);border-radius:12px;}
   .rpg-duel-side{flex:1;text-align:center;}
@@ -7087,6 +7099,8 @@ function y2000ToggleEra(){
   const s = smtGameState;
   if(!s || s.stage!=='overworld') return;
   s.era = s.era==='today' ? 'y2000' : 'today';
+  s.eraFlash = true; // 演出:切り替え時に地図の上を淡いフラッシュが一度だけ流れる(renderSmtGameで消費)
+  smtVibrate(8);
   render();
 }
 function y2000VisitSpot(spot){
@@ -7095,6 +7109,7 @@ function y2000VisitSpot(spot){
   s.y2000.visited[spot.id] = true;
   s.y2000.pendingFlavor = spot;
   s.stage = 'y2000Dialogue';
+  smtVibrate(14);
   render();
 }
 function y2000CloseDialogue(){
@@ -7104,8 +7119,16 @@ function y2000CloseDialogue(){
   const effectText = flavor ? y2000ApplyReward(s, flavor.reward) : '';
   s.y2000.lastFlavorEffect = effectText;
   s.stage = 'overworld';
+  const visitedCount = Object.values(s.y2000.visited).filter(Boolean).length;
+  let finalMsg = effectText;
+  if(visitedCount === Y2K_SPOTS.length && !s.y2000.archiveCompleteAwarded){
+    s.y2000.archiveCompleteAwarded = true;
+    s.gold += 30;
+    smtVibrate([10,30,10,30,10,30,80]);
+    finalMsg = `${effectText ? effectText+' ／ ' : ''}🏅 街の記録帳コンプリート!(+30G)`;
+  }
   render();
-  if(effectText) toast(effectText);
+  if(finalMsg) toast(finalMsg);
 }
 function y2000OpenArchive(){
   const s = smtGameState;
@@ -7184,11 +7207,13 @@ function newSmtGame(){
     lastClearedName: null, lastClearedZone: null, lastWasBoss: false, lastGoldGain: 0,
     lastClearedEra: null,
     lastVictoryLine: null,
+    eraFlash: false,
     y2000: {
       visited: {},
       clearedZones: { market:false, ichibangai:false, chazawa:false },
       pendingFlavor: null,
-      lastFlavorEffect: null
+      lastFlavorEffect: null,
+      archiveCompleteAwarded: false
     }
   };
 }
@@ -7199,6 +7224,10 @@ function startSmtGame(){
 function restartSmtGame(){ stopSmtGameMap(); smtGameState = null; render(); }
 function smtMaxIcons(s){
   return Math.min(4, 2 + Math.floor(s.recruited.length/2));
+}
+function smtVibrate(pattern){
+  // 演出用の軽い振動フィードバック。非対応環境やPCブラウザでは何もしない(安全に無視される)。
+  try{ if(navigator && typeof navigator.vibrate === 'function') navigator.vibrate(pattern); }catch(e){}
 }
 function smtDistMeters(lat1, lng1, lat2, lng2){
   const dLat = (lat2-lat1) * 111320;
@@ -7270,6 +7299,7 @@ function smtStartEncounter(def){
   s.defending = false;
   s.log = [];
   s.lastResolvedViaTalk = false;
+  smtVibrate(def.isBoss ? [15,40,15] : 10);
   render();
 }
 function smtProceedAfterVictory(){
@@ -7515,6 +7545,7 @@ function smtAdvanceAfterClear(){
   s.lastClearedEra = cleared.era || 'today';
   s.lastWasBoss = cleared.isBoss;
   s.lastVictoryLine = cleared.victoryLine || null;
+  if(cleared.isBoss && !s.lastResolvedViaTalk) smtVibrate([10,30,10,30,80]);
   const goldGain = s.lastResolvedViaTalk ? 0 : (cleared.isBoss ? 25 : 8);
   s.gold += goldGain;
   s.lastGoldGain = goldGain;
@@ -7570,6 +7601,7 @@ function smtAction(action, element){
     enemy.hp = Math.max(0, enemy.hp - r.dmg);
     outcome = r.outcome;
     s.enemyHitFlash = true;
+    smtVibrate(12);
     msgs.push(`⚔️ ${r.dmg}のダメージ!${r.tag}`);
   } else if(action==='magic'){
     const spell = SMT_SPELLS[element];
@@ -7581,6 +7613,7 @@ function smtAction(action, element){
     enemy.hp = Math.max(0, enemy.hp - r.dmg);
     outcome = r.outcome;
     s.enemyHitFlash = true;
+    smtVibrate(12);
     msgs.push(`${spell.label}! ${r.dmg}のダメージ!${r.tag}`);
   } else if(action==='defend'){
     s.defending = true;
@@ -7619,6 +7652,7 @@ function smtAction(action, element){
   if(s.defending){ edmg = Math.floor(edmg/2); }
   player.hp = Math.max(0, player.hp - edmg);
   s.playerHitFlash = true;
+  smtVibrate(player.hp <= 0 ? [20,50,20,50,120] : 22);
   msgs.push(`${enemy.name}の${isStrong?'強攻撃':'攻撃'}! ${edmg}のダメージを受けた`);
   s.defending = false;
   s.icons = smtMaxIcons(s);
@@ -7680,7 +7714,7 @@ function renderSmtGame(){
   if(!s){
     return `
       ${header}
-      <div class="revenge-story-box">
+      <div class="revenge-story-box smt-fade-in">
         <p>ある日、下北沢の駅前で不思議な光を見た。</p>
         <p>気がつくと、あなたは時の狭間をさまよう旅人になっていた。目の前に広がるのは、まだ再開発が始まっていない、2000年ごろの下北沢――。</p>
         <p>トタン屋根の食品市場、活気ある一番街、自由な空気の茶沢通り。この街に色濃く残る、闇市の時代から続く記憶に触れながら、時おり現れる不思議な気配と戦ったり、言葉を交わしたりしていく物語。</p>
@@ -7691,6 +7725,10 @@ function renderSmtGame(){
     `;
   }
   if(s.stage==='overworld'){
+    // 演出:era切り替え直後の1回だけ、地図の上に淡いフラッシュを流す。読み出したら即座に
+    // 消費して false に戻すので、以降のHP変化などによる再描画では再発火しない(一回限りの演出)。
+    const showEraFlash = !!s.eraFlash;
+    s.eraFlash = false;
     if(s.era==='y2000'){
       const y = s.y2000;
       const clearedCount = Object.values(y.clearedZones).filter(Boolean).length;
@@ -7713,7 +7751,10 @@ function renderSmtGame(){
         <div class="row" style="justify-content:center;margin-bottom:6px;">
           <span class="tag">🕰️ 2000年編(再開発前)</span>
         </div>
-        <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+        <div style="position:relative;">
+          <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+          ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
+        </div>
         <div class="smt-dpad">
           <div></div>
           <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
@@ -7753,7 +7794,10 @@ function renderSmtGame(){
       <div class="row" style="justify-content:center;margin-bottom:6px;">
         <span class="tag">🏙️ 現在の下北沢</span>
       </div>
-      <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+      <div style="position:relative;">
+        <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+        ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
+      </div>
       <div class="smt-dpad">
         <div></div>
         <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
@@ -7778,7 +7822,7 @@ function renderSmtGame(){
     const v = s.shopVisit;
     return `
       ${header}
-      <div class="revenge-story-box" style="text-align:center;">
+      <div class="revenge-story-box smt-fade-in" style="text-align:center;">
         <div class="smt-zone-label">${escapeHtml(v.name)}${v.genre ? '(' + escapeHtml(v.genre) + ')' : ''}</div>
         <div style="font-size:36px;">🧑‍🍳</div>
         <p style="margin-top:6px;">${escapeHtml(v.line)}</p>
@@ -7847,7 +7891,7 @@ function renderSmtGame(){
     const f = s.y2000.pendingFlavor || { title:'', lines:[] };
     return `
       ${header}
-      <div class="revenge-story-box">
+      <div class="revenge-story-box smt-fade-in">
         <div class="smt-zone-label">🕰️ ${escapeHtml(f.title)}</div>
         ${f.lines.map(l=>`<p>${escapeHtml(l)}</p>`).join('')}
       </div>
@@ -7856,23 +7900,24 @@ function renderSmtGame(){
   }
   if(s.stage==='y2000Archive'){
     const visitedCount = Object.values(s.y2000.visited).filter(Boolean).length;
+    const isComplete = visitedCount === Y2K_SPOTS.length;
     return `
       ${header}
-      <h3 style="margin-top:0;">📖 街の記録帳(${visitedCount}/${Y2K_SPOTS.length})</h3>
+      <h3 style="margin-top:0;">📖 街の記録帳(${visitedCount}/${Y2K_SPOTS.length})${isComplete ? ' <span class="smt-archive-badge">🏅</span>' : ''}</h3>
       <div class="muted" style="margin-bottom:8px;">2000年の下北沢を歩いて見つけた、街の記憶の記録。</div>
       <div class="smt-facility-list">
         ${Y2K_SPOTS.map(spot => {
           const visited = !!s.y2000.visited[spot.id];
           if(!visited){
             return `
-              <div class="smt-facility-card">
+              <div class="smt-facility-card smt-archive-mystery">
                 <div class="row between"><b>❔ ???</b><span class="muted">未発見</span></div>
                 <div class="muted" style="margin-top:4px;">この街のどこかに、まだ見ぬ記憶が眠っているようだ。</div>
               </div>
             `;
           }
           return `
-            <div class="smt-facility-card">
+            <div class="smt-facility-card smt-fade-in">
               <div class="row between"><b>🕰️ ${escapeHtml(spot.title)}</b><span class="muted">発見済み</span></div>
               ${spot.lines.map(l=>`<p style="margin:4px 0;">${escapeHtml(l)}</p>`).join('')}
             </div>
@@ -7890,7 +7935,7 @@ function renderSmtGame(){
       : '戦うことも、言葉を交わすことも、その時々で選んできたあなたの歩みは、この街の懐の深さと少し似ていた。闇市から商店街へ、商店街から自由な文化の街へ――下北沢は、いつも複数の顔を同時に持ちながら、姿を変え続けてきたのだろう。';
     return `
       ${header}
-      <div class="revenge-story-box">
+      <div class="revenge-story-box smt-fade-in">
         <p>3つのエリアに残っていた、時の狭間の気配がすべて静まった。</p>
         <p>目の前がまぶしく光り、気がつくと、あなたは現在の下北沢に立っていた。</p>
         <p>この街はこのあと、駅の地下化や再開発を経て、少しずつ姿を変えていくことになる。けれど路地の匂いや人のざわめきは、きっと今も、どこかに残り続けている。</p>
@@ -7905,9 +7950,9 @@ function renderSmtGame(){
     const e = s.enemy;
     return `
       ${header}
-      <div class="revenge-story-box" style="text-align:center;">
+      <div class="revenge-story-box smt-fade-in" style="text-align:center;">
         <div class="smt-zone-label">${escapeHtml(e.zone)}</div>
-        <div style="font-size:40px;">${e.sprite}</div>
+        <div style="font-size:40px;"${e.isBoss ? ' class="smt-boss-glow"' : ''}>${e.sprite}</div>
         <p style="margin-top:6px;">${escapeHtml(e.name)}が現れた!</p>
         ${e.isBoss ? `<p class="muted" style="margin-top:2px;">${escapeHtml(e.introLine || (e.era==='y2000' ? '時の狭間に浮かぶ、重要な気配のようだ。' : 'この先の結界の要だ。'))}</p>` : ''}
       </div>
@@ -7927,7 +7972,7 @@ function renderSmtGame(){
       : `${e.name}は、こちらの気配に気づき、牙をむいた!`;
     return `
       ${header}
-      <div class="revenge-story-box">
+      <div class="revenge-story-box smt-fade-in">
         <p>${escapeHtml(text)}</p>
       </div>
       <button class="btn btn-primary" style="margin-top:12px;" onclick="smtNegotiateContinue()">${s.negotiateOutcome==='angry' ? '身構える' : '先に進む'}</button>
@@ -7936,7 +7981,7 @@ function renderSmtGame(){
   if(s.stage==='gameover'){
     return `
       ${header}
-      <div class="revenge-story-box">
+      <div class="revenge-story-box smt-fade-in">
         <p>意識が、闇に飲まれていく――</p>
       </div>
       <div class="banner" style="margin-top:10px;">💀 力及ばず、倒れてしまった</div>
@@ -7946,7 +7991,7 @@ function renderSmtGame(){
   if(s.stage==='ending'){
     return `
       ${header}
-      <div class="revenge-story-box">
+      <div class="revenge-story-box smt-fade-in">
         <p>最後の結界が砕け散り、下北沢に陽の光が戻ってくる。</p>
         <p>街の人々の声が、少しずつ戻り始めた。</p>
         <p class="muted" style="margin-top:8px;">仲魔にした悪魔: ${s.recruited.length ? s.recruited.map(escapeHtml).join('、') : 'なし'}</p>
@@ -7965,7 +8010,7 @@ function renderSmtGame(){
       : '道の先が、少しだけ開けたようだ。';
     return `
       ${header}
-      <div class="revenge-story-box">
+      <div class="revenge-story-box smt-fade-in">
         <p>${s.lastResolvedViaTalk ? escapeHtml(s.lastClearedName)+'は静かに去っていった。' : escapeHtml(s.lastClearedName)+'を退けた。'}</p>
         <p>${escapeHtml(text)}</p>
         ${s.lastGoldGain ? `<p class="muted">💰 +${s.lastGoldGain}G</p>` : ''}
@@ -7986,7 +8031,7 @@ function renderSmtGame(){
     <div class="revenge-battle-wrap">
       <div class="revenge-enemy">
         <div class="smt-zone-label">${escapeHtml(enemy.zone)} ・ 弱点:${smtElementLabel(enemy.weak)} 耐性:${smtElementLabel(enemy.resist)}</div>
-        <div class="revenge-enemy-sprite${s.enemyHitFlash ? ' smt-hit-flash' : ''}">${enemy.sprite}</div>
+        <div class="revenge-enemy-sprite${s.enemyHitFlash ? ' smt-hit-flash' : ''}${enemy.isBoss ? ' smt-boss-glow' : ''}">${enemy.sprite}</div>
         <div class="revenge-enemy-name">${escapeHtml(enemy.name)}</div>
         <div class="revenge-hp-bar"><div class="revenge-hp-fill" style="width:${enemyHpPct}%;"></div></div>
         <div class="muted" style="font-size:11px;">${enemy.hp} / ${enemy.maxHp}</div>
