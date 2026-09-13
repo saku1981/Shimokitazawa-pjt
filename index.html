@@ -6984,7 +6984,8 @@ function renderKmGame(){
 }
 
 /* ===================== 下北沢開発プロジェクト(店主開放・遊びのみ) =====================
-   「現在編」と「2000年編」を切り替えながら遊ぶタイムワープ探索ミニRPG。
+   「2000年編(再開発前)」を主役に据えたタイムワープ探索ミニRPG。ゲーム開始時は
+   常に2000年編から始まり、プレイ中にボタンひとつで「現在編」にも切り替えられる。
    地図は現在編・2000年編とも同じ実際の下北沢の地図(下北沢マップと同じOpenStreetMap
    ベース・同じ座標系)を使う。2000年編では地図全体にセピア調のフィルターをかけ、
    表示するお店マーカーだけを、下北沢マップの実在店舗ではなく、再開発が始まる前
@@ -6995,6 +6996,10 @@ function renderKmGame(){
    回復やアイテム・武器・魔力などのボーナスが1スポットにつき1回もらえる。
    戦うか話しかけるかの選択はロウ(秩序・右回り)/カオス(自由・左回り)という属性の
    ゲージに影響し、プレイヤーのアイコンの色と回転方向に反映される。
+   2000年編は3体のボスそれぞれに固有の遭遇時セリフ・撃破後セリフを持たせ、
+   「闇市の名残」「迫りくる再開発計画」「移りゆく時間そのもの」という3つの
+   小さな物語として語られるようにしている。最終エンディングもロウ/カオスの
+   傾向によって結びの一文が変わる。
    オリジナルのストーリー・悪魔データ、特定作品のキャラクターやマップをそのまま
    使ってはいない。実在の人物名は登場しない。進行状況は保存されず、画面を離れると
    最初からになる。
@@ -7030,11 +7035,17 @@ const Y2K_SPOTS = [
 ];
 const Y2K_ENCOUNTERS_ARR = [
   { corridor:'market', zone:'駅前食品市場', name:'担ぎ屋の亡霊', sprite:'🏮', maxHp:28, atkMin:4, atkMax:7, strongChance:0.18, strongMin:9, strongMax:13, isBoss:false, canNegotiate:true, weak:'fire', resist:'ice', era:'y2000' },
-  { corridor:'market', zone:'駅前食品市場', name:'闇市の元締めの影', sprite:'🕯️', maxHp:70, atkMin:6, atkMax:10, strongChance:0.28, strongMin:15, strongMax:20, isBoss:true, canNegotiate:false, weak:'elec', resist:'fire', era:'y2000' },
+  { corridor:'market', zone:'駅前食品市場', name:'闇市の元締めの影', sprite:'🕯️', maxHp:70, atkMin:6, atkMax:10, strongChance:0.28, strongMin:15, strongMax:20, isBoss:true, canNegotiate:false, weak:'elec', resist:'fire', era:'y2000',
+    introLine:'路地の奥から、値切り交渉の怒声のような気配が立ち上る。焼け跡から市場を築き上げ、長くこの一帯を仕切ってきた者の残像らしい。',
+    victoryLine:'気配は値切り声のようなものを最後に残し、静かに薄れて消えていく。駅前食品市場に、久しぶりの静けさが戻った。' },
   { corridor:'ichibangai', zone:'一番街', name:'露天商のなごり', sprite:'🧺', maxHp:34, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:14, isBoss:false, canNegotiate:true, weak:'ice', resist:'phys', era:'y2000' },
-  { corridor:'ichibangai', zone:'一番街', name:'再開発計画のまぼろし', sprite:'📐', maxHp:90, atkMin:7, atkMax:11, strongChance:0.3, strongMin:18, strongMax:24, isBoss:true, canNegotiate:false, weak:'force', resist:'elec', era:'y2000' },
+  { corridor:'ichibangai', zone:'一番街', name:'再開発計画のまぼろし', sprite:'📐', maxHp:90, atkMin:7, atkMax:11, strongChance:0.3, strongMin:18, strongMax:24, isBoss:true, canNegotiate:false, weak:'force', resist:'elec', era:'y2000',
+    introLine:'一番街の空に、まだ見ぬ高層ビルの設計図のような幻影が浮かび上がる。この賑わいをいずれ塗り替えることになる、未来の計画の影のようだ。',
+    victoryLine:'幻影は光の粒になって崩れ、風にさらわれるように消えていく。阿波踊りの掛け声は、もうしばらくこの通りに残ることになりそうだ。' },
   { corridor:'chazawa', zone:'南口・茶沢通り', name:'流行を追う亡霊', sprite:'👗', maxHp:32, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:14, isBoss:false, canNegotiate:true, weak:'elec', resist:'ice', era:'y2000' },
-  { corridor:'chazawa', zone:'南口・茶沢通り', name:'時の踏切番', sprite:'🚦', maxHp:110, atkMin:8, atkMax:13, strongChance:0.32, strongMin:20, strongMax:27, isBoss:true, canNegotiate:false, weak:'fire', resist:'force', era:'y2000' }
+  { corridor:'chazawa', zone:'南口・茶沢通り', name:'時の踏切番', sprite:'🚦', maxHp:110, atkMin:8, atkMax:13, strongChance:0.32, strongMin:20, strongMax:27, isBoss:true, canNegotiate:false, weak:'fire', resist:'force', era:'y2000',
+    introLine:'踏切の警報音が鳴るたび、時間そのものが軋むような気配がする。この街の「今」がいつまで続くのかを、静かに見張ってきた番人なのかもしれない。',
+    victoryLine:'踏切の音は、やがていつも通りのリズムを取り戻していく。茶沢通りのざわめきは、もうしばらくこの時代に留まるようだ。' }
 ];
 const Y2K_ZONE_REGULAR = { market:Y2K_ENCOUNTERS_ARR[0], ichibangai:Y2K_ENCOUNTERS_ARR[2], chazawa:Y2K_ENCOUNTERS_ARR[4] };
 const Y2K_ZONE_BOSS = { market:Y2K_ENCOUNTERS_ARR[1], ichibangai:Y2K_ENCOUNTERS_ARR[3], chazawa:Y2K_ENCOUNTERS_ARR[5] };
@@ -7113,7 +7124,7 @@ function smtElementLabel(el){
 function newSmtGame(){
   return {
     stage: 'overworld',
-    era: 'today',
+    era: 'y2000', // 下北沢開発プロジェクトは2000年編(再開発前)を主役として、常にここから始まる
     defending: false,
     recruited: [],
     player: { hp:65, maxHp:65, mp:22, maxMp:22 },
@@ -7133,6 +7144,7 @@ function newSmtGame(){
     lastResolvedViaTalk: false,
     lastClearedName: null, lastClearedZone: null, lastWasBoss: false, lastGoldGain: 0,
     lastClearedEra: null,
+    lastVictoryLine: null,
     y2000: {
       visited: {},
       clearedZones: { market:false, ichibangai:false, chazawa:false },
@@ -7463,6 +7475,7 @@ function smtAdvanceAfterClear(){
   s.lastClearedZone = cleared.zone;
   s.lastClearedEra = cleared.era || 'today';
   s.lastWasBoss = cleared.isBoss;
+  s.lastVictoryLine = cleared.victoryLine || null;
   const goldGain = s.lastResolvedViaTalk ? 0 : (cleared.isBoss ? 25 : 8);
   s.gold += goldGain;
   s.lastGoldGain = goldGain;
@@ -7630,11 +7643,12 @@ function renderSmtGame(){
       ${header}
       <div class="revenge-story-box">
         <p>ある日、下北沢の駅前で不思議な光を見た。</p>
-        <p>気がつくと、あなたは時の狭間をさまよう旅人になっていた。</p>
-        <p>「現在の下北沢」と「再開発前・2000年の下北沢」を行き来しながら、街の記憶に触れ、時おり現れる不思議な気配と戦ったり、言葉を交わしたりしていく物語。</p>
+        <p>気がつくと、あなたは時の狭間をさまよう旅人になっていた。目の前に広がるのは、まだ再開発が始まっていない、2000年ごろの下北沢――。</p>
+        <p>トタン屋根の食品市場、活気ある一番街、自由な空気の茶沢通り。この街に色濃く残る、闇市の時代から続く記憶に触れながら、時おり現れる不思議な気配と戦ったり、言葉を交わしたりしていく物語。</p>
+        <p class="muted" style="margin-top:6px;">探索の途中でいつでもボタンひとつで「現在の下北沢」にも行き来できます。</p>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">始める</button>
-      <div class="muted" style="margin-top:10px;">現在編・2000年編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編では地図全体がセピア色に変わり、表示される目印も、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、一番街、茶沢通りなど)についての実在の年表をもとにしたオリジナルの一口解説スポットに差し替わります。どちらもエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転に表れます。進行状況は保存されません。</div>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">🕰️ 2000年の下北沢から始める</button>
+      <div class="muted" style="margin-top:10px;">2000年編・現在編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編では地図全体がセピア色に変わり、表示される目印も、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、一番街、茶沢通りなど)についての実在の年表をもとにしたオリジナルの一口解説スポットに差し替わります。3体のボスにはそれぞれ固有の物語があり、倒すたびにこの街の移り変わりが少しずつ見えてきます。どちらの時代もエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転、そして2000年編のエンディングの結びの一文にも表れます。進行状況は保存されません。</div>
     `;
   }
   if(s.stage==='overworld'){
@@ -7799,12 +7813,18 @@ function renderSmtGame(){
     `;
   }
   if(s.stage==='y2000Ending'){
+    const epilogue = s.alignment > 10
+      ? '争わず言葉を交わすよりも、正面から立ち向かうことを選び続けたあなたの歩みは、この街の記憶をひとつずつ確かめるような旅だった。焼け跡から築かれた市場も、組合として認められた商店街も、誰かが正面から向き合い続けてきたからこそ、今に語り継がれているのかもしれない。'
+      : s.alignment < -10
+      ? '正面からぶつかるよりも、言葉を交わすことを選び続けたあなたの歩みは、この街が昔から持っていた「誰にでも開かれた自由さ」そのもののようだった。闇市から自由な古着屋やライブハウスの街へと姿を変えてきたこの街は、きっとそういう歩み方をよく知っている。'
+      : '戦うことも、言葉を交わすことも、その時々で選んできたあなたの歩みは、この街の懐の深さと少し似ていた。闇市から商店街へ、商店街から自由な文化の街へ――下北沢は、いつも複数の顔を同時に持ちながら、姿を変え続けてきたのだろう。';
     return `
       ${header}
       <div class="revenge-story-box">
         <p>3つのエリアに残っていた、時の狭間の気配がすべて静まった。</p>
         <p>目の前がまぶしく光り、気がつくと、あなたは現在の下北沢に立っていた。</p>
         <p>この街はこのあと、駅の地下化や再開発を経て、少しずつ姿を変えていくことになる。けれど路地の匂いや人のざわめきは、きっと今も、どこかに残り続けている。</p>
+        <p style="margin-top:8px;">${epilogue}</p>
         <p class="muted" style="margin-top:8px;">仲魔にした気配: ${s.recruited.length ? s.recruited.map(escapeHtml).join('、') : 'なし'}</p>
       </div>
       <div class="banner" style="margin-top:10px;">🏆 2000年の下北沢、探索完了!</div>
@@ -7818,7 +7838,8 @@ function renderSmtGame(){
       <div class="revenge-story-box" style="text-align:center;">
         <div class="smt-zone-label">${escapeHtml(e.zone)}</div>
         <div style="font-size:40px;">${e.sprite}</div>
-        <p style="margin-top:6px;">${escapeHtml(e.name)}が現れた!${e.isBoss ? (e.era==='y2000' ? '(時の狭間に浮かぶ、重要な気配のようだ)' : '(この先の結界の要だ)') : ''}</p>
+        <p style="margin-top:6px;">${escapeHtml(e.name)}が現れた!</p>
+        ${e.isBoss ? `<p class="muted" style="margin-top:2px;">${escapeHtml(e.introLine || (e.era==='y2000' ? '時の狭間に浮かぶ、重要な気配のようだ。' : 'この先の結界の要だ。'))}</p>` : ''}
       </div>
       <div class="smt-encounter-choice">
         <button class="btn btn-primary" onclick="smtChooseFight()">⚔️ 戦う</button>
@@ -7866,7 +7887,9 @@ function renderSmtGame(){
   }
   if(s.stage==='victory'){
     const text = s.lastWasBoss
-      ? (s.lastClearedEra==='y2000'
+      ? (s.lastVictoryLine
+        ? s.lastVictoryLine
+        : s.lastClearedEra==='y2000'
         ? `${s.lastClearedZone}に残っていた、時の狭間の気配が静まっていく。${s.lastClearedZone}のあたりは静かになった!`
         : `${s.lastClearedZone}を包んでいた結界が、静かに解けていく。${s.lastClearedZone}は解放された!`)
       : '道の先が、少しだけ開けたようだ。';
