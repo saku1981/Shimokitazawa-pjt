@@ -1183,7 +1183,7 @@ const GAMES_HUB_ENTRIES = [
   { screen:'moGame',        icon:'📡', label:'下北沢エイリアン騒動', hidden:true }, // 下北沢クロニクルとゲーム感覚が重複するため、いったん一本化してコードのみ残し非表示
   { screen:'kmGame',        icon:'🤖', label:'下北沢からくり武者伝', hidden:true }, // 同上、いったん一本化してコードのみ残し非表示
   { screen:'hanafudaGame',  icon:'🎴', label:'花札(こいこい)', testOnly:true },
-  { screen:'smtGame',       icon:'🕰️', label:'下北沢開発プロジェクト', testOnly:true }
+  { screen:'smtGame',       icon:'🕰️', label:'下北沢開発プロジェクト' }
 ];
 function renderGamesHub(){
   const store = storeById(state.currentStoreId);
@@ -6983,7 +6983,7 @@ function renderKmGame(){
   `;
 }
 
-/* ===================== 下北沢開発プロジェクト(テスト機能・遊びのみ) =====================
+/* ===================== 下北沢開発プロジェクト(店主開放・遊びのみ) =====================
    「現在編」と「2000年編」を切り替えながら遊ぶタイムワープ探索ミニRPG。
    地図は現在編・2000年編とも同じ実際の下北沢の地図(下北沢マップと同じOpenStreetMap
    ベース・同じ座標系)を使う。2000年編では地図全体にセピア調のフィルターをかけ、
@@ -7622,7 +7622,7 @@ function smtLeaveFacility(){
 }
 function renderSmtGame(){
   const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
-  const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🕰️ 下北沢開発プロジェクト <span class="tag">テスト機能</span></h2>`;
+  const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🕰️ 下北沢開発プロジェクト</h2>`;
   const s = smtGameState;
 
   if(!s){
