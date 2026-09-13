@@ -7015,6 +7015,11 @@ function renderKmGame(){
    もとに7箇所に増量し(駅前市場・駅前広場・一番街・ライブハウス街・劇場・
    茶沢通り・古着屋)、見つけた一口解説は「街の記録帳」画面(y2000Archive)
    でいつでも読み返せるようにしている。
+   戦闘・分岐の深み: ロウ/カオスの属性(smtAlignPerks)は演出だけでなく実際の
+   戦闘数値に反映される。ロウ側(SMT_ALIGN_LAW_THRESHOLD以上)は物理攻撃+2・
+   被ダメージ-10%、カオス側(SMT_ALIGN_CHAOS_THRESHOLD以下)は属性魔法+2・
+   交渉成功率アップ。ボス(今日編・2000年編とも)はHPが50%を切ると一度だけ
+   「覚醒」して攻撃力が上がる(phaseLine/phaseTriggered)。
    オリジナルのストーリー・悪魔データ、特定作品のキャラクターやマップをそのまま
    使ってはいない。実在の人物名は登場しない。進行状況は保存されず、画面を離れると
    最初からになる。
@@ -7076,15 +7081,18 @@ const Y2K_ENCOUNTERS_ARR = [
   { corridor:'market', zone:'駅前食品市場', name:'担ぎ屋の亡霊', sprite:'🏮', maxHp:28, atkMin:4, atkMax:7, strongChance:0.18, strongMin:9, strongMax:13, isBoss:false, canNegotiate:true, weak:'fire', resist:'ice', era:'y2000' },
   { corridor:'market', zone:'駅前食品市場', name:'闇市の元締めの影', sprite:'🕯️', maxHp:70, atkMin:6, atkMax:10, strongChance:0.28, strongMin:15, strongMax:20, isBoss:true, canNegotiate:false, weak:'elec', resist:'fire', era:'y2000',
     introLine:'路地の奥から、値切り交渉の怒声のような気配が立ち上る。焼け跡から市場を築き上げ、長くこの一帯を仕切ってきた者の残像らしい。',
-    victoryLine:'気配は値切り声のようなものを最後に残し、静かに薄れて消えていく。駅前食品市場に、久しぶりの静けさが戻った。' },
+    victoryLine:'気配は値切り声のようなものを最後に残し、静かに薄れて消えていく。駅前食品市場に、久しぶりの静けさが戻った。',
+    phaseLine:'影が濃さを増し、路地の奥からさらに強い気配が立ち上ってくる!' },
   { corridor:'ichibangai', zone:'一番街', name:'露天商のなごり', sprite:'🧺', maxHp:34, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:14, isBoss:false, canNegotiate:true, weak:'ice', resist:'phys', era:'y2000' },
   { corridor:'ichibangai', zone:'一番街', name:'再開発計画のまぼろし', sprite:'📐', maxHp:90, atkMin:7, atkMax:11, strongChance:0.3, strongMin:18, strongMax:24, isBoss:true, canNegotiate:false, weak:'force', resist:'elec', era:'y2000',
     introLine:'一番街の空に、まだ見ぬ高層ビルの設計図のような幻影が浮かび上がる。この賑わいをいずれ塗り替えることになる、未来の計画の影のようだ。',
-    victoryLine:'幻影は光の粒になって崩れ、風にさらわれるように消えていく。阿波踊りの掛け声は、もうしばらくこの通りに残ることになりそうだ。' },
+    victoryLine:'幻影は光の粒になって崩れ、風にさらわれるように消えていく。阿波踊りの掛け声は、もうしばらくこの通りに残ることになりそうだ。',
+    phaseLine:'幻影の輪郭が変わり、まるで完成予想図がより大きく塗り替えられていくようだ!' },
   { corridor:'chazawa', zone:'南口・茶沢通り', name:'流行を追う亡霊', sprite:'👗', maxHp:32, atkMin:5, atkMax:8, strongChance:0.2, strongMin:10, strongMax:14, isBoss:false, canNegotiate:true, weak:'elec', resist:'ice', era:'y2000' },
   { corridor:'chazawa', zone:'南口・茶沢通り', name:'時の踏切番', sprite:'🚦', maxHp:110, atkMin:8, atkMax:13, strongChance:0.32, strongMin:20, strongMax:27, isBoss:true, canNegotiate:false, weak:'fire', resist:'force', era:'y2000',
     introLine:'踏切の警報音が鳴るたび、時間そのものが軋むような気配がする。この街の「今」がいつまで続くのかを、静かに見張ってきた番人なのかもしれない。',
-    victoryLine:'踏切の音は、やがていつも通りのリズムを取り戻していく。茶沢通りのざわめきは、もうしばらくこの時代に留まるようだ。' }
+    victoryLine:'踏切の音は、やがていつも通りのリズムを取り戻していく。茶沢通りのざわめきは、もうしばらくこの時代に留まるようだ。',
+    phaseLine:'警報音が激しさを増し、時間の流れそのものが軋むように速くなる!' }
 ];
 const Y2K_ZONE_REGULAR = { market:Y2K_ENCOUNTERS_ARR[0], ichibangai:Y2K_ENCOUNTERS_ARR[2], chazawa:Y2K_ENCOUNTERS_ARR[4] };
 const Y2K_ZONE_BOSS = { market:Y2K_ENCOUNTERS_ARR[1], ichibangai:Y2K_ENCOUNTERS_ARR[3], chazawa:Y2K_ENCOUNTERS_ARR[5] };
@@ -7238,6 +7246,21 @@ function smtShiftAlignment(delta){
   const s = smtGameState;
   if(!s) return;
   s.alignment = Math.max(-100, Math.min(100, s.alignment + delta));
+}
+const SMT_ALIGN_LAW_THRESHOLD = 30;
+const SMT_ALIGN_CHAOS_THRESHOLD = -30;
+// 分岐の深み: 「戦う」を選び続けてロウ寄りが一定以上強まると、正面から立ち向かう構えが
+// 物理攻撃と防御に、「話しかける」を選び続けてカオス寄りが強まると、自由な発想が属性魔法と
+// 交渉術に、それぞれ実際のバトルの数値として表れるようにしている(見た目・演出だけの分岐に
+// しない)。閾値未満はどちらの補正もなし。
+function smtAlignPerks(s){
+  if(s.alignment >= SMT_ALIGN_LAW_THRESHOLD){
+    return { law:true, chaos:false, physBonus:2, magicBonus:0, dmgTakenMult:0.9, hint:'⚔️物理攻撃+2 ・ 被ダメージ-10%' };
+  }
+  if(s.alignment <= SMT_ALIGN_CHAOS_THRESHOLD){
+    return { law:false, chaos:true, physBonus:0, magicBonus:2, dmgTakenMult:1, hint:'🔮属性魔法+2 ・ 交渉の成功率UP' };
+  }
+  return { law:false, chaos:false, physBonus:0, magicBonus:0, dmgTakenMult:1, hint:null };
 }
 const SMT_SHOP_REWARD_RULES = [
   { keywords:['バー','酒','スナック','立ち飲み','ビール'], type:'heal', line:'マスターが「顔色悪いよ、これ飲んでいきな」と一杯出してくれた。', effect:'❤️ HPが全回復した!' },
@@ -7485,7 +7508,7 @@ function smtOverworldUpdate(s, dt){
   const moving = dx !== 0 || dy !== 0;
   if(moving){
     if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
-    const speedMps = 14;
+    const speedMps = 18.2; // 14 * 1.3(移動速度アップ)
     const metersPerDegLat = 111320;
     const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
     s.pos.lat += (dy*speedMps*dt) / metersPerDegLat;
@@ -7510,8 +7533,16 @@ function smtChooseFight(){
 function smtChooseTalk(){
   const s = smtGameState;
   if(!s || !s.enemy.canNegotiate) return;
+  // 分岐の深み: カオス寄り(話しかけるを選び続けた結果)は交渉の成功率そのものが上がり、
+  // ロウ寄り(戦うを選び続けた結果)はかえって手強く見えるのか、少し交渉しづらくなる。
+  const perks = smtAlignPerks(s);
+  let joinP = 0.32, leaveP = 0.30;
+  if(perks.chaos){ joinP += 0.15; leaveP -= 0.05; }
+  if(perks.law){ joinP -= 0.08; }
+  joinP = Math.max(0.05, joinP);
+  leaveP = Math.max(0.05, leaveP);
   const roll = Math.random();
-  const outcome = roll < 0.32 ? 'join' : roll < 0.62 ? 'leave' : 'angry';
+  const outcome = roll < joinP ? 'join' : roll < joinP+leaveP ? 'leave' : 'angry';
   s.negotiateOutcome = outcome;
   if(outcome==='join'){
     s.recruited.push(s.enemy.name);
@@ -7590,31 +7621,32 @@ function smtAction(action, element){
   if(!s || s.stage!=='battle') return;
   const enemy = s.enemy, player = s.player;
   const job = SMT_JOBS[s.job] || SMT_JOBS.balance;
+  const perks = smtAlignPerks(s);
   const msgs = [];
   let outcome = 'normal';
   s.enemyHitFlash = false;
   s.playerHitFlash = false;
 
   if(action==='attack'){
-    const base = 6 + Math.floor(Math.random()*6) + s.atkBonus + job.atkMod;
+    const base = 6 + Math.floor(Math.random()*6) + s.atkBonus + job.atkMod + perks.physBonus;
     const r = smtApplyElement(enemy, 'phys', base);
     enemy.hp = Math.max(0, enemy.hp - r.dmg);
     outcome = r.outcome;
     s.enemyHitFlash = true;
     smtVibrate(12);
-    msgs.push(`⚔️ ${r.dmg}のダメージ!${r.tag}`);
+    msgs.push(`⚔️ ${r.dmg}のダメージ!${r.tag}${perks.physBonus ? ' (信念の一撃)' : ''}`);
   } else if(action==='magic'){
     const spell = SMT_SPELLS[element];
     if(!spell) return;
     if(player.mp < spell.mp){ toast('MPが足りません'); return; }
     player.mp -= spell.mp;
-    const base = 11 + Math.floor(Math.random()*7) + s.magicBonus + job.magicMod;
+    const base = 11 + Math.floor(Math.random()*7) + s.magicBonus + job.magicMod + perks.magicBonus;
     const r = smtApplyElement(enemy, element, base);
     enemy.hp = Math.max(0, enemy.hp - r.dmg);
     outcome = r.outcome;
     s.enemyHitFlash = true;
     smtVibrate(12);
-    msgs.push(`${spell.label}! ${r.dmg}のダメージ!${r.tag}`);
+    msgs.push(`${spell.label}! ${r.dmg}のダメージ!${r.tag}${perks.magicBonus ? ' (自由な発想)' : ''}`);
   } else if(action==='defend'){
     s.defending = true;
     msgs.push('🛡️ 身を守った');
@@ -7629,6 +7661,16 @@ function smtAction(action, element){
   }
 
   s.magicMenuOpen = false;
+
+  // 戦闘の深み: ボスはHPが半分以下になると一度だけ「覚醒」し、攻撃力が上がる。
+  // 通常敵には発生しない、ボス戦だけの緊張感を生む演出。
+  if(enemy.isBoss && !enemy.phaseTriggered && enemy.hp > 0 && enemy.hp <= Math.floor(enemy.maxHp*0.5)){
+    enemy.phaseTriggered = true;
+    enemy.atkMin += 2;
+    enemy.atkMax += 3;
+    msgs.push(`⚡ ${enemy.phaseLine || (enemy.name+'の様子が変わった!力が増しているようだ!')}`);
+    smtVibrate([20,20,20]);
+  }
 
   if(enemy.hp <= 0){
     s.log = msgs.slice(-4);
@@ -7650,10 +7692,11 @@ function smtAction(action, element){
     ? enemy.strongMin + Math.floor(Math.random()*(enemy.strongMax-enemy.strongMin+1))
     : enemy.atkMin + Math.floor(Math.random()*(enemy.atkMax-enemy.atkMin+1));
   if(s.defending){ edmg = Math.floor(edmg/2); }
+  if(perks.law){ edmg = Math.max(1, Math.round(edmg * perks.dmgTakenMult)); }
   player.hp = Math.max(0, player.hp - edmg);
   s.playerHitFlash = true;
   smtVibrate(player.hp <= 0 ? [20,50,20,50,120] : 22);
-  msgs.push(`${enemy.name}の${isStrong?'強攻撃':'攻撃'}! ${edmg}のダメージを受けた`);
+  msgs.push(`${enemy.name}の${isStrong?'強攻撃':'攻撃'}! ${edmg}のダメージを受けた${perks.law ? ' (信念の構え)' : ''}`);
   s.defending = false;
   s.icons = smtMaxIcons(s);
   s.log = msgs.slice(-4);
@@ -7721,7 +7764,7 @@ function renderSmtGame(){
         <p class="muted" style="margin-top:6px;">探索の途中でいつでもボタンひとつで「現在の下北沢」にも行き来できます。</p>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">🕰️ 2000年の下北沢から始める</button>
-      <div class="muted" style="margin-top:10px;">2000年編・現在編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編では地図全体がセピア色に変わり、表示される目印も、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、駅前広場の様子、一番街、音楽の街としてのライブハウス街、演劇の街の劇場、茶沢通り、古着屋文化など)についての実在の年表をもとにしたオリジナルの一口解説スポット7箇所に差し替わります。見つけた記憶は「街の記録帳」にたまっていきます。3体のボスにはそれぞれ固有の物語があり、倒すたびにこの街の移り変わりが少しずつ見えてきます。どちらの時代もエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響し、プレイヤーのアイコンの色と回転、そして2000年編のエンディングの結びの一文にも表れます。進行状況は保存されません。</div>
+      <div class="muted" style="margin-top:10px;">2000年編・現在編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編では地図全体がセピア色に変わり、表示される目印も、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、駅前広場の様子、一番街、音楽の街としてのライブハウス街、演劇の街の劇場、茶沢通り、古着屋文化など)についての実在の年表をもとにしたオリジナルの一口解説スポット7箇所に差し替わります。見つけた記憶は「街の記録帳」にたまっていきます。3体のボスにはそれぞれ固有の物語があり、倒すたびにこの街の移り変わりが少しずつ見えてきます。どちらの時代もエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響します。ロウ・カオスそれぞれ一定以上傾くと、プレイヤーのアイコンの色や回転、2000年編のエンディングの結びの一文が変わるだけでなく、ロウ側は物理攻撃力アップ・被ダメージ軽減、カオス側は属性魔法アップ・交渉成功率アップという実際の戦闘ボーナスも得られます。ボスはHPが半分を切ると一度だけ力を増す「覚醒」を見せるので、油断はできません。進行状況は保存されません。</div>
     `;
   }
   if(s.stage==='overworld'){
@@ -7735,6 +7778,7 @@ function renderSmtGame(){
       const visitedCount = Object.values(y.visited).filter(Boolean).length;
       const alignLabel = s.alignment > 10 ? 'ロウ寄り(右回り)' : s.alignment < -10 ? 'カオス寄り(左回り)' : 'ニュートラル';
       const alignPct = Math.max(0, Math.min(100, (s.alignment + 100) / 2));
+      const alignPerks = smtAlignPerks(s);
       return `
         ${header}
         <div class="smt-hud">
@@ -7746,7 +7790,7 @@ function renderSmtGame(){
           <span>📖 記録 <b>${visitedCount}/${Y2K_SPOTS.length}</b></span>
           <span>職 <b>${escapeHtml(SMT_JOBS[s.job].name)}</b></span>
         </div>
-        <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b></div>
+        <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b>${alignPerks.hint ? ` <span style="color:#e0c458;">${alignPerks.hint}</span>` : ''}</div>
         <div class="smt-align-bar"><div class="smt-align-fill" style="left:${alignPct}%;"></div></div>
         <div class="row" style="justify-content:center;margin-bottom:6px;">
           <span class="tag">🕰️ 2000年編(再開発前)</span>
@@ -7779,6 +7823,7 @@ function renderSmtGame(){
     const clearedCount = Object.values(s.clearedZones).filter(Boolean).length;
     const alignLabel = s.alignment > 10 ? 'ロウ寄り(右回り)' : s.alignment < -10 ? 'カオス寄り(左回り)' : 'ニュートラル';
     const alignPct = Math.max(0, Math.min(100, (s.alignment + 100) / 2));
+    const alignPerks = smtAlignPerks(s);
     return `
       ${header}
       <div class="smt-hud">
@@ -7789,7 +7834,7 @@ function renderSmtGame(){
         <span>🔓 解放 <b>${clearedCount}/3</b></span>
         <span>職 <b>${escapeHtml(SMT_JOBS[s.job].name)}</b></span>
       </div>
-      <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b></div>
+      <div class="muted" style="font-size:11px;margin-bottom:2px;">属性: <b>${alignLabel}</b>${alignPerks.hint ? ` <span style="color:#e0c458;">${alignPerks.hint}</span>` : ''}</div>
       <div class="smt-align-bar"><div class="smt-align-fill" style="left:${alignPct}%;"></div></div>
       <div class="row" style="justify-content:center;margin-bottom:6px;">
         <span class="tag">🏙️ 現在の下北沢</span>
