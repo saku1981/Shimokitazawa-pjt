@@ -1211,6 +1211,7 @@ function renderOwnerHome(){
       <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🚶</span>さんサクっと下北沢マップ</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('barManner')"><span class="nav-label"><span class="nav-icon">📖</span>バーのお作法</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('gamesHub')"><span class="nav-label"><span class="nav-icon">🕹️</span>レトロゲームをサクッと</span><span class="muted">→</span></div>
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
       ${false && store.is_test ? `<div class="nav-row" onclick="go('batterBoxGame')"><span class="nav-label"><span class="nav-icon">⚾</span>バッターボックス <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- バッターボックス: 一旦非表示(false&&を外せば再表示できます) -->
@@ -2377,6 +2378,63 @@ function renderShimokitaMap(){
         </div>`;
       }).join('')}
     </div>
+  `;
+}
+
+// バーのお作法: 特定の店舗に紐づかない、アプリ全体からいつでも開ける案内画面。
+// 一般的なバーでの過ごし方の心得を、さんサクらしい柔らかい言葉でまとめたもの。
+// あくまで気持ちよく過ごすためのヒント集であり、各店舗ごとのルールが優先される旨を明記している。
+const BAR_MANNER_SECTIONS = [
+  { icon:'🚪', title:'来店前に', items:[
+    '堅苦しいドレスコードはないけれど、清潔感のある装いで出かけると気分も上がります。',
+    'カウンターは3人くらいまでが目安。それ以上の人数なら、テーブル席のあるお店を選ぶと店内がゆったりします。',
+    '携帯電話はマナーモードに。通話はお店の外でどうぞ。'
+  ]},
+  { icon:'🥃', title:'店内で気持ちよく過ごすために', items:[
+    'お酒は、香りや温度がおいしいうちに楽しんで。',
+    'グラスは正しい持ち方で。氷の音や見た目も、味わいのうちです。',
+    '新しいお客さんが増えたら、さりげなく席を詰めてあげると親切です。',
+    '乾杯はグラスをぶつけず、目を合わせて。',
+    'ボトルなどお店の品に触れるときは、スタッフにひと声かけると安心です。',
+    '灰皿を替えてもらったときなど、ちょっとした会釈があると気持ちよく伝わります。',
+    '会話の声量は、隣のお客さんに聞こえすぎない程度に。周りの話に耳を澄ませるのも控えめに。'
+  ]},
+  { icon:'👋', title:'帰り際に', items:[
+    '酔いすぎず、最後まで気持ちよく過ごすのがスマートです。',
+    '忘れ物のチェックをお忘れなく。',
+    'お会計はさらっと。長居しすぎず、閉店時間にも気を配れると◎。'
+  ]},
+  { icon:'🙅', title:'こんなことは控えめに', items:[
+    '他の飲食物の持ち込み。',
+    'お店の備品を断りなく触ること。',
+    'カウンターに突っ伏して眠ってしまうこと。',
+    '足を椅子にのせたり、カウンターに肘をついたりする姿勢。',
+    'スマホで音楽や動画を大きな音で流すこと。',
+    'カウンターに荷物を広げること(グラスとボトル以外は、足元やフックへ)。'
+  ]},
+  { icon:'🚬', title:'喫煙されるときは', items:[
+    '煙や火種を人のいる方向に向けないよう気をつけて。',
+    '香りの強い葉巻やパイプなどは、事前にスタッフへひとこと確認を。',
+    '火のついたまま入店したり、店内を歩き回ったりするのは控えて。'
+  ]}
+];
+function renderBarManner(){
+  const backScreen = state.role==='owner' ? 'home' : 'vlist';
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>📖 バーのお作法</h2>
+    <div class="muted" style="margin-bottom:14px;">下北沢のバーやお酒を楽しむお店で、みんなが気持ちよく過ごすためのちょっとした心得です。厳しいルールではなく、あくまでヒント集。お店ごとの決まりごとがあれば、そちらが優先です。</div>
+    ${BAR_MANNER_SECTIONS.map(sec => `
+      <h3 style="margin-top:16px;">${sec.icon} ${escapeHtml(sec.title)}</h3>
+      <div class="smt-facility-list" style="gap:6px;">
+        ${sec.items.map(item => `
+          <div class="card" style="margin-bottom:0;padding:10px 14px;">
+            <div style="font-size:13.5px;line-height:1.6;">${escapeHtml(item)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('')}
+    <div class="banner" style="margin-top:16px;">🍸 かしこまりすぎず、でも周りへのちょっとした気づかいを。それだけで、お店の時間はぐっと心地よくなります。</div>
   `;
 }
 
@@ -9328,6 +9386,10 @@ function renderVisitorList(){
       <span>🗺️ 下北沢マップ <span class="muted">(${shimokitaVisitedCount}/${SHIMOKITA_SPOTS.length} 訪問済み)</span></span>
       <span class="muted">→</span>
     </div>
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;cursor:pointer;" onclick="go('barManner')">
+      <span>📖 バーのお作法</span>
+      <span class="muted">→</span>
+    </div>
     ${publicStores().map(s=>{
       const st = isOpenNow(s);
       const latest = myVisiblePosts(s.id)[0];
@@ -9531,7 +9593,7 @@ function render(){
     vlist: renderVisitorList, vdetail: renderVisitorDetail,
     peers: renderPeers, recommendRequests: renderRecommendRequests, qrCode: renderQrCode,
     regularNotes: renderRegularNotes, murmurs: renderMurmurs, cardCollection: renderCardCollection,
-    shimokitaMap: renderShimokitaMap, gamesHub: renderGamesHub, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
+    shimokitaMap: renderShimokitaMap, barManner: renderBarManner, gamesHub: renderGamesHub, invaderGame: renderInvaderGame, breakoutGame: renderBreakoutGame,
     blockTowerGame: renderBlockTowerGame,
     revengeGame: renderRevengeGame, smtGame: renderSmtGame, hanafudaGame: renderHanafudaGame,
     batterBoxGame: renderBatterBoxGame, shooterGame: renderShooterGame, islandGame: renderIslandGame,
