@@ -239,8 +239,8 @@
   .rpg-map.cave .rpg-tile-floor.v2{background:#3c372d;}
   .rpg-map.cave .rpg-tile-door{background:#5a4326;}
   .rpg-player{font-size:14px;}
-  #smtOverworldMap{transition:filter .8s ease;}
-  #smtOverworldMap.y2k-sepia{filter:sepia(0.6) contrast(1.05) brightness(0.94) saturate(1.2) hue-rotate(-6deg);}
+  #smtOverworldMap, #smtY2000MapViewMap{transition:filter .8s ease;}
+  #smtOverworldMap.y2k-sepia, #smtY2000MapViewMap.y2k-sepia{filter:sepia(0.6) contrast(1.05) brightness(0.94) saturate(1.2) hue-rotate(-6deg);}
   .smt-hist-label{background:rgba(40,30,10,.72)!important;border:1px solid rgba(224,196,88,.7)!important;color:#f3e6c8!important;
     font-size:10px!important;padding:1px 5px!important;border-radius:6px!important;box-shadow:none!important;white-space:nowrap;}
   .smt-hist-label::before{display:none;}
@@ -302,6 +302,39 @@
   @keyframes smtSpinCCW{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
   .smt-spin-cw{animation:smtSpinCW 3s linear infinite;}
   .smt-spin-ccw{animation:smtSpinCCW 3s linear infinite;}
+  .smt-fp-scene{position:relative;height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);
+    background:linear-gradient(180deg,#cfd9c4 0%,#cfd9c4 42%,#8a7f68 42%,#8a7f68 100%);
+    filter:sepia(0.6) contrast(1.05) brightness(0.94) saturate(1.2) hue-rotate(-6deg);}
+  .smt-fp-buildings{position:absolute;left:0;right:0;top:2%;height:40%;display:flex;align-items:flex-end;
+    justify-content:space-around;padding:0 4px;opacity:.55;font-size:26px;pointer-events:none;user-select:none;}
+  .smt-fp-road{position:absolute;left:50%;bottom:0;width:0;height:0;
+    border-left:76px solid transparent;border-right:76px solid transparent;border-bottom:180px solid rgba(60,52,40,.55);
+    transform:translateX(-50%);pointer-events:none;}
+  .smt-fp-road::after{content:'';position:absolute;left:-3px;bottom:0;width:6px;height:178px;
+    background:repeating-linear-gradient(180deg,#e0d8b8 0,#e0d8b8 14px,transparent 14px,transparent 28px);
+    opacity:.5;}
+  .smt-fp-markers{position:absolute;inset:0;pointer-events:none;}
+  .smt-fp-marker{position:absolute;transform:translate(-50%,0);text-align:center;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));transition:left .12s linear,bottom .12s linear;}
+  .smt-fp-marker-icon{display:block;line-height:1;}
+  .smt-fp-marker-label{display:inline-block;font-size:9px;background:rgba(0,0,0,.5);color:#f3e6c8;
+    border-radius:4px;padding:0 4px;margin-top:1px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+  .smt-fp-compass{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;align-items:center;
+    gap:5px;background:rgba(20,18,14,.6);color:#f3e6c8;border-radius:20px;padding:3px 11px;font-size:11px;
+    z-index:3;filter:none;}
+  .smt-fp-compass-needle{display:inline-block;transition:transform .12s linear;}
+  .smt-fp-hint{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:9.5px;
+    color:rgba(255,255,255,.8);z-index:3;pointer-events:none;filter:none;}
+  .smt-vn-box{display:flex;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .smt-vn-portrait{flex-shrink:0;width:52px;height:52px;border-radius:50%;background:var(--panel2);
+    border:2px solid #e0c458;display:flex;align-items:center;justify-content:center;font-size:26px;}
+  .smt-vn-body{flex:1;min-width:0;}
+  .smt-vn-speaker{display:inline-block;font-size:11px;font-weight:bold;color:#e0c458;
+    background:rgba(224,196,88,.14);border:1px solid rgba(224,196,88,.5);border-radius:10px;
+    padding:1px 8px;margin-bottom:4px;}
+  .smt-vn-title{font-size:11px;color:var(--sub);margin-bottom:4px;}
+  .smt-vn-body p{margin:0 0 8px;line-height:1.6;font-size:13.5px;}
+  .smt-vn-body p:last-child{margin-bottom:0;}
   .gacha-full-reveal{position:fixed;inset:0;z-index:70;display:flex;flex-direction:column;align-items:center;
     justify-content:center;padding:28px 20px calc(28px + env(safe-area-inset-bottom,0px));
     overflow-y:auto;animation:gachaCurtainOpen 3s ease-out both;text-align:center;}
@@ -7039,6 +7072,20 @@ function renderKmGame(){
    オリジナルのストーリー・悪魔データ、特定作品のキャラクターやマップをそのまま
    使ってはいない。実在の人物名は登場しない。進行状況は保存されず、画面を離れると
    最初からになる。
+   2000年編の見た目: 上から見下ろす地図の代わりに、進行方向の街並みをCSS/絵文字で
+   描いたSMT風の一人称ビュー(#smtFirstPersonScene、smtFirstPersonRefresh)で表示する。
+   十字キー操作・移動ロジック(smtOverworldUpdate)は現在編と共通で、移動時の入力
+   ベクトルから向いている方角(s.heading、北=0/東=90/南=180/西=270)を求め、前方
+   SMT_FP_FOV度・SMT_FP_MAX_DIST m以内にあるスポット/ボス出現地点を遠近感つきで
+   描画する。実際の地図(Y2K_SPOTS・Y2K_HISTORICAL_OVERLAYSを含む、お店アイコンの
+   出ないCartoDB Positronタイル)は「🗺️ 地図で見る」ボタンから開く別画面
+   (y2000MapView、initSmtY2000MapViewMap)としていつでも見返せる。現在編の
+   見下ろし型オーバーワールド(initSmtLeafletOverworld)は変更していない。
+   スポットに近づいたときの一口解説は、SMT風の会話ウィンドウ(y2000Dialogue、
+   ポートレート絵文字+speaker役職ラベル+一人称セリフ)として表示する。Y2K_SPOTS
+   の各エントリはspeakerフィールド(店主・商店会の世話役・近所の住人など、実在の
+   人物名を含まない汎用的な役どころ)を持ち、linesは三人称の説明文ではなく、その
+   役どころが直接プレイヤーに語りかける一人称のセリフとして書かれている。
 */
 let smtGameState = null;
 /* 2000年編:再開発前の下北沢駅前をイメージしたオリジナルの一口解説スポット。
@@ -7055,42 +7102,45 @@ const Y2K_SPOTS = [
   // 実在の年表(小田急線1927年開業、京王井の頭線1933年開業、戦後の闇市を起源とする
   // 駅前食品市場、一番街の1964年組合設立/1966年阿波踊り開始、1982年本多劇場開場、
   // 1986年ライブハウス「屋根裏」移転、1990年前後の古着屋の広がりなど)を参考にした
-  // オリジナルの一口解説を35箇所に配置し、探索して集める楽しさを増やしている。
-  { id:'y2kMarket', corridor:'3', lat:35.6617, lng:139.6683, title:'駅前食品市場(北口)', reward:'heal', lines:[
-    '駅前は、トタン屋根に覆われた、迷路のように入り組んだ路地に覆われている。昼間でも薄暗い。',
-    '終戦直後、近くの農家が駅前に屋台を出して野菜を売り始めたのが始まりだったらしい。',
-    'やがて衣類や日用品なども並ぶようになり、闇市と呼ばれる市場へと姿を変えていったそうだ。',
-    '見上げると、下北沢駅は線路ごと高架の上に乗っている。1927年に小田急線が、1933年には京王井の頭線が開業し、この街は農村から一気に商店の街へと変わっていったという。'
+  // オリジナルの一口解説を配置し、探索して集める楽しさを増やしている。
+  // 各スポットのlinesは、当時この場所にいたであろう匿名の役どころ(speaker)が、
+  // プレイヤーに直接語りかける一人称のセリフとして書かれている(SMT風の会話ウィンドウ用)。
+  // 実在の personal name は一切登場させず、事実(年表・地名・店名)はすべて維持している。
+  { id:'y2kMarket', corridor:'3', lat:35.6617, lng:139.6683, title:'駅前食品市場(北口)', reward:'heal', speaker:'青果店のおやじ', lines:[
+    'よう、迷い込んだのかい? うちらの市場はトタン屋根だらけで、昼間でも薄暗いだろう。',
+    'もとはといえば、終戦直後にこの辺の農家がここに屋台を出して、野菜を売り始めたのが始まりでね。',
+    'そのうち服やら日用品やらも並ぶようになって、いつの間にか「闇市」なんて呼ばれる市場になっちまった。',
+    '上を見てみな、駅ごと高架に乗ってるだろう。1927年に小田急が、1933年には京王井の頭線が通ってからよ、この辺は農村から一気に商店の街に変わったんだ。'
   ]},
-  { id:'y2kStationPlaza', corridor:'3', lat:35.6611, lng:139.6679, title:'手狭な駅前広場', reward:'gold', lines:[
-    '目の前に広がる駅前広場は、今よりずっと手狭で、人と自転車とバスが所狭しとひしめき合っている。',
-    'この街ではもう何年も前から「街づくり懇談会」が開かれ、駅前をどう変えていくかが話し合われているらしい。1984年に発足したというその懇談会は、今もまだ議論を続けているという。',
-    '広々とした駅前広場ができるのは、まだ何年も先の話になりそうだ。'
+  { id:'y2kStationPlaza', corridor:'3', lat:35.6611, lng:139.6679, title:'手狭な駅前広場', reward:'gold', speaker:'商店会の世話役', lines:[
+    '見てのとおり、駅前広場はまだこんなに手狭でね。人と自転車とバスとで、いつもごった返してるんだ。',
+    '1984年に「街づくり懇談会」ってのを立ち上げてね、駅前をどうするかずっと話し合ってるんだが……なかなか結論が出なくてなあ。',
+    '広々とした駅前広場ができるのは、まだまだ先の話になりそうだよ。'
   ]},
-  { id:'y2kIchibangai', corridor:'1', lat:35.6627, lng:139.6681, title:'一番街', reward:'atk', lines:[
-    '賑やかな商店街。1964年に組合として認められ、翌年から「一番街」と名乗るようになったそうだ。',
-    '1966年からは阿波踊りも始まり、夏になるとこの通りは一気に華やぐという。',
-    '威勢のいい声を聞いていると、こちらまで元気が出てくる。'
+  { id:'y2kIchibangai', corridor:'1', lat:35.6627, lng:139.6681, title:'一番街', reward:'atk', speaker:'一番街の店主', lines:[
+    'うちの通りは一番街っていってね、1964年に組合として認められて、翌年から「一番街」を名乗るようになったんだ。',
+    '1966年からは阿波おどりも始まってね、夏になるとこの通りは一気に華やぐんだよ。',
+    'この威勢のいい声、聞いてるだけでこっちまで元気が出てくるだろう?'
   ]},
-  { id:'y2kLiveHouse', corridor:'1', lat:35.6632, lng:139.6687, title:'路地裏のライブハウス街', reward:'magic', lines:[
-    '雑居ビルの地下から、重低音の轟くような音が漏れ聞こえてくる。',
-    '1986年に渋谷から移転してきたという「屋根裏」をはじめ、1992年開店の「シェルター」、1994年開店の「Que」や「GARAGE」など、小さなライブハウスがひしめくように増えてきたそうだ。',
-    '地方から出てきた若いミュージシャンたちが安い家賃に惹かれて住み着き、いつしかこの街は「音楽の街」と呼ばれるようになったという。'
+  { id:'y2kLiveHouse', corridor:'1', lat:35.6632, lng:139.6687, title:'路地裏のライブハウス街', reward:'magic', speaker:'ライブハウスの呼び込み', lines:[
+    'このビルの地下から漏れてる重低音、気になるだろう? うちらのライブハウス街さ。',
+    '1986年に渋谷から「屋根裏」が移ってきてね、それから1992年に「シェルター」、1994年には「Que」や「GARAGE」が次々開いたんだ。',
+    '地方から出てきた若いミュージシャンが安い家賃に惹かれて住み着いてね、いつの間にかこの街は「音楽の街」なんて呼ばれるようになったのさ。'
   ]},
-  { id:'y2kHondaGekijo', corridor:'2', lat:35.6606, lng:139.6673, title:'演劇の街の劇場', reward:'atk', lines:[
-    '大きな看板の下、開演を待つ人たちの列ができている。',
-    '1982年に開場したというこの劇場のこけら落としは、劇作家による芝居だったそうだ。',
-    '以来、小劇場演劇の中心地として、数え切れないほどの劇団がここで芝居を打ってきたという。下北沢が「演劇の街」と呼ばれる理由は、この劇場の存在が大きいらしい。'
+  { id:'y2kHondaGekijo', corridor:'2', lat:35.6606, lng:139.6673, title:'演劇の街の劇場', reward:'atk', speaker:'劇場の案内係', lines:[
+    '開演までもう少し、そこで並んで待っててくださいね。',
+    'うちの劇場は1982年に開場しましてね、こけら落としは、さる劇作家の芝居だったんですよ。',
+    'それから数え切れないほどの劇団がここで芝居を打ってきましてね。下北沢が「演劇の街」と呼ばれるのは、うちの劇場があったからだって、よく言われるんです。'
   ]},
-  { id:'y2kChazawa', corridor:'2', lat:35.6598, lng:139.6680, title:'南口・茶沢通り', reward:'magic', lines:[
-    '南口から茶沢通りへ伸びる一帯。踏切の音と人の話し声が入り混じる、下北沢らしい賑やかさがここにある。',
-    'このころにはもう、古着屋や小さなライブハウスが並ぶ街になっていたらしい。道行く人の服装は自由で、思い思いのスタイルを楽しんでいるようだった。',
-    'この街はこのあと、駅の地下化や再開発を経て、少しずつ姿を変えていくことになる。けれど路地の匂いや人のざわめきは、きっとどこかに残り続けるのだろう。'
+  { id:'y2kChazawa', corridor:'2', lat:35.6598, lng:139.6680, title:'南口・茶沢通り', reward:'magic', speaker:'近所の住人', lines:[
+    'このあたりは南口から茶沢通りへ抜ける道でね、踏切の音と人の話し声がいつも入り混じってるんだ。',
+    'もう古着屋や小さなライブハウスが並ぶ街になっててね、みんな好き勝手な格好で歩いてるだろう?',
+    'この先、駅の地下化だ再開発だで、街の姿は変わっていくんだろうけどね。路地の匂いとこの賑わいだけは、どこかに残ってほしいもんだよ。'
   ]},
-  { id:'y2kFurugi', corridor:'2', lat:35.6593, lng:139.6675, title:'広がる古着屋の輪', reward:'gold', lines:[
-    '軒先に古びたジャケットやミリタリーウェアがずらりと並んでいる。',
-    '1985年に南口で老舗の古着屋が店を開いたころは、この街にまだ古着屋は数えるほどしかなかったという。',
-    '1990年代に入ると古着ブームが巻き起こり、3か月に1軒のペースで新しい古着屋ができていった時期もあったそうだ。'
+  { id:'y2kFurugi', corridor:'2', lat:35.6593, lng:139.6675, title:'広がる古着屋の輪', reward:'gold', speaker:'古着屋の店主', lines:[
+    '軒先のジャケットやミリタリー、好きなだけ見ていってくれよな。',
+    'うちが1985年に南口で店を出したころは、この街に古着屋なんて数えるほどしかなかったんだ。',
+    'それが1990年代に入って古着ブームが来てね、3か月に1軒のペースで新しい店ができた時期もあったくらいさ。'
   ]},
   // ここから先は「2000年前後5年」(おおむね1995〜2005年)の実在の年表をさらに調べて
   // 追加した28箇所。北沢タウンホール(1991年開館)、下北沢トリウッド(1999年開館・47席)、
@@ -7099,187 +7149,187 @@ const Y2K_SPOTS = [
   // 1972年歩行者天国化、1976年しもきた天狗まつり復活、1980年商工会議所会頭賞受賞、
   // 2001年商店街憲章制定)、補助54号線の都市計画決定(2003年)とそれに伴う住民運動の
   // 発足(2003年)、南口を舞台にした2000年公開の映画などを参考にしている。
-  { id:'y2kTownHall', corridor:'3', lat:35.66142, lng:139.66922, title:'北沢タウンホールの威容', reward:'magic', lines:[
-    '重厚な造りの建物からは、区民ホールらしい静けさが漂っている。',
-    '1991年4月に開館したというこの区立ホールは、集会や催しに使われる区民のための施設だったそうだ。',
-    '街の商業地区のすぐそばに、こうした公共施設が構えているのも、下北沢という街らしい光景なのかもしれない。'
+  { id:'y2kTownHall', corridor:'3', lat:35.66142, lng:139.66922, title:'北沢タウンホールの威容', reward:'magic', speaker:'タウンホールの受付係', lines:[
+    '重厚な建物でしょう? うちは1991年4月に開館した区立のホールなんですよ。',
+    '集会やら催しやら、区民の皆さんのための施設でしてね。',
+    '商店街のすぐそばにこういう施設があるのも、下北沢らしいところだと思いませんか。'
   ]},
-  { id:'y2kMarketAlley', corridor:'3', lat:35.66055, lng:139.66784, title:'闇市の路地の続き', reward:'gold', lines:[
-    '焼け跡から立ち上がった市場は、細い路地を幾つも生み出したという。',
-    '戦後まもない頃、闇市として始まったこの一帯は、やがて正式な商店街へと姿を変えていったそうだ。',
-    '今も入り組んだ路地の形に、その名残がうっすらと残っているように見える。'
+  { id:'y2kMarketAlley', corridor:'3', lat:35.66055, lng:139.66784, title:'闇市の路地の続き', reward:'gold', speaker:'市場の惣菜屋の店主', lines:[
+    'うちの店があるこの路地、焼け跡から市場が立ち上がる中で、自然とできていったんだ。',
+    '戦後まもなく闇市として始まったのが、いつの間にか正式な商店街に姿を変えたのさ。',
+    '今もこうして入り組んだ路地のかたちに、その頃の名残がうっすら残ってるだろう。'
   ]},
-  { id:'y2kShokoKai', corridor:'3', lat:35.66129, lng:139.66776, title:'商店会の集会所', reward:'atk', lines:[
-    '古びた看板に、いくつもの商店会の名前が重ねて書かれている。',
-    '1949年に結成された「努力連盟」という商店主たちの集まりは、1956年には「専門店会」という組織に姿を変えたという。',
-    '名前や形を変えながらも、商店主たちが力を合わせて街を盛り上げてきた歴史がここにはあるようだ。'
+  { id:'y2kShokoKai', corridor:'3', lat:35.66129, lng:139.66776, title:'商店会の集会所', reward:'atk', speaker:'商店会の世話役', lines:[
+    'この看板、いろんな商店会の名前が重ねて書いてあるだろう。うちらの歴史そのものなんだ。',
+    '1949年に「努力連盟」ってのを結成してね、1956年には「専門店会」って名前に変わったんだよ。',
+    '名前や形は変わっても、商店主同士で力を合わせて街を盛り上げてきたのは、ずっと変わらないのさ。'
   ]},
-  { id:'y2kBicycles', corridor:'3', lat:35.66109, lng:139.66739, title:'詰め込まれた自転車', reward:'gold', lines:[
-    '歩道の端に、所狭しと自転車が並んでいる。',
-    '駅前の放置自転車は、この時代の下北沢が抱える悩みの種のひとつだったらしい。',
-    '整理されたラックも駐輪場も、まだ十分には整っていない様子だ。'
+  { id:'y2kBicycles', corridor:'3', lat:35.66109, lng:139.66739, title:'詰め込まれた自転車', reward:'gold', speaker:'近所の自転車屋の店主', lines:[
+    '歩道の端、自転車だらけで悪いね。うちの店だけじゃどうにもならなくてさ。',
+    '駅前の放置自転車は、今のこの街にとっちゃ結構な悩みの種なんだよ。',
+    'ちゃんとしたラックも駐輪場も、まだまだ整ってないのが実情でね。'
   ]},
-  { id:'y2kPublicPhone', corridor:'3', lat:35.66174, lng:139.66866, title:'緑の公衆電話', reward:'heal', lines:[
-    '歩道の脇に、緑色の公衆電話がぽつんと置かれている。',
-    '待ち合わせの連絡も、まだ携帯電話だけに頼れる時代ではなかったらしく、この電話にもずいぶん活躍の場があったようだ。',
-    '疲れた体を電話ボックスの陰で少し休めると、気分がすっと軽くなった気がした。'
+  { id:'y2kPublicPhone', corridor:'3', lat:35.66174, lng:139.66866, title:'緑の公衆電話', reward:'heal', speaker:'近所の住人', lines:[
+    'そこの緑の電話、うちらにとってはまだまだ現役なんだよ。',
+    '待ち合わせの連絡だって、携帯電話だけに頼れる時代じゃないからね。この電話には毎日世話になってるんだ。',
+    '疲れたら電話ボックスの陰にでも隠れて休んでいきな。気分がすっと軽くなるから。'
   ]},
-  { id:'y2kRedevelopBoard', corridor:'3', lat:35.66216, lng:139.66766, title:'駅前再開発懇談会の掲示', reward:'gold', lines:[
-    '掲示板に、駅前再開発に関する古い告知が貼られている。',
-    '1984年に発足したという街づくり懇談会は、今もなお駅前の将来像について話し合いを続けているそうだ。',
-    '広場や通路がどんな形に変わるのか、まだ誰にもはっきりとは分からないらしい。'
+  { id:'y2kRedevelopBoard', corridor:'3', lat:35.66216, lng:139.66766, title:'駅前再開発懇談会の掲示', reward:'gold', speaker:'商店会の世話役', lines:[
+    'この掲示板の古い告知、駅前再開発についてのものでね。',
+    '1984年に発足した街づくり懇談会が、今もずっと駅前の将来像を話し合ってるんだよ。',
+    '広場や通路がどんな形になるのか、正直まだ誰にもはっきりとは分からないのが本当のところさ。'
   ]},
-  { id:'y2kTachigui', corridor:'3', lat:35.66149, lng:139.66864, title:'立ち食いそば屋の湯気', reward:'heal', lines:[
-    '湯気の向こうに、立ち食いそば屋ののれんが揺れている。',
-    '通勤や通学の合間に、さっと立ち寄っては一杯のそばをかき込んでいく客が絶えないという。',
-    '熱いつゆをすすると、歩き疲れた体に染み渡るようだった。'
+  { id:'y2kTachigui', corridor:'3', lat:35.66149, lng:139.66864, title:'立ち食いそば屋の湯気', reward:'heal', speaker:'そば屋の店主', lines:[
+    '湯気の向こう、うちののれんが見えるかい? 一杯どうだい。',
+    '通勤やら通学やらの合間に、さっと立ち寄ってかき込んでいく客が、絶えたことがないんだよ。',
+    '熱いつゆをすすると、歩き疲れた体に染み渡るだろう。'
   ]},
-  { id:'y2kAozora', corridor:'3', lat:35.66113, lng:139.66872, title:'青空マーケットの名残', reward:'gold', lines:[
-    '軒先に、野菜や日用品を並べた小さな露店が並んでいる。',
-    '戦後の闇市から続くこうした青空の商いは、時代が進むにつれて少しずつ数を減らしてきたそうだ。',
-    'それでも駅前のこの一角には、まだ昔ながらの賑わいが残っているらしい。'
+  { id:'y2kAozora', corridor:'3', lat:35.66113, lng:139.66872, title:'青空マーケットの名残', reward:'gold', speaker:'露天商のおやじ', lines:[
+    '軒先に並べてるのは野菜やら日用品やら、まあ何でも屋みたいなもんさ。',
+    '戦後の闇市から続くこの青空商い、時代が進むにつれてめっきり数を減らしちまってね。',
+    'それでもこの駅前の一角には、まだ昔ながらの賑わいが残ってるだろう?'
   ]},
-  { id:'y2kKoban', corridor:'3', lat:35.66042, lng:139.66816, title:'駅前交番の灯り', reward:'magic', lines:[
-    '小さな交番の窓明かりが、夜の駅前をぼんやりと照らしている。',
-    '人通りの多いこの一帯を見守る交番は、街の安全にとって欠かせない存在だったようだ。',
-    '灯りの下に立つと、なんだか不思議と力が湧いてくる気がした。'
+  { id:'y2kKoban', corridor:'3', lat:35.66042, lng:139.66816, title:'駅前交番の灯り', reward:'magic', speaker:'交番のおまわりさん', lines:[
+    '小さな交番だけどね、夜のこの辺りをずっと見守ってるんだよ。',
+    '人通りの多いこの一帯にとっちゃ、うちみたいな交番は欠かせない存在でね。',
+    'この灯りの下に立つと、なんだか安心するだろう?'
   ]},
-  { id:'y2kChochin', corridor:'1', lat:35.66229, lng:139.66922, title:'一番街商店街の提灯', reward:'atk', lines:[
-    '通りの両側に、びっしりと提灯が吊るされている。',
-    '1964年6月19日に発足したという商店街振興組合は、当時45の店が集まってできたもので、区内でも3番目に早い発足だったそうだ。',
-    'この提灯の連なりの下を、いったい何人の商店主たちが歩いてきたのだろうか。'
+  { id:'y2kChochin', corridor:'1', lat:35.66229, lng:139.66922, title:'一番街商店街の提灯', reward:'atk', speaker:'商店会の世話役', lines:[
+    '通りの両側に吊るしたこの提灯、うちらの商店街の顔みたいなもんさ。',
+    '1964年6月19日に商店街振興組合を発足させてね、当時集まったのは45の店だった。区内でも3番目に早い発足だったんだよ。',
+    'この提灯の下を、いったい何人の商店主が歩いてきたことか。'
   ]},
-  { id:'y2kAwaOdoriDrum', corridor:'1', lat:35.66189, lng:139.66807, title:'阿波おどりの太鼓', reward:'magic', lines:[
-    'どこからか、太鼓の練習をするような音が聞こえてくる。',
-    '1966年8月に始まったという一番街の阿波おどりは、以来夏の恒例行事として街に根付いてきたらしい。',
-    '提灯と太鼓の響きが合わさると、街全体がひとつの祭りの舞台になるようだ。'
+  { id:'y2kAwaOdoriDrum', corridor:'1', lat:35.66189, lng:139.66807, title:'阿波おどりの太鼓', reward:'magic', speaker:'祭りの世話人', lines:[
+    'どこかで太鼓の練習をしてる音、聞こえるかい? うちらの阿波おどりの支度さ。',
+    '1966年8月に始めてね、それ以来ずっと夏の恒例行事として街に根付いてるんだよ。',
+    '提灯と太鼓の音が合わさると、街全体がひとつの祭りの舞台になるんだ。'
   ]},
-  { id:'y2kHokoTengoku', corridor:'1', lat:35.66179, lng:139.66758, title:'歩行者天国の日曜日', reward:'gold', lines:[
-    '広い通りに車の姿がなく、人々がのびのびと歩いている。',
-    '1972年に歩行者天国となったこの通りは、それまで車と人でひしめき合っていた場所だったという。',
-    '車道いっぱいに人が広がる景色は、なんだか少し不思議な開放感を感じさせる。'
+  { id:'y2kHokoTengoku', corridor:'1', lat:35.66179, lng:139.66758, title:'歩行者天国の日曜日', reward:'gold', speaker:'商店街の店主', lines:[
+    '見てみなよ、この広い通りに車が一台もないだろう。',
+    '1972年に歩行者天国にしてね、それまでは車と人でひしめき合ってた場所だったんだよ。',
+    '車道いっぱいに人が広がる景色、何度見ても不思議な開放感があるもんだね。'
   ]},
-  { id:'y2kTenguMatsuri', corridor:'1', lat:35.66197, lng:139.66739, title:'しもきた天狗まつりの面', reward:'gold', lines:[
-    '大きな天狗の面が、祭りの支度をする人々の頭上に飾られている。',
-    '1976年2月に復活したという「しもきた天狗まつり」は、一時途絶えていた祭りを商店街が再び盛り上げたものらしい。',
-    '天狗の面には、街の再生への願いのようなものが込められている気がした。'
+  { id:'y2kTenguMatsuri', corridor:'1', lat:35.66197, lng:139.66739, title:'しもきた天狗まつりの面', reward:'gold', speaker:'祭りの世話人', lines:[
+    'この天狗の面、祭りの支度をしてる連中の頭上に飾ってあるだろう。',
+    '1976年2月に「しもきた天狗まつり」を復活させたのがうちらでね。一時途絶えてた祭りを、商店街で盛り上げ直したんだ。',
+    'この面には、街の再生への願いみたいなものが込められてる気がするんだよ。'
   ]},
-  { id:'y2kShokoKaigisho', corridor:'1', lat:35.66263, lng:139.66935, title:'商工会議所会頭賞の盾', reward:'atk', lines:[
-    '商店街の事務所に、賞状らしきものが誇らしげに飾られている。',
-    '1980年10月に日本商工会議所会頭賞を受けたという記録が、その脇に添えられているようだ。',
-    '地道な商店街づくりの努力が、外からも認められた出来事だったのかもしれない。'
+  { id:'y2kShokoKaigisho', corridor:'1', lat:35.66263, lng:139.66935, title:'商工会議所会頭賞の盾', reward:'atk', speaker:'商店会の世話役', lines:[
+    'うちの事務所に飾ってあるこの賞状、ちょっと自慢でね。',
+    '1980年10月に、日本商工会議所会頭賞をいただいたんだよ。',
+    '地道に商店街づくりをやってきたのを、外からも認めてもらえた出来事だったんだ。'
   ]},
-  { id:'y2kYaneura', corridor:'1', lat:35.66273, lng:139.66844, title:'屋根裏への階段', reward:'magic', lines:[
-    '雑居ビルの階段の先に、ライブハウスの入り口が見える。',
-    '1986年に渋谷から移転してきたという「屋根裏」は、下北沢に古くから根を張るライブハウスのひとつだったそうだ。',
-    '扉の向こうから漏れる音の余韻に、なんだか力をもらったような気がした。'
+  { id:'y2kYaneura', corridor:'1', lat:35.66273, lng:139.66844, title:'屋根裏への階段', reward:'magic', speaker:'ライブハウスの呼び込み', lines:[
+    'この階段の先が、うちのライブハウスの入り口さ。',
+    '1986年に渋谷から移ってきてね、下北沢では古株のライブハウスのひとつになったんだよ。',
+    '扉の向こうから漏れてる音、聞いてるだけで力もらえるだろう?'
   ]},
-  { id:'y2kStudio', corridor:'1', lat:35.66297, lng:139.66779, title:'夜通し明かりが灯る音楽スタジオ', reward:'magic', lines:[
-    '雑居ビルの一室から、夜遅くまで途切れることなく演奏の音が漏れてくる。',
-    'ライブハウスの数が増えるにつれ、練習用のスタジオもこの界隈にいくつも開かれるようになったそうだ。',
-    'バンドを組む若者たちにとって、この街は昼も夜も練習に事欠かない場所だったらしい。'
+  { id:'y2kStudio', corridor:'1', lat:35.66297, lng:139.66779, title:'夜通し明かりが灯る音楽スタジオ', reward:'magic', speaker:'スタジオの受付係', lines:[
+    'うちのスタジオ、夜遅くまで演奏の音が途切れないんですよ。',
+    'ライブハウスが増えるにつれて、練習用のスタジオもこの界隈にどんどん増えていきましてね。',
+    'バンドを組んでる若い子たちにとっちゃ、昼も夜も練習に困らない街になったんです。'
   ]},
-  { id:'y2kKensho', corridor:'1', lat:35.66293, lng:139.66857, title:'商店街憲章の下書き', reward:'gold', lines:[
-    '商店街の掲示板に、真新しい憲章のような文書が貼り出されている。',
-    '2001年12月に制定されたという商店街憲章は、これからの一番街のあり方を商店主たち自身の言葉でまとめたものらしい。',
-    '長年積み重ねてきた歴史の上に、新しい約束事が加わった瞬間だったのかもしれない。'
+  { id:'y2kKensho', corridor:'1', lat:35.66293, lng:139.66857, title:'商店街憲章の下書き', reward:'gold', speaker:'商店会の世話役', lines:[
+    'この掲示板に貼り出したばかりの文書、うちらの商店街憲章でね。',
+    '2001年12月に制定したんだ。これからの一番街をどうしていくか、商店主自身の言葉でまとめたものなんだよ。',
+    '長年積み重ねてきた歴史の上に、新しい約束事を加えたところなんだ。'
   ]},
-  { id:'y2kMochitsuki', corridor:'1', lat:35.66222, lng:139.66894, title:'チャリティー餅つきの湯気', reward:'heal', lines:[
-    '威勢のいい掛け声とともに、大きな臼で餅をつく音が響いている。',
-    '1970年1月に始まったというチャリティー餅つき大会は、商店街が地域のために開いてきた恒例行事だったそうだ。',
-    'つきたての餅をひとつ分けてもらうと、体の芯からじんわりと温まるようだった。'
+  { id:'y2kMochitsuki', corridor:'1', lat:35.66222, lng:139.66894, title:'チャリティー餅つきの湯気', reward:'heal', speaker:'商店会の世話役', lines:[
+    '威勢のいい掛け声、聞こえるだろう。うちの臼で餅をついてるんだよ。',
+    '1970年1月に始めたチャリティー餅つき大会でね、地域のために商店街で毎年やってる恒例行事なんだ。',
+    'つきたての餅、ひとつ持っていきな。体の芯からじんわり温まるから。'
   ]},
-  { id:'y2kSuzunari', corridor:'2', lat:35.6597, lng:139.66764, title:'小劇団のチラシの束', reward:'atk', lines:[
-    '古い民家を改装したような、味わい深い佇まいの劇場が建っている。',
-    '1981年3月に開場したというこの劇場は、小劇場演劇のグループの拠点のひとつとして親しまれてきたそうだ。',
-    '客席にこもる熱気にあてられて、なんだか腕に力がみなぎってくるようだった。'
+  { id:'y2kSuzunari', corridor:'2', lat:35.6597, lng:139.66764, title:'小劇団のチラシの束', reward:'atk', speaker:'劇場の案内係', lines:[
+    '古い民家を改装した、味のある建物でしょう。うちの劇場です。',
+    '1981年3月に開場しましてね、小劇場演劇のグループの拠点として、長く親しまれてきたんですよ。',
+    '客席にこもる熱気にあてられると、こっちまで腕に力がみなぎってくる気がします。'
   ]},
-  { id:'y2kTollywood', corridor:'2', lat:35.66037, lng:139.66735, title:'ミニシアターの看板', reward:'magic', lines:[
-    '小さな入り口の奥に、こぢんまりとした映画館の受付が見える。',
-    '1999年12月22日に開館したというこのミニシアターは、座席数わずか47席という小さな映画館だったそうだ。',
-    '暗がりのスクリーンを見つめていると、想像力がふくらんでいくような感覚があった。'
+  { id:'y2kTollywood', corridor:'2', lat:35.66037, lng:139.66735, title:'ミニシアターの看板', reward:'magic', speaker:'映画館の案内係', lines:[
+    '小さな入り口でしょう。この奥がうちの映画館なんです。',
+    '1999年12月22日に開館しましてね、座席数はたったの47席、小さいのがうちの自慢なんですよ。',
+    '暗がりでスクリーンを見つめていると、想像力がどんどんふくらんでいく気がしませんか。'
   ]},
-  { id:'y2kFurugiOldest', corridor:'2', lat:35.65931, lng:139.6669, title:'古着屋の値札', reward:'gold', lines:[
-    '軒先に吊るされた古びたジャケットが、風に揺れている。',
-    '1985年に南口で店を開いたというこの古着屋は、当時まだ数えるほどしかなかった古着専門店の草分けのひとつだったらしい。',
-    '棚の奥には、値の付いた掘り出し物がまだいくつか眠っているようだ。'
+  { id:'y2kFurugiOldest', corridor:'2', lat:35.65931, lng:139.6669, title:'古着屋の値札', reward:'gold', speaker:'古着屋の店主', lines:[
+    '軒先で風に揺れてるこのジャケット、悪くないだろう?',
+    'うちは1985年に南口で店を出してね、当時この辺にはまだ古着専門店なんて数えるほどしかなかったんだ。草分けみたいなもんさ。',
+    '棚の奥を探せば、まだ掘り出し物が眠ってるかもしれないよ。'
   ]},
-  { id:'y2kFurugiBoom', corridor:'2', lat:35.6592, lng:139.66788, title:'古着ブームの波', reward:'gold', lines:[
-    '通りの両側に、次々と古着屋の看板が並んでいる。',
-    '1990年代に入ると古着ブームが巻き起こり、3か月に1軒のペースで新しい店ができていった時期もあったそうだ。',
-    '棚をひとつひとつ覗いていくだけでも、ずいぶん時間がかかりそうだった。'
+  { id:'y2kFurugiBoom', corridor:'2', lat:35.6592, lng:139.66788, title:'古着ブームの波', reward:'gold', speaker:'古着屋の店主', lines:[
+    '通りの両側、見てみなよ。うちみたいな古着屋の看板がどんどん増えてるだろう。',
+    '1990年代に入ってから古着ブームが来てね、3か月に1軒のペースで新しい店ができた時期もあったんだ。',
+    '棚をひとつひとつ覗いていくだけで、ずいぶん時間がかかっちまうだろう?'
   ]},
-  { id:'y2kFumikiri', corridor:'2', lat:35.66019, lng:139.66824, title:'なかなか開かない踏切', reward:'gold', lines:[
-    '遮断機が下りたままの踏切に、人と自転車の列ができている。',
-    '電車の往来が多いこの踏切は、なかなか開かないことで知られていたらしい。',
-    '列に並ぶ人々の表情には、慣れた様子と少しのじれったさが入り混じっているようだった。'
+  { id:'y2kFumikiri', corridor:'2', lat:35.66019, lng:139.66824, title:'なかなか開かない踏切', reward:'gold', speaker:'近所の住人', lines:[
+    'また下りっぱなしだ、この踏切。列に並ぶしかないね。',
+    '電車の往来が多くてね、なかなか開かない踏切として、この辺じゃ有名なんだよ。',
+    '慣れっことはいえ、やっぱりちょっとじれったいもんさ。'
   ]},
-  { id:'y2kChikaka', corridor:'2', lat:35.66071, lng:139.66799, title:'地下化工事の予告看板', reward:'gold', lines:[
-    '工事の予定を示すような看板が、道端にひっそりと立てられている。',
-    '踏切の混雑を解消するため、駅や線路をいずれ地下に通す計画があるという噂が街には流れていたそうだ。',
-    '実現するのはまだ先のことのようだが、街の風景がいつか大きく変わる日が来るのかもしれない。'
+  { id:'y2kChikaka', corridor:'2', lat:35.66071, lng:139.66799, title:'地下化工事の予告看板', reward:'gold', speaker:'近所の住人', lines:[
+    '道端に立ってるこの看板、工事の予定を知らせてるらしいんだ。',
+    '踏切の混雑を解消するために、駅も線路もいずれ地下に通すって計画があるって噂でね。',
+    '実現するのはまだ先の話みたいだけど、いつか街の景色ががらっと変わる日が来るのかもしれないね。'
   ]},
-  { id:'y2kHojo54', corridor:'2', lat:35.65995, lng:139.6682, title:'道路計画の赤い線', reward:'atk', lines:[
-    '道路の拡張計画を示すらしい赤い線が、古い地図の上に引かれている。',
-    'この一帯を通る新しい道路計画は、2003年2月に都市計画として決定されたという。',
-    '街の姿がこの線一本でどう変わるのか、地図を睨んでいるだけで妙に力が入るようだった。'
+  { id:'y2kHojo54', corridor:'2', lat:35.65995, lng:139.6682, title:'道路計画の赤い線', reward:'atk', speaker:'商店主', lines:[
+    'この古い地図に引いてある赤い線、道路の拡張計画を示してるんだ。',
+    '2003年2月に都市計画として決定されてね。うちの店にも関わってくる話なんだよ。',
+    'この線一本で街の姿がどう変わるのか、地図を睨んでるだけで妙に力が入っちまうよ。'
   ]},
-  { id:'y2kSaveShimokita', corridor:'2', lat:35.6593, lng:139.66821, title:'住民運動のビラ', reward:'magic', lines:[
-    '手作りらしいビラが、電柱や掲示板のあちこちに貼られている。',
-    '道路計画をきっかけに、2003年11月には街の将来を考える住民運動が発足したそうだ。',
-    'それぞれの立場から街の未来を思う声が、この時期の下北沢には数多く生まれていたらしい。'
+  { id:'y2kSaveShimokita', corridor:'2', lat:35.6593, lng:139.66821, title:'住民運動のビラ', reward:'magic', speaker:'近所の住人', lines:[
+    '電柱や掲示板のあちこちに貼ってあるこのビラ、うちらで手作りしたものなんだ。',
+    '道路計画がきっかけでね、2003年11月に街の将来を考える住民運動を立ち上げたんだよ。',
+    'みんなそれぞれの立場から、この街の未来を思ってるのさ。声はひとつじゃないけどね。'
   ]},
-  { id:'y2kMovieLocation', corridor:'2', lat:35.66057, lng:139.66695, title:'ロケ地になった路地', reward:'heal', lines:[
-    '見覚えのあるような路地の風景に、思わず足を止めてしまう。',
-    '2000年に公開されたという下北沢を舞台にした映画では、この界隈の劇場やカフェ、ビリヤード場などがロケ地に使われたそうだ。',
-    '映画のワンシーンに迷い込んだような気分で、少しだけ心が軽くなった。'
+  { id:'y2kMovieLocation', corridor:'2', lat:35.66057, lng:139.66695, title:'ロケ地になった路地', reward:'heal', speaker:'近所の住人', lines:[
+    'この路地、どこかで見たことあるような気がしないかい?',
+    '2000年に公開された、下北沢を舞台にした映画のロケ地に使われたんだよ。うちの近くの劇場やカフェ、ビリヤード場も出てきたんだ。',
+    '歩いてるだけで、映画のワンシーンに迷い込んだような気分になるだろう?'
   ]},
-  { id:'y2kFuruhonya', corridor:'2', lat:35.66035, lng:139.66655, title:'古本屋の匂い', reward:'heal', lines:[
-    '狭い間口の奥に、天井まで届きそうな本棚が並んでいる。',
-    '古本屋やカフェ、小さなバーなどが軒を連ねるこの一帯は、南口らしい落ち着いた雰囲気を持っていたそうだ。',
-    '埃っぽい紙の匂いに包まれていると、なぜか心が静かに落ち着いていくようだった。'
+  { id:'y2kFuruhonya', corridor:'2', lat:35.66035, lng:139.66655, title:'古本屋の匂い', reward:'heal', speaker:'古本屋の店主', lines:[
+    '狭い入り口だけど、奥は天井まで本棚がぎっしりでね。',
+    'この辺りは古本屋やカフェ、小さなバーが並んでてね、南口らしい落ち着いた雰囲気があるのがうちの自慢なんだ。',
+    'この埃っぽい紙の匂い、嫌いじゃないだろう? なんだか心が静かに落ち着いていくんだよ。'
   ]},
   // ここからは、当時(2000年前後)は営業していたが、今はもう下北沢から姿を消して
   // しまった実在のバー・クラブを調べて追加した3箇所。いずれも複数の資料で実在と
   // 閉店の両方が確認できたものだけを選んでいる。実在の人物名(著名な俳優・写真家・
   // 音楽関係者など、店にゆかりのある人物を含む)は登場させていない。
-  { id:'y2kLadyJane', corridor:'2', lat:35.6584, lng:139.667, title:'ジャズの流れる大人のバー', reward:'magic', lines:[
-    '重い扉を開けると、低く響くジャズの音色と、グラスの触れ合う音が耳に届く。',
-    '1975年に開いたというこの店は、芝居や映画、ジャズと酒を看板に掲げる、少し大人びたバーだったそうだ。',
-    '著名な俳優や写真家、シンガーソングライターたちにも愛されたというこの店は、下北沢の路地裏文化を象徴する一軒として、その後も長年にわたって灯りをともし続けることになるという。'
+  { id:'y2kLadyJane', corridor:'2', lat:35.6584, lng:139.667, title:'ジャズの流れる大人のバー', reward:'magic', speaker:'バーの店主', lines:[
+    'うちは1975年に店を開いてね、芝居や映画、ジャズと酒を看板にした、ちょっと大人びたバーなんだ。',
+    '著名な俳優さんや写真家さん、シンガーソングライターの方にも贔屓にしてもらってねえ。',
+    'この路地裏文化を象徴する店だなんて言われて、その後も長年灯りをともし続けることになるんだよ。'
   ]},
-  { id:'y2kMiyoshino', corridor:'3', lat:35.66091, lng:139.66788, title:'闇市の記憶を継ぐ角打ち', reward:'gold', lines:[
-    '5人も座ればいっぱいになりそうな、驚くほど小さな店構えが目に入る。',
-    '1994年に始まったというこの店には、値段を書いたメニューもなければ、きちんとした扉さえもなく、一年中どこか外に開かれたような雰囲気だったそうだ。',
-    '芝居関係者や音楽家、地元の常連たちが分け隔てなく肩を並べて飲んでいたという、駅前食品市場らしい一軒だったらしい。'
+  { id:'y2kMiyoshino', corridor:'3', lat:35.66091, lng:139.66788, title:'闇市の記憶を継ぐ角打ち', reward:'gold', speaker:'角打ちの店主', lines:[
+    '見ての通り、5人も座ればいっぱいになっちまう、うちは小さな店でねえ。',
+    '1994年に始めたんだけど、メニューに値段も書いてなきゃ、ちゃんとした扉もありゃしない。一年中、外に開けっぱなしみたいな店なんだ。',
+    '芝居関係の人も、音楽家も、近所の常連も、分け隔てなく肩を並べて飲んでるだろう? これがうちの、市場らしいところなんだよ。'
   ]},
-  { id:'y2kClubWedge', corridor:'2', lat:35.65686, lng:139.6675, title:'ジャンルレスな小さなクラブ', reward:'atk', lines:[
-    '雑居ビルの地下から、低く響くビートが漏れ聞こえてくる。',
-    '2001年に開いたというこの店は、フロアと休憩スペース、バーカウンターがひとつの階に収まった、下北沢では珍しいクラブだったそうだ。',
-    'ジャンルにとらわれない音楽の選び方と、客も演者もスタッフも同じ目線で楽しめる空気が、この店らしさだったという。'
+  { id:'y2kClubWedge', corridor:'2', lat:35.65686, lng:139.6675, title:'ジャンルレスな小さなクラブ', reward:'atk', speaker:'クラブの店主', lines:[
+    'このビルの地下から漏れてるビート、気になるだろう。うちのクラブさ。',
+    '2001年に開いたんだけど、フロアも休憩スペースもバーカウンターも一つの階に収まっててね、下北沢じゃちょっと珍しい造りなんだ。',
+    'ジャンルにとらわれない選曲と、客も演者もスタッフも同じ目線で楽しめる空気、これがうちらしさだと思ってるよ。'
   ]},
   // さらに調べて追加した、当時営業していたが今はもうない実在のバー・喫茶店4箇所。
   // いずれも複数の資料(下北沢経済新聞、地域の記録ブログなど)で実在と閉店の両方が
   // 確認できたものを選んでいる。実在の人物名は登場させていない。
-  { id:'y2kBarKitazawa', corridor:'3', lat:35.66112, lng:139.66825, title:'昭和レトロが詰まったバー', reward:'gold', lines:[
-    '雑居ビルの2階に上がると、年季の入ったジュークボックスと、見覚えのあるインベーダーゲームの筐体が目に留まる。',
-    '2000年代の初めに開いたというこの店は、ビロード張りのソファや古いハイボールの看板など、昭和の雰囲気をわざと集めたような内装だったそうだ。',
-    '道路の拡張工事や時代の流れをきっかけに、2020年の暮れには一度看板を下ろすことになるという。'
+  { id:'y2kBarKitazawa', corridor:'3', lat:35.66112, lng:139.66825, title:'昭和レトロが詰まったバー', reward:'gold', speaker:'バーの店主', lines:[
+    'この階段を上がった先が、うちの店さ。年季の入ったジュークボックスと、懐かしいインベーダーゲームの筐体を置いてあるんだ。',
+    '2000年代の初めに開いたんだけど、ビロード張りのソファや古いハイボールの看板なんかを集めてね、わざと昭和っぽい内装にしたんだよ。',
+    '最近、道路の拡幅工事の話がちらほら聞こえてきててね。もしかしたら、そう遠くないうちに看板を下ろすことになるかもしれないなあ。'
   ]},
-  { id:'y2kRyohana', corridor:'1', lat:35.6635, lng:139.6684, title:'大人の隠れ家酒場', reward:'magic', lines:[
-    '目立たない雑居ビルの2階に、静かに灯りをともす一軒がある。',
-    '1990年ごろに始まったというこの店は、食事よりも酒と雰囲気を楽しむための「隠れ家」として、常連たちに長く親しまれてきたそうだ。',
-    '表通りの賑わいとは対照的な、落ち着いた時間が流れているらしい。'
+  { id:'y2kRyohana', corridor:'1', lat:35.6635, lng:139.6684, title:'大人の隠れ家酒場', reward:'magic', speaker:'酒場の店主', lines:[
+    '目立たないビルの2階だから、初めての人には見つけにくいかもしれないね。',
+    '1990年ごろに始めた店でね、食事よりも酒と雰囲気を楽しんでもらう「隠れ家」ってつもりでやってるんだ。常連さんには長いこと贔屓にしてもらってるよ。',
+    '表通りのにぎやかさとは正反対、ここだけゆっくり時間が流れてるだろう?'
   ]},
-  { id:'y2kMasako', corridor:'2', lat:35.66092, lng:139.6666, title:'ジャズと紅茶の喫茶店', reward:'heal', lines:[
-    '扉を開けると、所狭しと並んだジャズのレコードと、コーヒーの香りが出迎えてくれる。',
-    '1953年に、かつて銀座で踊り子をしていたという人物が開いたというこの店には、静かにジャズを聴くだけでなく、気軽におしゃべりを楽しめる空気があったそうだ。',
-    '名物だという小豆トーストをひと口食べると、疲れがすっとほぐれていくようだった。'
+  { id:'y2kMasako', corridor:'2', lat:35.66092, lng:139.6666, title:'ジャズと紅茶の喫茶店', reward:'heal', speaker:'喫茶店の店主', lines:[
+    '扉を開けたら、ジャズのレコードとコーヒーの香りでお出迎え。ゆっくりしていってね。',
+    'うちは1953年に開いた店でね。実はわたし、その昔は銀座で踊り子をしていたのよ。',
+    '静かにジャズを聴くのもよし、気軽におしゃべりするのもよし。名物の小豆トースト、ひと口食べたら疲れがすっとほぐれるから。'
   ]},
-  { id:'y2kTroublePeach', corridor:'1', lat:35.66251, lng:139.66917, title:'同じビルの2軒のロックバー', reward:'atk', lines:[
-    '雑居ビルの1階と2階、それぞれの扉の向こうから、レコードの回る音が聞こえてくる。',
-    '1階の店は1974年に、2階の店は1980年に始まったという、姉妹店のような2軒のロックバーだったそうだ。手回しのアナログレコードだけをかけるのが、どちらの店にも共通するこだわりだったという。',
-    'やがて道路の拡張計画によってビルごと姿を消すことになるというが、それはまだ少し先の話らしい。'
+  { id:'y2kTroublePeach', corridor:'1', lat:35.66251, lng:139.66917, title:'同じビルの2軒のロックバー', reward:'atk', speaker:'ロックバーの店主', lines:[
+    '1階と2階、扉の向こうからレコードの回る音が聞こえるだろう。うちら姉妹店みたいなもんでね。',
+    '1階は1974年に、2階は1980年に始めたんだ。どっちの店も、手回しのアナログレコードだけをかけるのが共通のこだわりでね。',
+    'このごろ、道路の拡張計画があるって噂を耳にしてね。いつかビルごと姿を消すことになるかもしれないが……まあ、それはまだ少し先の話さ。'
   ]}
 ];
 // 2000年編の地図に薄く重ねる「当時の街」オーバーレイ。世田谷区が公開している
@@ -7378,6 +7428,39 @@ function y2000CloseArchive(){
   s.stage = 'overworld';
   render();
 }
+function y2000OpenMapView(){
+  const s = smtGameState;
+  if(!s || s.stage!=='overworld' || s.era!=='y2000') return;
+  s.stage = 'y2000MapView';
+  render();
+}
+function y2000CloseMapView(){
+  const s = smtGameState;
+  if(!s || s.stage!=='y2000MapView') return;
+  s.stage = 'overworld';
+  render();
+}
+// SMT風の会話ウィンドウ用に、スポットのspeaker(役どころ)からそれらしいポートレート絵文字を選ぶ。
+// 実在の人物を描くのではなく、役どころに応じた汎用的なアイコンにとどめている。
+function y2000SpeakerIcon(speaker){
+  if(!speaker) return '🧑';
+  if(speaker.includes('バー') || speaker.includes('クラブ') || speaker.includes('酒場') || speaker.includes('角打ち')) return '🍸';
+  if(speaker.includes('そば')) return '🍜';
+  if(speaker.includes('古着')) return '👕';
+  if(speaker.includes('古本')) return '📚';
+  if(speaker.includes('喫茶')) return '☕';
+  if(speaker.includes('劇場')) return '🎭';
+  if(speaker.includes('映画館')) return '🎬';
+  if(speaker.includes('ライブハウス')) return '🎸';
+  if(speaker.includes('スタジオ')) return '🎤';
+  if(speaker.includes('祭り')) return '🥁';
+  if(speaker.includes('交番')) return '👮';
+  if(speaker.includes('自転車')) return '🚲';
+  if(speaker.includes('市場') || speaker.includes('青果') || speaker.includes('惣菜') || speaker.includes('露天')) return '🥬';
+  if(speaker.includes('タウンホール')) return '🏛️';
+  if(speaker.includes('商店') || speaker.includes('一番街')) return '🏮';
+  return '🧑';
+}
 function smtY2kSpotIconHtml(claimed){
   return `<div style="font-size:15px;line-height:1;opacity:${claimed?0.35:1};filter:drop-shadow(0 1px 1px rgba(0,0,0,.6));">💭</div>`;
 }
@@ -7444,6 +7527,7 @@ function newSmtGame(){
     lastClearedEra: null,
     lastVictoryLine: null,
     eraFlash: false,
+    heading: 0, // 進んでいる向き(度、北=0/東=90/南=180/西=270)。2000年編の一人称視点で使用
     y2000: {
       visited: {},
       clearedZones: { market:false, ichibangai:false, chazawa:false },
@@ -7607,6 +7691,15 @@ function smtShopIconHtml(claimed){
 }
 function initSmtGameMap(){
   const s = smtGameState;
+  if(!s){ stopSmtGameMap(); return; }
+  if(s.stage === 'y2000MapView'){ initSmtY2000MapViewMap(); return; }
+  if(s.stage !== 'overworld'){ stopSmtGameMap(); return; }
+  if(s.era === 'y2000'){ initSmtFirstPersonOverworld(); }
+  else { initSmtLeafletOverworld(); }
+}
+// 現在編(今日)の見下ろし型オーバーワールド。従来どおり実際の下北沢マップ(OSM)の上を移動する。
+function initSmtLeafletOverworld(){
+  const s = smtGameState;
   const container = document.getElementById('smtOverworldMap');
   if(!container || typeof L === 'undefined' || !s || s.stage !== 'overworld'){
     stopSmtGameMap();
@@ -7615,8 +7708,7 @@ function initSmtGameMap(){
   stopSmtGameMap(); // renderSmtGame()が毎回innerHTMLを差し替えるため、地図とループを毎回作り直す
   smtOverworldInput = { up:false, down:false, left:false, right:false };
   smtOverworldLastTime = null;
-  const isY2000 = s.era === 'y2000';
-  container.classList.toggle('y2k-sepia', isY2000);
+  container.classList.remove('y2k-sepia');
 
   const map = L.map(container, { zoomControl: true });
   map.setView([s.pos.lat, s.pos.lng], s.mapZoom || 17);
@@ -7627,9 +7719,7 @@ function initSmtGameMap(){
   map.on('zoomend', () => { s.mapZoom = map.getZoom(); });
 
   ['1','2','3'].forEach(corridor=>{
-    const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[corridor] : corridor;
-    const clearedZones = isY2000 ? s.y2000.clearedZones : s.clearedZones;
-    const cleared = clearedZones[zoneKey];
+    const cleared = s.clearedZones[corridor];
     const color = smtZoneCircleColor(corridor, cleared);
     L.circle(SMT_ZONE_CENTER[corridor], { radius: SMT_ZONE_RADIUS_M, color, fillColor: color, fillOpacity: 0.15, weight: 1 }).addTo(map);
     L.marker(SMT_ZONE_BOSS_POINT[corridor], {
@@ -7637,43 +7727,14 @@ function initSmtGameMap(){
     }).addTo(map);
   });
 
-  if(isY2000){
-    Y2K_SPOTS.forEach(spot=>{
-      const claimed = !!s.y2000.visited[spot.id];
-      const marker = L.marker([spot.lat, spot.lng], {
-        icon: L.divIcon({ className:'smt-shop-marker-wrap', html: smtY2kSpotIconHtml(claimed), iconSize:[18,18], iconAnchor:[9,9] })
-      }).addTo(map);
-      marker.bindTooltip(escapeHtml(spot.title), { direction:'top', offset:[0,-8] });
-    });
-    // 「当時の街」オーバーレイ:薄い網掛け・線・マーカーで、再開発前のおおよその
-    // 見当を地図の上に重ねて表示する(実測ではなく、区の資料をもとにした目安)。
-    Y2K_HISTORICAL_OVERLAYS.forEach(ov=>{
-      if(ov.type==='polygon'){
-        const layer = L.polygon(ov.coords, { color: ov.color, weight:1, dashArray:'4,4', fillColor: ov.color, fillOpacity:0.16, interactive:true }).addTo(map);
-        layer.bindTooltip(`🗺️ ${escapeHtml(ov.label)}`, { permanent:true, direction:'center', className:'smt-hist-label' });
-        layer.bindPopup(escapeHtml(ov.desc));
-      } else if(ov.type==='polyline'){
-        const layer = L.polyline(ov.coords, { color: ov.color, weight:3, dashArray:'6,6', opacity:0.6, interactive:true }).addTo(map);
-        layer.bindTooltip(`🗺️ ${escapeHtml(ov.label)}`, { permanent:true, direction:'top', className:'smt-hist-label' });
-        layer.bindPopup(escapeHtml(ov.desc));
-      } else if(ov.type==='point'){
-        const layer = L.marker(ov.coords, {
-          icon: L.divIcon({ className:'smt-hist-marker-wrap', html:`<div style="font-size:16px;opacity:.85;">${ov.icon}</div>`, iconSize:[20,20], iconAnchor:[10,10] })
-        }).addTo(map);
-        layer.bindTooltip(`🗺️ ${escapeHtml(ov.label)}`, { direction:'top', offset:[0,-8] });
-        layer.bindPopup(escapeHtml(ov.desc));
-      }
-    });
-  } else {
-    SHIMOKITA_SPOTS.forEach(spot=>{
-      if(typeof spot.lat !== 'number' || typeof spot.lng !== 'number') return;
-      const claimed = !!s.claimedSpots[spot.id];
-      const marker = L.marker([spot.lat, spot.lng], {
-        icon: L.divIcon({ className:'smt-shop-marker-wrap', html: smtShopIconHtml(claimed), iconSize:[18,18], iconAnchor:[9,9] })
-      }).addTo(map);
-      marker.bindTooltip(escapeHtml(spot.name), { direction:'top', offset:[0,-8] });
-    });
-  }
+  SHIMOKITA_SPOTS.forEach(spot=>{
+    if(typeof spot.lat !== 'number' || typeof spot.lng !== 'number') return;
+    const claimed = !!s.claimedSpots[spot.id];
+    const marker = L.marker([spot.lat, spot.lng], {
+      icon: L.divIcon({ className:'smt-shop-marker-wrap', html: smtShopIconHtml(claimed), iconSize:[18,18], iconAnchor:[9,9] })
+    }).addTo(map);
+    marker.bindTooltip(escapeHtml(spot.name), { direction:'top', offset:[0,-8] });
+  });
 
   smtLeafletPlayerMarker = L.marker([s.pos.lat, s.pos.lng], {
     icon: L.divIcon({ className:'smt-player-icon-wrap', html: smtPlayerIconHtml(s.alignment), iconSize:[34,34], iconAnchor:[17,17] }),
@@ -7685,6 +7746,152 @@ function initSmtGameMap(){
   window.addEventListener('keyup', smtOverworldKeyUp);
   smtOverworldKeyHandlerBound = true;
   smtOverworldRafId = requestAnimationFrame(smtOverworldLoop);
+}
+// 2000年編のオーバーワールド。SMT風に、地図を上から見る代わりに進行方向の街並みを
+// CSS/絵文字で描いた一人称視点で表示する。移動ロジック・十字キー操作は現在編と共通。
+function initSmtFirstPersonOverworld(){
+  const s = smtGameState;
+  const scene = document.getElementById('smtFirstPersonScene');
+  if(!scene || !s || s.stage !== 'overworld' || s.era !== 'y2000'){
+    stopSmtGameMap();
+    return;
+  }
+  stopSmtGameMap();
+  smtOverworldInput = { up:false, down:false, left:false, right:false };
+  smtOverworldLastTime = null;
+  smtFirstPersonRefresh(s); // 初期状態を即座に描画
+  window.addEventListener('keydown', smtOverworldKeyDown);
+  window.addEventListener('keyup', smtOverworldKeyUp);
+  smtOverworldKeyHandlerBound = true;
+  smtOverworldRafId = requestAnimationFrame(smtOverworldLoop);
+}
+// 2000年編・「地図で見る」画面。移動は一時停止し、当時オーバーレイつきの実マップを
+// シンプルな(店舗アイコンの出ない)タイルスタイルで見返せる、見るだけの別画面。
+function initSmtY2000MapViewMap(){
+  const s = smtGameState;
+  const container = document.getElementById('smtY2000MapViewMap');
+  if(!container || typeof L === 'undefined' || !s || s.stage !== 'y2000MapView'){
+    stopSmtGameMap();
+    return;
+  }
+  stopSmtGameMap();
+  container.classList.add('y2k-sepia');
+
+  const map = L.map(container, { zoomControl: true });
+  map.setView([s.pos.lat, s.pos.lng], s.mapZoom || 17);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  }).addTo(map);
+  map.on('zoomend', () => { s.mapZoom = map.getZoom(); });
+
+  ['1','2','3'].forEach(corridor=>{
+    const zoneKey = Y2K_CORRIDOR_MAP[corridor];
+    const cleared = s.y2000.clearedZones[zoneKey];
+    const color = smtZoneCircleColor(corridor, cleared);
+    L.circle(SMT_ZONE_CENTER[corridor], { radius: SMT_ZONE_RADIUS_M, color, fillColor: color, fillOpacity: 0.15, weight: 1 }).addTo(map);
+    L.marker(SMT_ZONE_BOSS_POINT[corridor], {
+      icon: L.divIcon({ className:'smt-boss-marker-wrap', html:`<div style="font-size:20px;">${cleared ? '✅' : '⛩️'}</div>`, iconSize:[24,24], iconAnchor:[12,12] })
+    }).addTo(map);
+  });
+
+  Y2K_SPOTS.forEach(spot=>{
+    const claimed = !!s.y2000.visited[spot.id];
+    const marker = L.marker([spot.lat, spot.lng], {
+      icon: L.divIcon({ className:'smt-shop-marker-wrap', html: smtY2kSpotIconHtml(claimed), iconSize:[18,18], iconAnchor:[9,9] })
+    }).addTo(map);
+    marker.bindTooltip(escapeHtml(spot.title), { direction:'top', offset:[0,-8] });
+  });
+  // 「当時の街」オーバーレイ:薄い網掛け・線・マーカーで、再開発前のおおよその
+  // 見当を地図の上に重ねて表示する(実測ではなく、区の資料をもとにした目安)。
+  Y2K_HISTORICAL_OVERLAYS.forEach(ov=>{
+    if(ov.type==='polygon'){
+      const layer = L.polygon(ov.coords, { color: ov.color, weight:1, dashArray:'4,4', fillColor: ov.color, fillOpacity:0.16, interactive:true }).addTo(map);
+      layer.bindTooltip(`🗺️ ${escapeHtml(ov.label)}`, { permanent:true, direction:'center', className:'smt-hist-label' });
+      layer.bindPopup(escapeHtml(ov.desc));
+    } else if(ov.type==='polyline'){
+      const layer = L.polyline(ov.coords, { color: ov.color, weight:3, dashArray:'6,6', opacity:0.6, interactive:true }).addTo(map);
+      layer.bindTooltip(`🗺️ ${escapeHtml(ov.label)}`, { permanent:true, direction:'top', className:'smt-hist-label' });
+      layer.bindPopup(escapeHtml(ov.desc));
+    } else if(ov.type==='point'){
+      const layer = L.marker(ov.coords, {
+        icon: L.divIcon({ className:'smt-hist-marker-wrap', html:`<div style="font-size:16px;opacity:.85;">${ov.icon}</div>`, iconSize:[20,20], iconAnchor:[10,10] })
+      }).addTo(map);
+      layer.bindTooltip(`🗺️ ${escapeHtml(ov.label)}`, { direction:'top', offset:[0,-8] });
+      layer.bindPopup(escapeHtml(ov.desc));
+    }
+  });
+
+  smtLeafletPlayerMarker = L.marker([s.pos.lat, s.pos.lng], {
+    icon: L.divIcon({ className:'smt-player-icon-wrap', html: smtPlayerIconHtml(s.alignment), iconSize:[34,34], iconAnchor:[17,17] }),
+    zIndexOffset: 1000
+  }).addTo(map);
+
+  smtLeafletMapInstance = map;
+  // 見るだけの画面のため、ここではキー操作の再バインドやRAFループの起動は行わない
+  // (移動・遭遇判定は「街を歩く画面へ戻る」でoverworldに戻ってから再開する)。
+}
+const SMT_FP_FOV = 100; // 一人称視点の水平画角(度)。この範囲外のスポットは描画しない
+const SMT_FP_MAX_DIST = 220; // これより遠いスポットは描画しない(メートル)
+function smtBearingDeg(lat1, lng1, lat2, lng2){
+  // smtDistMetersと同じ平面近似で、北=0度・東=90度の方位角を求める
+  const dLat = (lat2-lat1) * 111320;
+  const dLng = (lng2-lng1) * 111320 * Math.cos(lat1*Math.PI/180);
+  return (Math.atan2(dLng, dLat) * 180/Math.PI + 360) % 360;
+}
+function smtHeadingLabel(heading){
+  const dirs = ['北','北東','東','南東','南','南西','西','北西'];
+  return dirs[Math.round(((heading%360)+360)%360/45) % 8];
+}
+// 2000年編の一人称ビューを毎フレーム(移動があったときだけ)軽量に更新する。
+// initSmtGameMap()のようにDOMをまるごと作り直すのではなく、既存のDOM要素を
+// そのつどピンポイントで書き換えるだけにして、Leafletのpanto/setLatLngと同じ考え方に揃えている。
+function smtFirstPersonRefresh(s){
+  const scene = document.getElementById('smtFirstPersonScene');
+  if(!scene) return;
+  const heading = s.heading || 0;
+  const needle = document.getElementById('smtFpCompassNeedle');
+  if(needle) needle.style.transform = `rotate(${heading}deg)`;
+  const label = document.getElementById('smtFpCompassLabel');
+  if(label) label.textContent = smtHeadingLabel(heading);
+
+  const markersWrap = document.getElementById('smtFpMarkers');
+  if(!markersWrap) return;
+
+  const candidates = [];
+  Y2K_SPOTS.forEach(spot=>{
+    const claimed = !!s.y2000.visited[spot.id];
+    candidates.push({ lat:spot.lat, lng:spot.lng, icon:'💭', claimed, kind:'spot' });
+  });
+  ['1','2','3'].forEach(corridor=>{
+    const zoneKey = Y2K_CORRIDOR_MAP[corridor];
+    const cleared = s.y2000.clearedZones[zoneKey];
+    const pt = SMT_ZONE_BOSS_POINT[corridor];
+    candidates.push({ lat:pt[0], lng:pt[1], icon: cleared ? '✅' : '⛩️', claimed:cleared, label: cleared ? '解放済み' : '気配', kind:'boss' });
+  });
+
+  const visible = [];
+  candidates.forEach(c=>{
+    const dist = smtDistMeters(s.pos.lat, s.pos.lng, c.lat, c.lng);
+    if(dist > SMT_FP_MAX_DIST) return;
+    const bearing = smtBearingDeg(s.pos.lat, s.pos.lng, c.lat, c.lng);
+    const rel = ((bearing - heading + 540) % 360) - 180;
+    if(Math.abs(rel) > SMT_FP_FOV/2) return;
+    visible.push(Object.assign({}, c, { dist, rel }));
+  });
+  visible.sort((a,b)=> b.dist - a.dist); // 遠いものから描画し、近いものを手前に重ねる
+
+  markersWrap.innerHTML = visible.map(v=>{
+    const leftPct = 50 + (v.rel / (SMT_FP_FOV/2)) * 46;
+    const scale = Math.max(0.35, 1 - v.dist / SMT_FP_MAX_DIST);
+    const bottomPct = 14 + (1 - v.dist/SMT_FP_MAX_DIST) * 10;
+    const fontSize = Math.round(14 + scale*22);
+    const opacity = v.claimed ? 0.4 : Math.max(0.5, scale);
+    return `<div class="smt-fp-marker" data-kind="${v.kind}" data-claimed="${v.claimed?1:0}" style="left:${leftPct}%;bottom:${bottomPct}%;opacity:${opacity};">
+      <span class="smt-fp-marker-icon" style="font-size:${fontSize}px;">${v.icon}</span>
+      ${v.kind==='boss' ? `<span class="smt-fp-marker-label">${escapeHtml(v.label)}</span>` : ''}
+    </div>`;
+  }).join('');
 }
 function smtOverworldLoop(ts){
   const s = smtGameState;
@@ -7755,6 +7962,7 @@ function smtOverworldUpdate(s, dt){
   const moving = dx !== 0 || dy !== 0;
   if(moving){
     if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
+    s.heading = (Math.atan2(dx,dy)*180/Math.PI + 360) % 360; // 北=0/東=90/南=180/西=270
     const speedMps = 18.2; // 14 * 1.3(移動速度アップ)
     const metersPerDegLat = 111320;
     const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
@@ -7763,6 +7971,7 @@ function smtOverworldUpdate(s, dt){
     if(smtLeafletMapInstance){ smtLeafletMapInstance.panTo([s.pos.lat, s.pos.lng], { animate:false }); }
   }
   if(smtLeafletPlayerMarker){ smtLeafletPlayerMarker.setLatLng([s.pos.lat, s.pos.lng]); }
+  if(moving && s.era==='y2000' && s.stage==='overworld'){ smtFirstPersonRefresh(s); }
 
   if(smtCheckShopProximity(s)) return;
   smtCheckZoneEncounter(s, dt, moving);
@@ -8011,7 +8220,7 @@ function renderSmtGame(){
         <p class="muted" style="margin-top:6px;">探索の途中でいつでもボタンひとつで「現在の下北沢」にも行き来できます。</p>
       </div>
       <button class="btn btn-primary" style="margin-top:14px;" onclick="startSmtGame()">🕰️ 2000年の下北沢から始める</button>
-      <div class="muted" style="margin-top:10px;">2000年編・現在編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。地図はピンチ・スクロールで自由にズームできます。2000年編では地図全体がセピア色に変わり、表示される目印も、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、駅前広場の様子、一番街商店街の年表、音楽の街としてのライブハウス街、演劇の街の劇場や映画館、茶沢通り、古着屋文化、道路計画をめぐる住民運動など、おおむね1995〜2005年ごろの実在の出来事)についての実在の年表、さらに当時は営業していたが今はもう下北沢から姿を消してしまった実在のバー・クラブ・喫茶店をもとにしたオリジナルの一口解説スポット42箇所に差し替わります。それだけでなく、区が公開している街づくり資料の記述(駅前広場の新計画面積、補助54号線の歩道拡幅計画、踏切の拡幅など)をもとにした、薄い網掛け・線・マーカーが地図の上に重なり、タップすると簡単な解説がポップアップします。見つけた記憶は「街の記録帳」にたまっていきます。3体のボスにはそれぞれ固有の物語があり、倒すたびにこの街の移り変わりが少しずつ見えてきます。どちらの時代もエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響します。ロウ・カオスそれぞれ一定以上傾くと、プレイヤーのアイコンの色や回転、2000年編のエンディングの結びの一文が変わるだけでなく、ロウ側は物理攻撃力アップ・被ダメージ軽減、カオス側は属性魔法アップ・交渉成功率アップという実際の戦闘ボーナスも得られます。ボスはHPが半分を切ると一度だけ力を増す「覚醒」を見せるので、油断はできません。進行状況は保存されません。</div>
+      <div class="muted" style="margin-top:10px;">2000年編・現在編とも、実際の下北沢マップ(下北沢マップと同じ地図・同じ座標)の上を移動する探索型のミニRPGです。現在編は地図を上から見下ろす従来型の表示、2000年編は進んでいる方角の街並みをそのつど描き直す、一人称視点の表示になります(実際の地図はいつでも「🗺️ 地図で見る」ボタンから、お店アイコンの出ないシンプルなスタイルで見返せます)。2000年編で表示される目印は、下北沢マップの実在店舗ではなく、再開発が始まる前の下北沢(戦後の闇市を起源とする駅前食品市場、駅前広場の様子、一番街商店街の年表、音楽の街としてのライブハウス街、演劇の街の劇場や映画館、茶沢通り、古着屋文化、道路計画をめぐる住民運動など、おおむね1995〜2005年ごろの実在の出来事)についての実在の年表、さらに当時は営業していたが今はもう下北沢から姿を消してしまった実在のバー・クラブ・喫茶店をもとにしたオリジナルの一口解説スポット42箇所で、それぞれ当時その場にいた匿名の店主や住人が、SMT風の会話ウィンドウで直接語りかけてくれます。それだけでなく、区が公開している街づくり資料の記述(駅前広場の新計画面積、補助54号線の歩道拡幅計画、踏切の拡幅など)をもとにした、薄い網掛け・線・マーカーが「地図で見る」画面の上に重なり、タップすると簡単な解説がポップアップします。見つけた記憶は「街の記録帳」にたまっていきます。3体のボスにはそれぞれ固有の物語があり、倒すたびにこの街の移り変わりが少しずつ見えてきます。どちらの時代もエリア内を歩くとまれに不思議な気配と遭遇します(出現は確率制で、常に戦闘になるわけではありません)。戦うか話しかけるかの選択はロウ(秩序)/カオス(自由)の属性に影響します。ロウ・カオスそれぞれ一定以上傾くと、プレイヤーのアイコンの色や回転、2000年編のエンディングの結びの一文が変わるだけでなく、ロウ側は物理攻撃力アップ・被ダメージ軽減、カオス側は属性魔法アップ・交渉成功率アップという実際の戦闘ボーナスも得られます。ボスはHPが半分を切ると一度だけ力を増す「覚醒」を見せるので、油断はできません。進行状況は保存されません。</div>
     `;
   }
   if(s.stage==='overworld'){
@@ -8042,9 +8251,17 @@ function renderSmtGame(){
         <div class="row" style="justify-content:center;margin-bottom:6px;">
           <span class="tag">🕰️ 2000年編(再開発前)</span>
         </div>
-        <div class="muted" style="font-size:10.5px;text-align:center;margin-bottom:4px;">🗺️ 地図に薄く重なる網掛け・線は、区の街づくり資料をもとにした当時のおおよその見当です(実測ではありません)</div>
         <div style="position:relative;">
-          <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+          <div id="smtFirstPersonScene" class="smt-fp-scene">
+            <div class="smt-fp-buildings">🏚️🏮🏪🏚️🏮🏪🏚️</div>
+            <div class="smt-fp-road"></div>
+            <div class="smt-fp-compass">
+              <span id="smtFpCompassNeedle" class="smt-fp-compass-needle">▲</span>
+              <span id="smtFpCompassLabel">北</span>
+            </div>
+            <div id="smtFpMarkers" class="smt-fp-markers"></div>
+            <div class="smt-fp-hint">💭は当時の記憶、⛩️/✅は気配の出現地点</div>
+          </div>
           ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
         </div>
         <div class="smt-dpad">
@@ -8063,9 +8280,10 @@ function renderSmtGame(){
           <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityDemon')">😈 召喚の館</button>
           <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityShop')">🗡️ 強化(G)</button>
         </div>
-        <button class="btn btn-secondary" style="width:100%;margin-top:2px;" onclick="y2000OpenArchive()">📖 街の記録帳を見る(${visitedCount}/${Y2K_SPOTS.length})</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:2px;" onclick="y2000OpenMapView()">🗺️ 地図で見る</button>
+        <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="y2000OpenArchive()">📖 街の記録帳を見る(${visitedCount}/${Y2K_SPOTS.length})</button>
         <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="y2000ToggleEra()">🏙️ 現在の下北沢へ戻る</button>
-        <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。地図は現在編と同じ実際の下北沢マップです。💭は当時の街についての一口メモのある場所、⛩️は気配の出現地点です。</div>
+        <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで、進んでいる方角(画面上部の矢印)に向かって移動できます。💭は当時の記憶のある場所、⛩️/✅は気配の出現地点です。実際の地図で見たいときは「🗺️ 地図で見る」を押してください。</div>
       `;
     }
     const clearedCount = Object.values(s.clearedZones).filter(Boolean).length;
@@ -8109,6 +8327,18 @@ function renderSmtGame(){
       </div>
       <button class="btn btn-primary" style="width:100%;margin-top:2px;" onclick="y2000ToggleEra()">🕰️ 2000年の下北沢へ(再開発前)</button>
       <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。地図はピンチ・スクロールでズームできます。赤/青い円は結界エリア(緑は解放済み)、⛩️はボスの出現地点、🏮は下北沢マップのお店です。</div>
+    `;
+  }
+  if(s.stage==='y2000MapView'){
+    return `
+      ${header}
+      <div class="row" style="justify-content:center;margin-bottom:6px;">
+        <span class="tag">🗺️ 2000年の下北沢マップ</span>
+      </div>
+      <div class="muted" style="font-size:10.5px;text-align:center;margin-bottom:4px;">🗺️ 地図に薄く重なる網掛け・線は、区の街づくり資料をもとにした当時のおおよその見当です(実測ではありません)</div>
+      <div id="smtY2000MapViewMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
+      <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">お店アイコンのない、通りと地名だけのシンプルな地図です。💭は当時の記憶のある場所、⛩️/✅は気配の出現地点。タップすると解説が見られます。</div>
+      <button class="btn btn-primary" style="width:100%;margin-top:12px;" onclick="y2000CloseMapView()">👣 街を歩く画面へ戻る</button>
     `;
   }
   if(s.stage==='shopVisit'){
@@ -8181,14 +8411,19 @@ function renderSmtGame(){
     `;
   }
   if(s.stage==='y2000Dialogue'){
-    const f = s.y2000.pendingFlavor || { title:'', lines:[] };
+    const f = s.y2000.pendingFlavor || { title:'', lines:[], speaker:'' };
+    const speaker = f.speaker || '通りすがりの住人';
     return `
       ${header}
-      <div class="revenge-story-box smt-fade-in">
-        <div class="smt-zone-label">🕰️ ${escapeHtml(f.title)}</div>
-        ${f.lines.map(l=>`<p>${escapeHtml(l)}</p>`).join('')}
+      <div class="smt-vn-box smt-fade-in">
+        <div class="smt-vn-portrait">${y2000SpeakerIcon(speaker)}</div>
+        <div class="smt-vn-body">
+          <div class="smt-vn-speaker">${escapeHtml(speaker)}</div>
+          <div class="smt-vn-title">🕰️ ${escapeHtml(f.title)}</div>
+          ${f.lines.map(l=>`<p>${escapeHtml(l)}</p>`).join('')}
+        </div>
       </div>
-      <button class="btn btn-primary" style="margin-top:14px;" onclick="y2000CloseDialogue()">先に進む</button>
+      <button class="btn btn-primary" style="margin-top:14px;" onclick="y2000CloseDialogue()">うんうん、なるほど</button>
     `;
   }
   if(s.stage==='y2000Archive'){
