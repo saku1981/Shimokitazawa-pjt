@@ -327,6 +327,18 @@
   .smt-fp-compass-needle{display:inline-block;transition:transform .12s linear;}
   .smt-fp-hint{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:9.5px;
     color:rgba(255,255,255,.8);z-index:3;pointer-events:none;filter:none;}
+  .smt-fp-minimap{position:absolute;top:8px;right:8px;width:92px;height:92px;z-index:3;
+    filter:none;pointer-events:none;}
+  .smt-fp-minimap svg{display:block;border-radius:50%;}
+  .smt-mini-bg{fill:rgba(20,18,14,.62);stroke:rgba(224,196,88,.55);stroke-width:1.5;}
+  .smt-mini-road{fill:none;stroke:rgba(243,230,200,.5);stroke-width:1.4;stroke-linecap:round;}
+  .smt-mini-spot{fill:#f3e6c8;opacity:.85;}
+  .smt-mini-spot.smt-mini-claimed{fill:rgba(243,230,200,.3);}
+  .smt-mini-boss{fill:#ff7850;stroke:#fff;stroke-width:.6;}
+  .smt-mini-boss.smt-mini-claimed{fill:rgba(120,220,150,.7);}
+  .smt-mini-player{fill:#e0c458;stroke:#141210;stroke-width:.8;}
+  .smt-mini-n{position:absolute;top:1px;left:50%;transform:translateX(-50%);font-size:8px;
+    color:rgba(255,255,255,.75);}
   .smt-vn-box{display:flex;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
   .smt-vn-portrait{flex-shrink:0;width:52px;height:52px;border-radius:50%;background:var(--panel2);
     border:2px solid #e0c458;display:flex;align-items:center;justify-content:center;font-size:26px;}
@@ -7146,6 +7158,19 @@ function renderKmGame(){
    の各エントリはspeakerフィールド(店主・商店会の世話役・近所の住人など、実在の
    人物名を含まない汎用的な役どころ)を持ち、linesは三人称の説明文ではなく、その
    役どころが直接プレイヤーに語りかける一人称のセリフとして書かれている。
+   2000年編の操作・ミニマップ: 「まっすぐ進むだけ」で単調にならないよう、◀️/▶️は
+   見下ろし型のような平行移動(西/東へストレイフ)ではなく、その場での旋回(左右に
+   向きを変える、SMT_FP_TURN_DEG_PER_SEC)に変更し、▲/▼は常に「今向いている方角」
+   への前進・後退にした(smtOverworldUpdate内でs.era==='y2000'のときだけ分岐する。
+   現在編の見下ろし型オーバーワールドの8方向移動は変更していない)。さらに、進行方向
+   しか見えない一人称視点だけでは周辺の位置関係がつかみにくいため、画面右上に北を
+   常に上にした小さな円形ミニマップ(#smtFpMinimap、smtFirstPersonMinimapRefresh)を
+   重ねて表示する。駅前を起点に3つの縄張り(一番街・南口・下北沢駅前)へ向かう通りを、
+   既存の実座標(SHIMOKITA_STATION_CENTER→SMT_ZONE_CENTER→SMT_ZONE_BOSS_POINT)を
+   線で結んだおおまかな表現(SMT_Y2000_ROAD_SPOKES、実測の道路形状そのものではない)
+   として描き、周辺のスポット・気配の出現地点をドットで、自分の現在地と向きを中心の
+   三角形で示す。旋回だけ(前進していない)ときも向きの変化が見えるよう、移動時だけで
+   なく旋回時にも再描画する。
    現在編限定の「特別な気配」: 商店街に実在するお店のマスコット(INVADER ONE・U7・
    Bar Civetta)を、和風オカルト・ゴシック調(黒・深紅・金/木版画調の線/曼荼羅・
    梵字・注連縄・紙垂・鳥居・満月といった意匠)に再解釈した一口ゲスト出演として、
@@ -7930,6 +7955,24 @@ function initSmtY2000MapViewMap(){
 }
 const SMT_FP_FOV = 100; // 一人称視点の水平画角(度)。この範囲外のスポットは描画しない
 const SMT_FP_MAX_DIST = 220; // これより遠いスポットは描画しない(メートル)
+// 一人称ビューの隅に重ねる、上から見た小さなミニマップ(レーダー)用の設定。
+// 「まっすぐ進むだけ」にならないよう、周辺の通り(3つの縄張りへの道)とスポットの
+// おおまかな位置関係を、常に北を上にした固定視点で表示する(プレイヤーの現在地は中心)。
+const SMT_MINI_RANGE_M = 260; // ミニマップに表示する範囲の半径(メートル)
+const SMT_MINI_SIZE_PX = 92; // ミニマップのSVG一辺のサイズ(px)
+// 駅前(下北沢マップの原点)から各縄張りの中心を経て気配の出現地点へ至る、3本の通りを
+// 簡易的な線で表現する。実測の道路形状ではなく、既存の実座標(SMT_ZONE_CENTER/
+// SMT_ZONE_BOSS_POINT)を線で結んだ、あくまで見当をつけるためのおおまかな表現。
+const SMT_Y2000_ROAD_SPOKES = ['1','2','3'].map(corridor => [
+  SHIMOKITA_STATION_CENTER, SMT_ZONE_CENTER[corridor], SMT_ZONE_BOSS_POINT[corridor]
+]);
+function smtMinimapProject(originLat, originLng, lat, lng, rangeM, sizePx){
+  // 北を上にした平面近似での投影(smtDistMeters/smtBearingDegと同じ簡易換算式)。
+  const dNorth = (lat - originLat) * 111320;
+  const dEast = (lng - originLng) * 111320 * Math.cos(originLat * Math.PI/180);
+  const scale = (sizePx/2) / rangeM;
+  return { x: sizePx/2 + dEast*scale, y: sizePx/2 - dNorth*scale };
+}
 function smtBearingDeg(lat1, lng1, lat2, lng2){
   // smtDistMetersと同じ平面近似で、北=0度・東=90度の方位角を求める
   const dLat = (lat2-lat1) * 111320;
@@ -7989,6 +8032,45 @@ function smtFirstPersonRefresh(s){
       ${v.kind==='boss' ? `<span class="smt-fp-marker-label">${escapeHtml(v.label)}</span>` : ''}
     </div>`;
   }).join('');
+
+  smtFirstPersonMinimapRefresh(s, heading, candidates);
+}
+// 一人称ビューの隅に重ねる、上から見たミニマップ(北が常に上)。3本の通りの見当・周辺
+// スポット/気配の位置・自分の現在地と向きを、常時(移動時だけでなく旋回時にも)更新する。
+function smtFirstPersonMinimapRefresh(s, heading, candidates){
+  const wrap = document.getElementById('smtFpMinimap');
+  if(!wrap) return;
+  const R = SMT_MINI_RANGE_M, SZ = SMT_MINI_SIZE_PX, half = SZ/2;
+  const proj = (lat, lng) => smtMinimapProject(s.pos.lat, s.pos.lng, lat, lng, R, SZ);
+
+  const roads = SMT_Y2000_ROAD_SPOKES.map(pts => {
+    const p = pts.map(pt => proj(pt[0], pt[1]));
+    return `<polyline points="${p.map(q=>q.x.toFixed(1)+','+q.y.toFixed(1)).join(' ')}" class="smt-mini-road"/>`;
+  }).join('');
+
+  const dots = candidates.map(c => {
+    const dist = smtDistMeters(s.pos.lat, s.pos.lng, c.lat, c.lng);
+    if(dist > R) return '';
+    const p = proj(c.lat, c.lng);
+    return c.kind === 'boss'
+      ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" class="smt-mini-boss${c.claimed?' smt-mini-claimed':''}"/>`
+      : `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.6" class="smt-mini-spot${c.claimed?' smt-mini-claimed':''}"/>`;
+  }).join('');
+
+  const rad = heading * Math.PI/180;
+  const tip = { x: half + Math.sin(rad)*7, y: half - Math.cos(rad)*7 };
+  const back1 = { x: half + Math.sin(rad+Math.PI*0.78)*5, y: half - Math.cos(rad+Math.PI*0.78)*5 };
+  const back2 = { x: half + Math.sin(rad-Math.PI*0.78)*5, y: half - Math.cos(rad-Math.PI*0.78)*5 };
+
+  wrap.innerHTML = `
+    <svg viewBox="0 0 ${SZ} ${SZ}" width="${SZ}" height="${SZ}">
+      <circle cx="${half}" cy="${half}" r="${half-1}" class="smt-mini-bg"/>
+      ${roads}
+      ${dots}
+      <polygon points="${tip.x.toFixed(1)},${tip.y.toFixed(1)} ${back1.x.toFixed(1)},${back1.y.toFixed(1)} ${back2.x.toFixed(1)},${back2.y.toFixed(1)}" class="smt-mini-player"/>
+    </svg>
+    <div class="smt-mini-n">N</div>
+  `;
 }
 function smtOverworldLoop(ts){
   const s = smtGameState;
@@ -8057,25 +8139,46 @@ function smtCheckZoneEncounter(s, dt, moving){
     }
   }
 }
+const SMT_FP_TURN_DEG_PER_SEC = 130; // 一人称視点(2000年編)の旋回速度(度/秒)
 function smtOverworldUpdate(s, dt){
-  let dx = 0, dy = 0;
-  if(smtOverworldInput.left) dx -= 1;
-  if(smtOverworldInput.right) dx += 1;
-  if(smtOverworldInput.up) dy += 1;
-  if(smtOverworldInput.down) dy -= 1;
-  const moving = dx !== 0 || dy !== 0;
-  if(moving){
-    if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
-    s.heading = (Math.atan2(dx,dy)*180/Math.PI + 360) % 360; // 北=0/東=90/南=180/西=270
-    const speedMps = 18.2; // 14 * 1.3(移動速度アップ)
-    const metersPerDegLat = 111320;
-    const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
-    s.pos.lat += (dy*speedMps*dt) / metersPerDegLat;
-    s.pos.lng += (dx*speedMps*dt) / metersPerDegLng;
-    if(smtLeafletMapInstance){ smtLeafletMapInstance.panTo([s.pos.lat, s.pos.lng], { animate:false }); }
+  let moving;
+  if(s.era === 'y2000'){
+    // 一人称視点: ◀️/▶️はその場での旋回(移動しない)、▲/▼は今向いている方角への
+    // 前進・後退。見下ろし型のように8方向へすっと平行移動するのではなく、向きを
+    // 変えてから進む・戻るという、一人称視点らしい操作感にする。
+    let turned = false;
+    if(smtOverworldInput.left){ s.heading = (s.heading - SMT_FP_TURN_DEG_PER_SEC*dt + 360) % 360; turned = true; }
+    if(smtOverworldInput.right){ s.heading = (s.heading + SMT_FP_TURN_DEG_PER_SEC*dt) % 360; turned = true; }
+    const forward = smtOverworldInput.up ? 1 : (smtOverworldInput.down ? -1 : 0);
+    moving = forward !== 0;
+    if(forward !== 0){
+      const rad = s.heading * Math.PI/180;
+      const speedMps = 18.2;
+      const metersPerDegLat = 111320;
+      const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
+      s.pos.lat += (Math.cos(rad)*forward*speedMps*dt) / metersPerDegLat;
+      s.pos.lng += (Math.sin(rad)*forward*speedMps*dt) / metersPerDegLng;
+    }
+    if((moving || turned) && s.stage==='overworld'){ smtFirstPersonRefresh(s); }
+  } else {
+    let dx = 0, dy = 0;
+    if(smtOverworldInput.left) dx -= 1;
+    if(smtOverworldInput.right) dx += 1;
+    if(smtOverworldInput.up) dy += 1;
+    if(smtOverworldInput.down) dy -= 1;
+    moving = dx !== 0 || dy !== 0;
+    if(moving){
+      if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
+      s.heading = (Math.atan2(dx,dy)*180/Math.PI + 360) % 360; // 北=0/東=90/南=180/西=270
+      const speedMps = 18.2; // 14 * 1.3(移動速度アップ)
+      const metersPerDegLat = 111320;
+      const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
+      s.pos.lat += (dy*speedMps*dt) / metersPerDegLat;
+      s.pos.lng += (dx*speedMps*dt) / metersPerDegLng;
+      if(smtLeafletMapInstance){ smtLeafletMapInstance.panTo([s.pos.lat, s.pos.lng], { animate:false }); }
+    }
+    if(smtLeafletPlayerMarker){ smtLeafletPlayerMarker.setLatLng([s.pos.lat, s.pos.lng]); }
   }
-  if(smtLeafletPlayerMarker){ smtLeafletPlayerMarker.setLatLng([s.pos.lat, s.pos.lng]); }
-  if(moving && s.era==='y2000' && s.stage==='overworld'){ smtFirstPersonRefresh(s); }
 
   if(smtCheckShopProximity(s)) return;
   smtCheckZoneEncounter(s, dt, moving);
@@ -8364,6 +8467,7 @@ function renderSmtGame(){
               <span id="smtFpCompassLabel">北</span>
             </div>
             <div id="smtFpMarkers" class="smt-fp-markers"></div>
+            <div id="smtFpMinimap" class="smt-fp-minimap"></div>
             <div class="smt-fp-hint">💭は当時の記憶、⛩️/✅は気配の出現地点</div>
           </div>
           ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
@@ -8372,9 +8476,9 @@ function renderSmtGame(){
           <div></div>
           <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
           <div></div>
-          <button class="invader-btn" style="grid-column:1;grid-row:2;" ontouchstart="smtOverworldTouch(event,'left',true)" ontouchend="smtOverworldTouch(event,'left',false)" onmousedown="smtOverworldSetInput('left',true)" onmouseup="smtOverworldSetInput('left',false)" onmouseleave="smtOverworldSetInput('left',false)">◀️</button>
+          <button class="invader-btn" style="grid-column:1;grid-row:2;font-size:18px;" ontouchstart="smtOverworldTouch(event,'left',true)" ontouchend="smtOverworldTouch(event,'left',false)" onmousedown="smtOverworldSetInput('left',true)" onmouseup="smtOverworldSetInput('left',false)" onmouseleave="smtOverworldSetInput('left',false)">↺</button>
           <div style="grid-column:2;grid-row:2;"></div>
-          <button class="invader-btn" style="grid-column:3;grid-row:2;" ontouchstart="smtOverworldTouch(event,'right',true)" ontouchend="smtOverworldTouch(event,'right',false)" onmousedown="smtOverworldSetInput('right',true)" onmouseup="smtOverworldSetInput('right',false)" onmouseleave="smtOverworldSetInput('right',false)">▶️</button>
+          <button class="invader-btn" style="grid-column:3;grid-row:2;font-size:18px;" ontouchstart="smtOverworldTouch(event,'right',true)" ontouchend="smtOverworldTouch(event,'right',false)" onmousedown="smtOverworldSetInput('right',true)" onmouseup="smtOverworldSetInput('right',false)" onmouseleave="smtOverworldSetInput('right',false)">↻</button>
           <div></div>
           <button class="invader-btn" style="grid-column:2;grid-row:3;" ontouchstart="smtOverworldTouch(event,'down',true)" ontouchend="smtOverworldTouch(event,'down',false)" onmousedown="smtOverworldSetInput('down',true)" onmouseup="smtOverworldSetInput('down',false)" onmouseleave="smtOverworldSetInput('down',false)">▼</button>
           <div></div>
@@ -8387,7 +8491,7 @@ function renderSmtGame(){
         <button class="btn btn-secondary" style="width:100%;margin-top:2px;" onclick="y2000OpenMapView()">🗺️ 地図で見る</button>
         <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="y2000OpenArchive()">📖 街の記録帳を見る(${visitedCount}/${Y2K_SPOTS.length})</button>
         <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="y2000ToggleEra()">🏙️ 現在の下北沢へ戻る</button>
-        <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで、進んでいる方角(画面上部の矢印)に向かって移動できます。💭は当時の記憶のある場所、⛩️/✅は気配の出現地点です。実際の地図で見たいときは「🗺️ 地図で見る」を押してください。</div>
+        <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">◀️/▶️でその場で向きを変え、▲/▼で今向いている方角へ前進・後退します。右上の小さな円は、駅からの3本の通りとスポットの位置がわかる簡易ミニマップ(常に北が上)です。💭は当時の記憶のある場所、⛩️/✅は気配の出現地点です。実際の地図で見たいときは「🗺️ 地図で見る」を押してください。</div>
       `;
     }
     const clearedCount = Object.values(s.clearedZones).filter(Boolean).length;
