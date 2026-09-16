@@ -307,8 +307,11 @@
   .smt-fp-scene{position:relative;height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);
     background:linear-gradient(180deg,#cfd9c4 0%,#cfd9c4 42%,#8a7f68 42%,#8a7f68 100%);
     filter:sepia(0.6) contrast(1.05) brightness(0.94) saturate(1.2) hue-rotate(-6deg);}
-  .smt-fp-buildings{position:absolute;left:0;right:0;top:2%;height:40%;display:flex;align-items:flex-end;
-    justify-content:space-around;padding:0 4px;opacity:.55;font-size:26px;pointer-events:none;user-select:none;}
+  .smt-fp-buildings{position:absolute;left:0;right:0;top:2%;height:40%;overflow:hidden;
+    opacity:.6;font-size:26px;pointer-events:none;user-select:none;}
+  .smt-fp-buildings-strip{position:absolute;left:0;bottom:0;height:100%;display:flex;
+    align-items:flex-end;white-space:nowrap;transition:transform .1s linear;}
+  .smt-fp-buildings-strip span{display:inline-block;width:46px;flex-shrink:0;text-align:center;}
   .smt-fp-road{position:absolute;left:50%;bottom:0;width:0;height:0;
     border-left:76px solid transparent;border-right:76px solid transparent;border-bottom:180px solid rgba(60,52,40,.55);
     transform:translateX(-50%);pointer-events:none;}
@@ -327,18 +330,21 @@
   .smt-fp-compass-needle{display:inline-block;transition:transform .12s linear;}
   .smt-fp-hint{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:9.5px;
     color:rgba(255,255,255,.8);z-index:3;pointer-events:none;filter:none;}
-  .smt-fp-minimap{position:absolute;top:8px;right:8px;width:92px;height:92px;z-index:3;
+  .smt-fp-minimap{position:absolute;top:14px;right:8px;width:112px;height:112px;z-index:4;
     filter:none;pointer-events:none;}
-  .smt-fp-minimap svg{display:block;border-radius:50%;}
-  .smt-mini-bg{fill:rgba(20,18,14,.62);stroke:rgba(224,196,88,.55);stroke-width:1.5;}
-  .smt-mini-road{fill:none;stroke:rgba(243,230,200,.5);stroke-width:1.4;stroke-linecap:round;}
+  .smt-fp-minimap svg{display:block;border-radius:50%;box-shadow:0 0 0 2px rgba(224,196,88,.85),0 2px 8px rgba(0,0,0,.5);}
+  .smt-mini-badge{position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:10px;
+    white-space:nowrap;color:#f3e6c8;background:rgba(20,18,14,.92);border:1px solid rgba(224,196,88,.85);
+    border-radius:8px;padding:1px 7px;font-weight:bold;}
+  .smt-mini-bg{fill:rgba(20,18,14,.72);stroke:rgba(224,196,88,.7);stroke-width:2;}
+  .smt-mini-road{fill:none;stroke:rgba(243,230,200,.55);stroke-width:1.6;stroke-linecap:round;}
   .smt-mini-spot{fill:#f3e6c8;opacity:.85;}
   .smt-mini-spot.smt-mini-claimed{fill:rgba(243,230,200,.3);}
   .smt-mini-boss{fill:#ff7850;stroke:#fff;stroke-width:.6;}
   .smt-mini-boss.smt-mini-claimed{fill:rgba(120,220,150,.7);}
   .smt-mini-player{fill:#e0c458;stroke:#141210;stroke-width:.8;}
-  .smt-mini-n{position:absolute;top:1px;left:50%;transform:translateX(-50%);font-size:8px;
-    color:rgba(255,255,255,.75);}
+  .smt-mini-n{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:9px;
+    font-weight:bold;color:rgba(255,255,255,.85);}
   .smt-vn-box{display:flex;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
   .smt-vn-portrait{flex-shrink:0;width:52px;height:52px;border-radius:50%;background:var(--panel2);
     border:2px solid #e0c458;display:flex;align-items:center;justify-content:center;font-size:26px;}
@@ -7955,11 +7961,20 @@ function initSmtY2000MapViewMap(){
 }
 const SMT_FP_FOV = 100; // 一人称視点の水平画角(度)。この範囲外のスポットは描画しない
 const SMT_FP_MAX_DIST = 220; // これより遠いスポットは描画しない(メートル)
+// 一人称ビューの背景の建物並び(スカイライン)。旋回してもスポットが視界に入らない限り
+// 画面に何も変化が起きず「向きを変えた感じがしない」ことのないよう、旋回角度に応じて
+// この並びを横方向にスクロールさせ、視界そのものが振り向いたように見せる。継ぎ目が
+// 見えないよう同じ並び(SMT_FP_BUILDING_UNIT)を複数回繰り返して並べておく。
+const SMT_FP_BUILDING_UNIT = ['🏚️','🏮','🏪','🏠','🍡','🏮','🏬','🏚️','⛩️','🏮'];
+const SMT_FP_BUILDING_ITEM_PX = 46; // 建物1つぶんの幅(px)。この幅×並びの数=360度で一周する距離
+const SMT_FP_BUILDING_STRIP_WIDTH = SMT_FP_BUILDING_UNIT.length * SMT_FP_BUILDING_ITEM_PX;
+const SMT_FP_BUILDING_STRIP_HTML = Array(4).fill(SMT_FP_BUILDING_UNIT).flat()
+  .map(e => `<span>${e}</span>`).join('');
 // 一人称ビューの隅に重ねる、上から見た小さなミニマップ(レーダー)用の設定。
 // 「まっすぐ進むだけ」にならないよう、周辺の通り(3つの縄張りへの道)とスポットの
 // おおまかな位置関係を、常に北を上にした固定視点で表示する(プレイヤーの現在地は中心)。
 const SMT_MINI_RANGE_M = 260; // ミニマップに表示する範囲の半径(メートル)
-const SMT_MINI_SIZE_PX = 92; // ミニマップのSVG一辺のサイズ(px)
+const SMT_MINI_SIZE_PX = 112; // ミニマップのSVG一辺のサイズ(px)
 // 駅前(下北沢マップの原点)から各縄張りの中心を経て気配の出現地点へ至る、3本の通りを
 // 簡易的な線で表現する。実測の道路形状ではなく、既存の実座標(SMT_ZONE_CENTER/
 // SMT_ZONE_BOSS_POINT)を線で結んだ、あくまで見当をつけるためのおおまかな表現。
@@ -7994,6 +8009,14 @@ function smtFirstPersonRefresh(s){
   if(needle) needle.style.transform = `rotate(${heading}deg)`;
   const label = document.getElementById('smtFpCompassLabel');
   if(label) label.textContent = smtHeadingLabel(heading);
+
+  // 旋回そのものが画面に反映されるよう、背景の建物スカイラインを向きに応じて横スクロールさせる。
+  // 近くにスポットが無い方角を向いていても、これで「振り向いた」ことがはっきり見える。
+  const buildingsStrip = document.getElementById('smtFpBuildingsStrip');
+  if(buildingsStrip){
+    const offset = ((heading/360) * SMT_FP_BUILDING_STRIP_WIDTH) % SMT_FP_BUILDING_STRIP_WIDTH;
+    buildingsStrip.style.transform = `translateX(${-offset}px)`;
+  }
 
   const markersWrap = document.getElementById('smtFpMarkers');
   if(!markersWrap) return;
@@ -8058,11 +8081,13 @@ function smtFirstPersonMinimapRefresh(s, heading, candidates){
   }).join('');
 
   const rad = heading * Math.PI/180;
-  const tip = { x: half + Math.sin(rad)*7, y: half - Math.cos(rad)*7 };
-  const back1 = { x: half + Math.sin(rad+Math.PI*0.78)*5, y: half - Math.cos(rad+Math.PI*0.78)*5 };
-  const back2 = { x: half + Math.sin(rad-Math.PI*0.78)*5, y: half - Math.cos(rad-Math.PI*0.78)*5 };
+  const arrowLen = SZ*0.076, arrowBack = SZ*0.054;
+  const tip = { x: half + Math.sin(rad)*arrowLen, y: half - Math.cos(rad)*arrowLen };
+  const back1 = { x: half + Math.sin(rad+Math.PI*0.78)*arrowBack, y: half - Math.cos(rad+Math.PI*0.78)*arrowBack };
+  const back2 = { x: half + Math.sin(rad-Math.PI*0.78)*arrowBack, y: half - Math.cos(rad-Math.PI*0.78)*arrowBack };
 
   wrap.innerHTML = `
+    <div class="smt-mini-badge">🗺️ ミニマップ</div>
     <svg viewBox="0 0 ${SZ} ${SZ}" width="${SZ}" height="${SZ}">
       <circle cx="${half}" cy="${half}" r="${half-1}" class="smt-mini-bg"/>
       ${roads}
@@ -8460,7 +8485,7 @@ function renderSmtGame(){
         </div>
         <div style="position:relative;">
           <div id="smtFirstPersonScene" class="smt-fp-scene">
-            <div class="smt-fp-buildings">🏚️🏮🏪🏚️🏮🏪🏚️</div>
+            <div class="smt-fp-buildings"><div id="smtFpBuildingsStrip" class="smt-fp-buildings-strip">${SMT_FP_BUILDING_STRIP_HTML}</div></div>
             <div class="smt-fp-road"></div>
             <div class="smt-fp-compass">
               <span id="smtFpCompassNeedle" class="smt-fp-compass-needle">▲</span>
