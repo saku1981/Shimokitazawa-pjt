@@ -304,25 +304,42 @@
   @keyframes smtSpinCCW{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
   .smt-spin-cw{animation:smtSpinCW 3s linear infinite;}
   .smt-spin-ccw{animation:smtSpinCCW 3s linear infinite;}
-  .smt-fp-scene{position:relative;height:280px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#3c5245;}
+  .smt-fp-scene{position:relative;height:280px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#28382f;}
+  .smt-fp-scene::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;
+    background:radial-gradient(ellipse 90% 75% at 50% 58%, transparent 45%, rgba(6,10,8,.55) 100%);}
   .smt-fp-scene-y2000{filter:sepia(0.55) contrast(1.05) brightness(0.92) saturate(1.15) hue-rotate(-6deg);}
   .smt-fp-ground{position:absolute;inset:0;background-color:#3c5245;
-    background-image:repeating-linear-gradient(60deg, rgba(255,255,255,.07) 0 2px, transparent 2px 22px),
-      repeating-linear-gradient(-60deg, rgba(0,0,0,.10) 0 2px, transparent 2px 22px);}
+    background-image:
+      linear-gradient(135deg, rgba(255,255,255,.09) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.09) 75%),
+      linear-gradient(135deg, rgba(255,255,255,.09) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.09) 75%),
+      linear-gradient(180deg, rgba(255,255,255,.07) 0%, transparent 45%, rgba(0,0,0,.22) 100%);
+    background-size:44px 44px, 44px 44px, 100% 100%;
+    background-position:0 0, 22px 22px, 0 0;
+    background-blend-mode:normal, normal, overlay;}
   .smt-fp-markers{position:absolute;inset:0;pointer-events:none;}
   .smt-fp-marker{position:absolute;transform:translate(-50%,-100%);text-align:center;
-    filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));}
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.65));animation:smtMarkerBob 2.6s ease-in-out infinite;animation-delay:inherit;}
+  .smt-fp-marker::after{content:'';position:absolute;left:50%;bottom:-2px;transform:translate(-50%,0);
+    width:62%;height:6px;border-radius:50%;background:rgba(0,0,0,.4);filter:blur(1.2px);z-index:-1;}
+  .smt-fp-marker[data-kind="gate"]:not([data-claimed="1"])::before{
+    content:'';position:absolute;left:50%;bottom:0;transform:translate(-50%,0);width:38px;height:38px;
+    border-radius:50%;z-index:-2;animation:smtGatePulse 1.8s ease-in-out infinite;
+    background:radial-gradient(circle, rgba(224,196,88,.55) 0%, rgba(224,196,88,0) 72%);}
+  @keyframes smtMarkerBob{0%,100%{transform:translate(-50%,-100%) translateY(0);}50%{transform:translate(-50%,-100%) translateY(-3px);}}
+  @keyframes smtGatePulse{0%,100%{opacity:.5;transform:translate(-50%,0) scale(0.88);}50%{opacity:.9;transform:translate(-50%,0) scale(1.18);}}
   .smt-fp-marker-icon{display:block;line-height:1;}
   .smt-fp-marker-label{display:inline-block;font-size:9px;background:rgba(0,0,0,.5);color:#f3e6c8;
     border-radius:4px;padding:0 4px;margin-top:1px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
-  .smt-fp-player{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:34px;height:34px;
-    z-index:5;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));}
+  .smt-fp-player{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:38px;height:38px;
+    z-index:5;filter:drop-shadow(0 3px 3px rgba(0,0,0,.55));}
+  .smt-fp-player::after{content:'';position:absolute;left:50%;bottom:-8px;transform:translate(-50%,0);
+    width:28px;height:9px;border-radius:50%;background:rgba(0,0,0,.42);filter:blur(1.3px);z-index:-1;}
   .smt-fp-compass{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;align-items:center;
-    gap:5px;background:rgba(20,18,14,.6);color:#f3e6c8;border-radius:20px;padding:3px 11px;font-size:11px;
-    z-index:3;filter:none;}
+    gap:5px;background:rgba(16,14,11,.72);color:#f3e6c8;border:1px solid rgba(224,196,88,.4);border-radius:20px;
+    padding:3px 11px;font-size:11px;z-index:3;filter:none;box-shadow:0 2px 6px rgba(0,0,0,.35);}
   .smt-fp-compass-needle{display:inline-block;transition:transform .12s linear;}
   .smt-fp-hint{position:absolute;bottom:6px;left:0;right:0;text-align:center;font-size:9.5px;
-    color:rgba(255,255,255,.8);z-index:3;pointer-events:none;filter:none;}
+    color:rgba(255,255,255,.8);z-index:3;pointer-events:none;filter:none;text-shadow:0 1px 2px rgba(0,0,0,.6);}
   .smt-fp-minimap{position:absolute;top:14px;right:8px;width:112px;height:112px;z-index:4;
     filter:none;pointer-events:none;}
   .smt-fp-minimap svg{display:block;border-radius:50%;box-shadow:0 0 0 2px rgba(224,196,88,.85),0 2px 8px rgba(0,0,0,.5);}
@@ -345,12 +362,21 @@
   .smt-fp-location-sub{font-size:8.5px;color:#9fd8c8;white-space:nowrap;}
   /* 徒歩ダンジョン(異世界の書き割り)のマス目グリッド。 */
   .smt-dungeon-grid{display:grid;gap:2px;background:#0c1613;border:1px solid var(--line);
-    border-radius:8px;padding:4px;margin-top:6px;}
-  .smt-dungeon-cell{position:relative;aspect-ratio:1/1;background:#2c4a42;border-radius:2px;
-    display:flex;align-items:center;justify-content:center;font-size:15px;overflow:hidden;}
-  .smt-dungeon-cell-decor{background:#1c2e28;}
-  .smt-dungeon-cell-event{background:#3a3020;}
-  .smt-dungeon-cell-player{background:#4a6b5f;}
+    border-radius:8px;padding:4px;margin-top:6px;
+    box-shadow:inset 0 2px 8px rgba(0,0,0,.5);}
+  .smt-dungeon-cell{position:relative;aspect-ratio:1/1;border-radius:2px;
+    display:flex;align-items:center;justify-content:center;font-size:15px;overflow:hidden;
+    background-color:#2c4a42;
+    background-image:linear-gradient(160deg, rgba(255,255,255,.06) 0%, transparent 40%, rgba(0,0,0,.25) 100%);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.35);
+    transition:background-color .15s;}
+  .smt-dungeon-cell-decor{background-color:#1c2e28;}
+  .smt-dungeon-cell-decor span{filter:drop-shadow(0 2px 2px rgba(0,0,0,.6));font-size:1.15em;}
+  .smt-dungeon-cell-event{background-color:#3a3020;}
+  .smt-dungeon-cell-event span{filter:drop-shadow(0 0 4px rgba(243,230,155,.85));
+    animation:smtDungeonEventPulse 1.6s ease-in-out infinite;}
+  .smt-dungeon-cell-player{background-color:#4a6b5f;box-shadow:inset 0 0 0 1px rgba(243,230,200,.5);}
+  @keyframes smtDungeonEventPulse{0%,100%{opacity:.75;transform:scale(0.94);}50%{opacity:1;transform:scale(1.08);}}
   /* ===== 下北沢開発プロジェクトの移動・バトル画面だけの、レトロなドット絵RPG風の額縁UI =====
      実在のゲームシリーズ固有のUI意匠やロゴ・BGM・具体的な画面構成をそのまま再現するのではなく、
      額縁のある古いモニター調の見た目・等幅フォントのステータス表示・武骨な操作ボタンといった、
@@ -369,7 +395,7 @@
   }
   .smt-retro-theme .revenge-story-box p{color:#d9f3ea;}
   .smt-retro-theme .smt-dungeon-grid{background:#081210;border-color:#2c4a42;}
-  .smt-retro-theme .smt-dungeon-cell{background:#132420;border:1px solid #2c4a42;border-radius:0;}
+  .smt-retro-theme .smt-dungeon-cell{background-color:#132420;border:1px solid #2c4a42;border-radius:0;}
   .smt-retro-theme .smt-zone-label{color:#7fe0c9;font-family:'Courier New',ui-monospace,monospace;}
   .smt-retro-theme .revenge-enemy-name{color:#f3e6c8;letter-spacing:.5px;}
   .smt-retro-theme .revenge-log{background:#081210;border-color:#2c4a42;color:#a9e8d6;font-family:inherit;}
@@ -7662,7 +7688,9 @@ const SMT2_ZONE_SPECIAL = { '1': SMT_SPECIAL_ENCOUNTERS[0], '2': SMT_SPECIAL_ENC
 const SMT_ZONE_CENTER = {
   '1': [35.6624, 139.6684],
   '2': [35.6601, 139.6677],
-  '3': [35.6613, 139.6683]
+  '3': [35.661615, 139.668825] // 駅前ロータリーからバーの建物までの少し歩いた先。プレイヤーの
+  // 初期スポーン地点(SHIMOKITA_STATION_CENTER)とわざと重ならない位置にずらしてある
+  // (以前は駅の座標そのものだったため、出発直後に一歩動くだけでダンジョンに入ってしまっていた)。
 };
 const SMT_ZONE_BOSS_POINT = {
   '1': [35.66285, 139.66895],
@@ -7686,10 +7714,11 @@ function smtIsoProject(originLat, originLng, lat, lng){
   const gy = -dNorth / SMT_ISO_UNIT_M;
   return { x: (gx - gy) * (SMT_ISO_TILE_W/2), y: (gx + gy) * (SMT_ISO_TILE_H/2) };
 }
-// 各縄張りへの入口(ダンジョンゲート)のアイコン。実在のゲームの意匠ではなく、
-// 「異世界の入口」を思わせる汎用的な鳥居・祠モチーフのオリジナルアイコン。
-const SMT_ZONE_GATE_ICON = { '1':'⛩️', '2':'🗿', '3':'🏯' };
-const SMT_DUNGEON_GATE_RADIUS_M = 40; // これより入口に近づくとダンジョンに入る
+// 各縄張りへの入口(ダンジョンゲート)のアイコン。実在のゲームや実在の建物の意匠を
+// そのまま再現するのではなく、「大きな建物・城・バー」など、はっきり歩いて入れる
+// 構造物だとひと目でわかる、汎用的なオリジナルアイコンにしている。
+const SMT_ZONE_GATE_ICON = { '1':'🏢', '2':'🏰', '3':'🍸' };
+const SMT_DUNGEON_GATE_RADIUS_M = 16; // 建物のすぐそばまで実際に歩み寄ったときだけダンジョンに入る
 // 徒歩でうろつける小さなダンジョン(異世界の書き割り)のグリッド寸法。演出だけの
 // (通行できない)大きな建物・障害物のシルエットもここにまとめておく。
 const SMT_DUNGEON_W = 7;
@@ -8101,7 +8130,10 @@ function smtIsoRefresh(s){
       const scale = Math.max(0.5, 1 - v.dist/SMT_ISO_MAX_DIST);
       const fontSize = Math.round(14 + scale*20);
       const opacity = v.claimed ? 0.4 : Math.max(0.55, scale);
-      return `<div class="smt-fp-marker" data-kind="${v.kind}" data-claimed="${v.claimed?1:0}" style="left:calc(50% + ${v.proj.x.toFixed(1)}px);top:calc(56% + ${v.proj.y.toFixed(1)}px);opacity:${opacity};">
+      // 全マーカーが完全に同じタイミングで揺れると人工的に見えるため、緯度経度から
+      // 決めた「揺れ開始のずれ」を持たせ、生き物らしい不揃いさを出す。
+      const bobDelay = (Math.abs(Math.round(v.lat*1e5) + Math.round(v.lng*1e5)) % 26) / 10;
+      return `<div class="smt-fp-marker" data-kind="${v.kind}" data-claimed="${v.claimed?1:0}" style="left:calc(50% + ${v.proj.x.toFixed(1)}px);top:calc(56% + ${v.proj.y.toFixed(1)}px);opacity:${opacity};animation-delay:-${bobDelay}s;">
         <span class="smt-fp-marker-icon" style="font-size:${fontSize}px;">${v.icon}</span>
         ${v.kind==='gate' ? `<span class="smt-fp-marker-label">${escapeHtml(v.label)}</span>` : ''}
       </div>`;
@@ -8178,12 +8210,13 @@ function smtCheckShopProximity(s){
   }
   return false;
 }
-// アウトドアでは戦闘そのものは発生させず、3つの縄張りの入口(SMT_ZONE_CENTER)に
-// 実際に歩いて近づいたときだけダンジョンへの突入を判定する(standing stillでは
-// 発生させない。駅前=corridor3の入口の実座標がプレイヤーの初期スポーン地点と
-// 重なっているため、この判定が無いとゲーム開始直後に強制的にダンジョン入りしてしまう)。
-// 解放済みの縄張りでも、まだ拾っていないスポット・特別な気配が残っている場合が
-// あるので、素通りさせずダンジョンへの入口は常に開けておく。
+// アウトドアでは戦闘そのものは発生させず、街を自由に歩き回れるようにした上で、
+// 3つの縄張りの入口の建物(SMT_ZONE_CENTER、半径SMT_DUNGEON_GATE_RADIUS_M)に
+// 実際に歩いて入ったときだけダンジョンへの突入を判定する(standing stillでは
+// 発生させない)。半径を狭くしてあるので、素通りしただけでは入らず、はっきり
+// 建物の前まで歩み寄って初めて中に入る形になる。解放済みの縄張りでも、まだ
+// 拾っていないスポット・特別な気配が残っている場合があるので、素通りさせず
+// ダンジョンへの入口は常に開けておく。
 function smtCheckZoneGate(s, moving){
   if(s.dungeon || !moving) return;
   for(const corridor of ['1','2','3']){
@@ -8554,7 +8587,7 @@ function smtLeaveFacility(){
 // era別のHUD・下部ボタンはrenderSmtGame側で分けたままにしつつ、肝心のシーン(地面・
 // 自分・周囲のアイコン・コンパス・ミニマップ)そのものは完全に同じテンプレートを使う。
 function smtIsoSceneHtml(s, showEraFlash){
-  const hintText = s.era==='y2000' ? '⛩️/🗿/🏯は3つの縄張りの入口です' : '⛩️/🗿/🏯は3つの縄張りの入口、🏮はお店です';
+  const hintText = s.era==='y2000' ? '🏢/🏰/🍸は3つの縄張りの入口の建物です' : '🏢/🏰/🍸は3つの縄張りの入口の建物、🏮はお店です';
   return `
     <div style="position:relative;">
       <div id="smtFpScene" class="smt-fp-scene${s.era==='y2000' ? ' smt-fp-scene-y2000' : ''}">
