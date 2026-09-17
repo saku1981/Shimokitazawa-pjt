@@ -345,6 +345,56 @@
   .smt-mini-player{fill:#e0c458;stroke:#141210;stroke-width:.8;}
   .smt-mini-n{position:absolute;top:3px;left:50%;transform:translateX(-50%);font-size:9px;
     font-weight:bold;color:rgba(255,255,255,.85);}
+  .smt-fp-location-tag{position:absolute;top:8px;left:8px;z-index:4;filter:none;pointer-events:none;
+    background:rgba(10,15,13,.82);border:2px solid rgba(224,196,88,.75);border-radius:4px;
+    padding:3px 8px;font-family:'Courier New',ui-monospace,monospace;line-height:1.3;}
+  .smt-fp-location-name{font-size:11px;font-weight:bold;color:#f3e6c8;white-space:nowrap;}
+  .smt-fp-location-sub{font-size:8.5px;color:#9fd8c8;white-space:nowrap;}
+  /* ===== 下北沢開発プロジェクトの移動・バトル画面だけの、レトロなドット絵RPG風の額縁UI =====
+     実在のゲームシリーズ固有のUI意匠やロゴ・BGM・具体的な画面構成をそのまま再現するのではなく、
+     額縁のある古いモニター調の見た目・等幅フォントのステータス表示・武骨な操作ボタンといった、
+     レトロなダンジョンRPG全般に共通する「雰囲気」だけを一般化して取り入れている。render()側で
+     #screenに.smt-retro-themeを付け外ししており、.revenge-*クラスを共有する他のミニゲーム
+     (revengeGameなど)の見た目には影響しない。 */
+  .smt-retro-theme .smt-fp-scene,
+  .smt-retro-theme .revenge-battle-wrap,
+  .smt-retro-theme .revenge-story-box{
+    border-radius:4px;border:3px solid #6f8079;
+    box-shadow:inset 0 0 0 2px #0c1613,0 2px 10px rgba(0,0,0,.5);
+  }
+  .smt-retro-theme .revenge-battle-wrap,
+  .smt-retro-theme .revenge-story-box{
+    background:#0b1512;color:#d9f3ea;font-family:'Courier New',ui-monospace,monospace;
+  }
+  .smt-retro-theme .revenge-story-box p{color:#d9f3ea;}
+  .smt-retro-theme .smt-zone-label{color:#7fe0c9;font-family:'Courier New',ui-monospace,monospace;}
+  .smt-retro-theme .revenge-enemy-name{color:#f3e6c8;letter-spacing:.5px;}
+  .smt-retro-theme .revenge-log{background:#081210;border-color:#2c4a42;color:#a9e8d6;font-family:inherit;}
+  .smt-retro-theme .revenge-log div:last-child{color:#eafff6;}
+  .smt-retro-theme .revenge-hp-bar,.smt-retro-theme .revenge-mp-bar{background:#132420;border-radius:2px;}
+  .smt-retro-theme .revenge-hp-fill{background:linear-gradient(90deg,#3ecf8e,#2fa876);}
+  .smt-retro-theme .revenge-mp-fill{background:linear-gradient(90deg,#4fb8e0,#3186b0);}
+  .smt-retro-theme .smt-hud{background:#0b1512;border:1px solid #2c4a42;border-radius:4px;
+    padding:6px 10px;font-family:'Courier New',ui-monospace,monospace;color:#d9f3ea;}
+  .smt-retro-theme .smt-hud b{color:#7fe0c9;}
+  .smt-retro-theme .revenge-actions .btn,
+  .smt-retro-theme .smt-encounter-choice .btn,
+  .smt-retro-theme .smt-magic-grid .btn,
+  .smt-retro-theme .invader-btn{
+    font-family:'Courier New',ui-monospace,monospace;border-radius:3px;border:2px solid #395c53;
+    background:#0f2019;color:#d9f3ea;letter-spacing:.5px;
+  }
+  .smt-retro-theme .revenge-actions .btn.btn-primary,
+  .smt-retro-theme .smt-encounter-choice .btn.btn-primary{
+    background:#4a2320;border-color:#d9645a;color:#ffe3df;
+  }
+  .smt-retro-theme .revenge-enemy-sprite{position:relative;display:inline-block;}
+  .smt-retro-theme .revenge-enemy-sprite::before{
+    content:'';position:absolute;left:50%;top:50%;width:120px;height:120px;
+    transform:translate(-50%,-50%);border-radius:50%;
+    background:radial-gradient(circle,rgba(255,214,140,.35),rgba(255,214,140,0) 70%);
+    z-index:-1;
+  }
   .smt-vn-box{display:flex;gap:12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
   .smt-vn-portrait{flex-shrink:0;width:52px;height:52px;border-radius:50%;background:var(--panel2);
     border:2px solid #e0c458;display:flex;align-items:center;justify-content:center;font-size:26px;}
@@ -7998,6 +8048,18 @@ function smtHeadingLabel(heading){
   const dirs = ['北','北東','東','南東','南','南西','西','北西'];
   return dirs[Math.round(((heading%360)+360)%360/45) % 8];
 }
+// レトロなダンジョンRPG風に、画面隅に「今どのあたりにいるか」を示す額縁付きの
+// 場所表示タグを出すための、現在地から一番近い縄張り(通り)名を返すヘルパー。
+function smtY2000NearestZoneLabel(s){
+  let bestCorridor = '1', bestDist = Infinity;
+  for(const corridor of ['1','2','3']){
+    const center = SMT_ZONE_CENTER[corridor];
+    const d = smtDistMeters(s.pos.lat, s.pos.lng, center[0], center[1]);
+    if(d < bestDist){ bestDist = d; bestCorridor = corridor; }
+  }
+  const zoneKey = Y2K_CORRIDOR_MAP[bestCorridor];
+  return Y2K_ZONE_REGULAR[zoneKey].zone;
+}
 // 2000年編の一人称ビューを毎フレーム(移動があったときだけ)軽量に更新する。
 // initSmtGameMap()のようにDOMをまるごと作り直すのではなく、既存のDOM要素を
 // そのつどピンポイントで書き換えるだけにして、Leafletのpanto/setLatLngと同じ考え方に揃えている。
@@ -8016,6 +8078,12 @@ function smtFirstPersonRefresh(s){
   if(buildingsStrip){
     const offset = ((heading/360) * SMT_FP_BUILDING_STRIP_WIDTH) % SMT_FP_BUILDING_STRIP_WIDTH;
     buildingsStrip.style.transform = `translateX(${-offset}px)`;
+  }
+
+  // レトロRPG風の額縁タグに、今いる場所(一番近い縄張り)を表示する。
+  const locationTag = document.getElementById('smtFpLocationTag');
+  if(locationTag){
+    locationTag.innerHTML = `<div class="smt-fp-location-name">${escapeHtml(smtY2000NearestZoneLabel(s))}</div><div class="smt-fp-location-sub">2000年編 ・ ${escapeHtml(smtHeadingLabel(heading))}</div>`;
   }
 
   const markersWrap = document.getElementById('smtFpMarkers');
@@ -8485,6 +8553,7 @@ function renderSmtGame(){
         </div>
         <div style="position:relative;">
           <div id="smtFirstPersonScene" class="smt-fp-scene">
+            <div id="smtFpLocationTag" class="smt-fp-location-tag"></div>
             <div class="smt-fp-buildings"><div id="smtFpBuildingsStrip" class="smt-fp-buildings-strip">${SMT_FP_BUILDING_STRIP_HTML}</div></div>
             <div class="smt-fp-road"></div>
             <div class="smt-fp-compass">
@@ -9776,6 +9845,10 @@ function render(){
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
+  // 下北沢開発プロジェクトの移動・バトル画面だけに、レトロなRPG風の額縁UI(smt-retro-theme)を
+  // 適用する。revengeGameなど他の画面は.revenge-*クラスを共有しているため、bodyではなく
+  // #screenにこのクラスを付け外しすることで、他の画面の見た目には一切影響しないようにする。
+  el.classList.toggle('smt-retro-theme', state.screen==='smtGame');
   if(state.screen==='shimokitaMap'){ initShimokitaLeafletMap(); }
   if(state.screen==='invaderGame'){ initInvaderGame(); }
   if(state.screen==='breakoutGame'){ initBreakoutGame(); }
