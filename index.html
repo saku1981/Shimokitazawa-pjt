@@ -239,8 +239,8 @@
   .rpg-map.cave .rpg-tile-floor.v2{background:#3c372d;}
   .rpg-map.cave .rpg-tile-door{background:#5a4326;}
   .rpg-player{font-size:14px;}
-  #smtOverworldMap, #smtY2000MapViewMap{transition:filter .8s ease;}
-  #smtOverworldMap.y2k-sepia, #smtY2000MapViewMap.y2k-sepia{filter:sepia(0.6) contrast(1.05) brightness(0.94) saturate(1.2) hue-rotate(-6deg);}
+  #smtY2000MapViewMap{transition:filter .8s ease;}
+  #smtY2000MapViewMap.y2k-sepia{filter:sepia(0.6) contrast(1.05) brightness(0.94) saturate(1.2) hue-rotate(-6deg);}
   .smt-hist-label{background:rgba(40,30,10,.72)!important;border:1px solid rgba(224,196,88,.7)!important;color:#f3e6c8!important;
     font-size:10px!important;padding:1px 5px!important;border-radius:6px!important;box-shadow:none!important;white-space:nowrap;}
   .smt-hist-label::before{display:none;}
@@ -304,26 +304,19 @@
   @keyframes smtSpinCCW{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
   .smt-spin-cw{animation:smtSpinCW 3s linear infinite;}
   .smt-spin-ccw{animation:smtSpinCCW 3s linear infinite;}
-  .smt-fp-scene{position:relative;height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);
-    background:linear-gradient(180deg,#cfd9c4 0%,#cfd9c4 42%,#8a7f68 42%,#8a7f68 100%);
-    filter:sepia(0.6) contrast(1.05) brightness(0.94) saturate(1.2) hue-rotate(-6deg);}
-  .smt-fp-buildings{position:absolute;left:0;right:0;top:2%;height:40%;overflow:hidden;
-    opacity:.6;font-size:26px;pointer-events:none;user-select:none;}
-  .smt-fp-buildings-strip{position:absolute;left:0;bottom:0;height:100%;display:flex;
-    align-items:flex-end;white-space:nowrap;transition:transform .1s linear;}
-  .smt-fp-buildings-strip span{display:inline-block;width:46px;flex-shrink:0;text-align:center;}
-  .smt-fp-road{position:absolute;left:50%;bottom:0;width:0;height:0;
-    border-left:76px solid transparent;border-right:76px solid transparent;border-bottom:180px solid rgba(60,52,40,.55);
-    transform:translateX(-50%);pointer-events:none;}
-  .smt-fp-road::after{content:'';position:absolute;left:-3px;bottom:0;width:6px;height:178px;
-    background:repeating-linear-gradient(180deg,#e0d8b8 0,#e0d8b8 14px,transparent 14px,transparent 28px);
-    opacity:.5;}
+  .smt-fp-scene{position:relative;height:280px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#3c5245;}
+  .smt-fp-scene-y2000{filter:sepia(0.55) contrast(1.05) brightness(0.92) saturate(1.15) hue-rotate(-6deg);}
+  .smt-fp-ground{position:absolute;inset:0;background-color:#3c5245;
+    background-image:repeating-linear-gradient(60deg, rgba(255,255,255,.07) 0 2px, transparent 2px 22px),
+      repeating-linear-gradient(-60deg, rgba(0,0,0,.10) 0 2px, transparent 2px 22px);}
   .smt-fp-markers{position:absolute;inset:0;pointer-events:none;}
-  .smt-fp-marker{position:absolute;transform:translate(-50%,0);text-align:center;
-    filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));transition:left .12s linear,bottom .12s linear;}
+  .smt-fp-marker{position:absolute;transform:translate(-50%,-100%);text-align:center;
+    filter:drop-shadow(0 1px 2px rgba(0,0,0,.6));}
   .smt-fp-marker-icon{display:block;line-height:1;}
   .smt-fp-marker-label{display:inline-block;font-size:9px;background:rgba(0,0,0,.5);color:#f3e6c8;
     border-radius:4px;padding:0 4px;margin-top:1px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
+  .smt-fp-player{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:34px;height:34px;
+    z-index:5;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5));}
   .smt-fp-compass{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;align-items:center;
     gap:5px;background:rgba(20,18,14,.6);color:#f3e6c8;border-radius:20px;padding:3px 11px;font-size:11px;
     z-index:3;filter:none;}
@@ -350,6 +343,14 @@
     padding:3px 8px;font-family:'Courier New',ui-monospace,monospace;line-height:1.3;}
   .smt-fp-location-name{font-size:11px;font-weight:bold;color:#f3e6c8;white-space:nowrap;}
   .smt-fp-location-sub{font-size:8.5px;color:#9fd8c8;white-space:nowrap;}
+  /* 徒歩ダンジョン(異世界の書き割り)のマス目グリッド。 */
+  .smt-dungeon-grid{display:grid;gap:2px;background:#0c1613;border:1px solid var(--line);
+    border-radius:8px;padding:4px;margin-top:6px;}
+  .smt-dungeon-cell{position:relative;aspect-ratio:1/1;background:#2c4a42;border-radius:2px;
+    display:flex;align-items:center;justify-content:center;font-size:15px;overflow:hidden;}
+  .smt-dungeon-cell-decor{background:#1c2e28;}
+  .smt-dungeon-cell-event{background:#3a3020;}
+  .smt-dungeon-cell-player{background:#4a6b5f;}
   /* ===== 下北沢開発プロジェクトの移動・バトル画面だけの、レトロなドット絵RPG風の額縁UI =====
      実在のゲームシリーズ固有のUI意匠やロゴ・BGM・具体的な画面構成をそのまま再現するのではなく、
      額縁のある古いモニター調の見た目・等幅フォントのステータス表示・武骨な操作ボタンといった、
@@ -367,6 +368,8 @@
     background:#0b1512;color:#d9f3ea;font-family:'Courier New',ui-monospace,monospace;
   }
   .smt-retro-theme .revenge-story-box p{color:#d9f3ea;}
+  .smt-retro-theme .smt-dungeon-grid{background:#081210;border-color:#2c4a42;}
+  .smt-retro-theme .smt-dungeon-cell{background:#132420;border:1px solid #2c4a42;border-radius:0;}
   .smt-retro-theme .smt-zone-label{color:#7fe0c9;font-family:'Courier New',ui-monospace,monospace;}
   .smt-retro-theme .revenge-enemy-name{color:#f3e6c8;letter-spacing:.5px;}
   .smt-retro-theme .revenge-log{background:#081210;border-color:#2c4a42;color:#a9e8d6;font-family:inherit;}
@@ -7200,41 +7203,47 @@ function renderKmGame(){
    オリジナルのストーリー・悪魔データ、特定作品のキャラクターやマップをそのまま
    使ってはいない。実在の人物名は登場しない。進行状況は保存されず、画面を離れると
    最初からになる。
-   2000年編の見た目: 上から見下ろす地図の代わりに、進行方向の街並みをCSS/絵文字で
-   描いたSMT風の一人称ビュー(#smtFirstPersonScene、smtFirstPersonRefresh)で表示する。
-   十字キー操作・移動ロジック(smtOverworldUpdate)は現在編と共通で、移動時の入力
-   ベクトルから向いている方角(s.heading、北=0/東=90/南=180/西=270)を求め、前方
-   SMT_FP_FOV度・SMT_FP_MAX_DIST m以内にあるスポット/ボス出現地点を遠近感つきで
-   描画する。実際の地図(Y2K_SPOTS・Y2K_HISTORICAL_OVERLAYSを含む、お店アイコンの
-   出ないCartoDB Positronタイル)は「🗺️ 地図で見る」ボタンから開く別画面
-   (y2000MapView、initSmtY2000MapViewMap)としていつでも見返せる。現在編の
-   見下ろし型オーバーワールド(initSmtLeafletOverworld)は変更していない。
-   スポットに近づいたときの一口解説は、SMT風の会話ウィンドウ(y2000Dialogue、
-   ポートレート絵文字+speaker役職ラベル+一人称セリフ)として表示する。Y2K_SPOTS
-   の各エントリはspeakerフィールド(店主・商店会の世話役・近所の住人など、実在の
-   人物名を含まない汎用的な役どころ)を持ち、linesは三人称の説明文ではなく、その
-   役どころが直接プレイヤーに語りかける一人称のセリフとして書かれている。
-   2000年編の操作・ミニマップ: 「まっすぐ進むだけ」で単調にならないよう、◀️/▶️は
-   見下ろし型のような平行移動(西/東へストレイフ)ではなく、その場での旋回(左右に
-   向きを変える、SMT_FP_TURN_DEG_PER_SEC)に変更し、▲/▼は常に「今向いている方角」
-   への前進・後退にした(smtOverworldUpdate内でs.era==='y2000'のときだけ分岐する。
-   現在編の見下ろし型オーバーワールドの8方向移動は変更していない)。さらに、進行方向
-   しか見えない一人称視点だけでは周辺の位置関係がつかみにくいため、画面右上に北を
-   常に上にした小さな円形ミニマップ(#smtFpMinimap、smtFirstPersonMinimapRefresh)を
-   重ねて表示する。駅前を起点に3つの縄張り(一番街・南口・下北沢駅前)へ向かう通りを、
-   既存の実座標(SHIMOKITA_STATION_CENTER→SMT_ZONE_CENTER→SMT_ZONE_BOSS_POINT)を
-   線で結んだおおまかな表現(SMT_Y2000_ROAD_SPOKES、実測の道路形状そのものではない)
-   として描き、周辺のスポット・気配の出現地点をドットで、自分の現在地と向きを中心の
-   三角形で示す。旋回だけ(前進していない)ときも向きの変化が見えるよう、移動時だけで
-   なく旋回時にも再描画する。
+   アウトドアの見た目: 現在編・2000年編とも、地図タイルや一人称視点ではなく、
+   見下ろし型のアイソメトリック風表示(smtIsoProject、#smtFpScene、smtIsoRefresh)に
+   統一している。実座標(緯度経度)にもとづく移動ロジック自体は変えていないが、
+   移動操作は十字キーによる8方向の平行移動に統一し(smtOverworldUpdate、2000年編
+   だけにあった「その場で旋回してから前進」という操作は廃止)、プレイヤーは常に
+   画面中央に人アイコン(smtPlayerIconHtml、ロウ/カオスの属性リングつき)で表示され、
+   自分ではなく周囲(縄張りの入口・現在編のみ下北沢マップの実在店舗)の方が実座標
+   からの相対位置(アイソメ投影)に応じて動いて見える。実際の地図(Y2K_SPOTS・
+   Y2K_HISTORICAL_OVERLAYSを含む地図タイル)は「🗺️ 地図で見る」ボタンから開く
+   別画面(y2000MapView、initSmtY2000MapViewMap)としていつでも見返せる(この画面
+   だけは変更していない)。画面右上には北を常に上にした小さな円形ミニマップ
+   (#smtFpMinimap、smtIsoMinimapRefresh)を重ね、駅前を起点に3つの縄張りへ向かう
+   通りのおおまかな見当(SMT_Y2000_ROAD_SPOKES、既存の実座標を線で結んだだけの
+   表現)と、自分の現在地・向きを表示する。
+   縄張りの入口とダンジョン: アウトドア画面には、3つの縄張り(一番街・南口・
+   下北沢駅前)それぞれの中心(SMT_ZONE_CENTER)に「入口」のアイコン(⛩️/🗿/🏯、
+   SMT_ZONE_GATE_ICON)が見えており、SMT_DUNGEON_GATE_RADIUS_Mまで近づくと
+   (smtCheckZoneGate)、その縄張り専用の小さな徒歩ダンジョン(s.stage==='dungeon')
+   に入る。ダンジョンは毎回同じ配置になるよう文字列ハッシュ+線形走査で座標を
+   割り当てる決定的な生成(smtBuildDungeon/smtSeedFromString)で、SMT_DUNGEON_W×
+   SMT_DUNGEON_Hマスの固定グリッドを十字キー(1マスずつのonclick移動、
+   smtDungeonMove)で歩き回る。グリッド上には、その縄張りでまだ解決していない
+   内容が「気配」として置かれる――2000年編ならまだ読んでいないY2K_SPOTS(スポット
+   探索は現在編と違い、アウトドアではなくダンジョンの中で行うようにした)、現在編
+   ならまだ出会っていない「特別な気配」(下記)。どちらの時代も、縄張り本来のボスが
+   未討伐ならボスの出現地点も1つ置かれる。演出だけの(通行できない)大きな建物・
+   障害物のシルエット(SMT_DUNGEON_DECOR_ICONS)も数個配置し、「異世界の書き割り」
+   らしい雰囲気を出している。気配のマスに乗ると即座にそのイベントを消費し
+   (smtDungeonTriggerEvent、同じ気配には二度と遭遇しない)、既存のy2000VisitSpot/
+   smtStartEncounterへそのままつなげている(会話・戦闘ロジック自体は変更して
+   いない)。何もないマスを1歩進むごとに、一定確率(SMT_DUNGEON_REGULAR_CHANCE)で
+   通常の気配とも遭遇する。「🚪 外に出る」ボタン(smtExitDungeon)でいつでもアウト
+   ドアの画面に戻れる。戦闘・会話を終えて戻る先がアウトドアかダンジョンかは、
+   smtFieldStage(s)(s.dungeonが残っていればダンジョン)で判定している。
    現在編限定の「特別な気配」: 商店街に実在するお店のマスコット(INVADER ONE・U7・
    Bar Civetta)を、和風オカルト・ゴシック調(黒・深紅・金/木版画調の線/曼荼羅・
    梵字・注連縄・紙垂・鳥居・満月といった意匠)に再解釈した一口ゲスト出演として、
-   現在編の1〜3各縄張りに1体ずつ登場させる(SMT_SPECIAL_ENCOUNTERS/
+   現在編の1〜3各縄張りのダンジョン内に1体ずつ配置する(SMT_SPECIAL_ENCOUNTERS/
    SMT2_ZONE_SPECIAL)。実在のゲームシリーズの具体的なキャラクター・ロゴは一切
-   参照・複製せず、各マスコットの既存の識別要素(体色・耳の形・紋章的な雰囲気)は
-   保ったまま、紋章・文様はすべて新規に考案したオリジナル意匠(実在の家紋・宗教的
-   意匠の引用ではない)としている。実装上の要点: これらは isBoss:false・
+   参照・複製せず、紋章・文様はすべて新規に考案したオリジナル意匠(実在の家紋・
+   宗教的意匠の引用ではない)としている。実装上の要点: これらは isBoss:false・
    special:true という独立したフラグを持つ。encounter/battle画面の後光演出
    (smt-special-glow、ボスのsmt-boss-glowとは別の金色のアニメーション)と
    遭遇時セリフ(introLine)・撃破/交渉後のセリフ(victoryLine、lastVictoryLine
@@ -7243,10 +7252,8 @@ function renderKmGame(){
    isBossだけを見るロジックのまま変更していない。そのため、これらのマスコットを
    仲魔にしたり倒したりしても、各縄張り本来のボス(ゴブリンの頭目・サキュバス・
    幽閉の悪魔ザラキエル)を倒す必要性は一切スキップされない。出現は各縄張りにつき
-   一度きり(s.rareMet)で、実際に歩いてそのエリアに踏み込んだ時(moving===true)
-   にのみ確率抽選を待たず保証で発生させ、ボス出現地点への到達やスポーン直後・
-   時代切り替え直後には発生しない(smtCheckZoneEncounter)。2000年編には登場しない
-   (現在の実在店舗のマスコットという設定のため)。
+   一度きり(s.rareMet)で、ダンジョン内でそのマスに実際に踏み込んだ時にだけ発生
+   する。2000年編には登場しない(現在の実在店舗のマスコットという設定のため)。
 */
 let smtGameState = null;
 /* 2000年編:再開発前の下北沢駅前をイメージしたオリジナルの一口解説スポット。
@@ -7565,7 +7572,7 @@ function y2000CloseDialogue(){
   const flavor = s.y2000.pendingFlavor;
   const effectText = flavor ? y2000ApplyReward(s, flavor.reward) : '';
   s.y2000.lastFlavorEffect = effectText;
-  s.stage = 'overworld';
+  s.stage = smtFieldStage(s);
   const visitedCount = Object.values(s.y2000.visited).filter(Boolean).length;
   let finalMsg = effectText;
   if(visitedCount === Y2K_SPOTS.length && !s.y2000.archiveCompleteAwarded){
@@ -7665,6 +7672,31 @@ const SMT_ZONE_BOSS_POINT = {
 const SMT_ZONE_RADIUS_M = 120;
 const SMT_BOSS_RADIUS_M = 26;
 const SMT_SHOP_RADIUS_M = 15;
+// アウトドアの見た目(見下ろし型アイソメトリック風表示)・徒歩ダンジョン共通の設定。
+// 実座標(緯度経度)を、ひし形に傾いた昔ながらのドット絵RPG風の画面px座標に変換する
+// だけで、実際の地図タイルや特定作品のマップ・タイル絵をそのまま使うわけではない。
+const SMT_ISO_UNIT_M = 6; // アイソメ1マス相当の実距離(メートル)
+const SMT_ISO_TILE_W = 40; // アイソメ1マスぶんの横幅(px)
+const SMT_ISO_TILE_H = 20; // アイソメ1マスぶんの縦幅(px)
+const SMT_ISO_MAX_DIST = 200; // これより遠いアイコンは描画しない(メートル)
+function smtIsoProject(originLat, originLng, lat, lng){
+  const dNorth = (lat - originLat) * 111320;
+  const dEast = (lng - originLng) * 111320 * Math.cos(originLat * Math.PI/180);
+  const gx = dEast / SMT_ISO_UNIT_M;
+  const gy = -dNorth / SMT_ISO_UNIT_M;
+  return { x: (gx - gy) * (SMT_ISO_TILE_W/2), y: (gx + gy) * (SMT_ISO_TILE_H/2) };
+}
+// 各縄張りへの入口(ダンジョンゲート)のアイコン。実在のゲームの意匠ではなく、
+// 「異世界の入口」を思わせる汎用的な鳥居・祠モチーフのオリジナルアイコン。
+const SMT_ZONE_GATE_ICON = { '1':'⛩️', '2':'🗿', '3':'🏯' };
+const SMT_DUNGEON_GATE_RADIUS_M = 40; // これより入口に近づくとダンジョンに入る
+// 徒歩でうろつける小さなダンジョン(異世界の書き割り)のグリッド寸法。演出だけの
+// (通行できない)大きな建物・障害物のシルエットもここにまとめておく。
+const SMT_DUNGEON_W = 7;
+const SMT_DUNGEON_H = 7;
+const SMT_DUNGEON_DECOR_ICONS = ['🏢','🏚️','🗿','🌲','🕳️'];
+const SMT_DUNGEON_DECOR_COUNT = 4; // 演出用の大きな建物・障害物の数
+const SMT_DUNGEON_REGULAR_CHANCE = 0.22; // 何もない床を1マス進むごとの通常の気配との遭遇確率
 const SMT_JOBS = {
   balance: { name:'バランス型・召喚士', atkMod:0, magicMod:0, desc:'物理も魔法も平均的な、素の召喚士のスタイル。' },
   mage:    { name:'呪術師', atkMod:-2, magicMod:6, desc:'属性弾の威力が上がるが、直接攻撃はやや弱くなる。' },
@@ -7689,6 +7721,7 @@ function newSmtGame(){
     atkBonus: 0, magicBonus: 0, job: 'balance', gold: 0,
     clearedZones: { '1':false, '2':false, '3':false },
     rareMet: { '1':false, '2':false, '3':false }, // 現代編限定の特別な気配(INVADER ONE/U7/Bar Civetta)に、各縄張りで一度だけ出会う
+    dungeon: null, // 現在入っている徒歩ダンジョン(null=アウトドア)。smtBuildDungeon()が作る
     pos: { lat: SHIMOKITA_STATION_CENTER[0], lng: SHIMOKITA_STATION_CENTER[1] },
     mapZoom: 17,
     alignment: 0,
@@ -7815,10 +7848,15 @@ function smtStartEncounter(def){
   smtVibrate(def.isBoss ? [15,40,15] : 10);
   render();
 }
+// 戦闘・会話イベントを終えて戻る先が、アウトドアかダンジョンの中かを判定する。
+// ダンジョン内でボス・気配に遭遇した場合はs.dungeonが残ったままなので、そちらへ戻す。
+function smtFieldStage(s){
+  return (s && s.dungeon) ? 'dungeon' : 'overworld';
+}
 function smtProceedAfterVictory(){
   const s = smtGameState;
   if(!s) return;
-  s.stage = 'overworld';
+  s.stage = smtFieldStage(s);
   render();
 }
 let smtOverworldRafId = null;
@@ -7871,73 +7909,25 @@ function initSmtGameMap(){
   const s = smtGameState;
   if(!s){ stopSmtGameMap(); return; }
   if(s.stage === 'y2000MapView'){ initSmtY2000MapViewMap(); return; }
+  // 'dungeon'はここでstopSmtGameMap()するだけでよい(徒歩ダンジョンはRAFループを
+  // 使わず、十字キーのonclickごとにsmtDungeonMove()→render()するだけの画面のため)。
   if(s.stage !== 'overworld'){ stopSmtGameMap(); return; }
-  if(s.era === 'y2000'){ initSmtFirstPersonOverworld(); }
-  else { initSmtLeafletOverworld(); }
+  initSmtIsoOverworld();
 }
-// 現在編(今日)の見下ろし型オーバーワールド。従来どおり実際の下北沢マップ(OSM)の上を移動する。
-function initSmtLeafletOverworld(){
+// 現在編・2000年編で共通の、見下ろし型アイソメトリック風アウトドア表示の初期化。
+// 実際の地図タイルを読み込む代わりに、既存の実座標にもとづく移動ロジックの上へ、
+// 自前のCSS/絵文字だけで見た目を組み立てる(smtIsoRefreshが以後の再描画を担う)。
+function initSmtIsoOverworld(){
   const s = smtGameState;
-  const container = document.getElementById('smtOverworldMap');
-  if(!container || typeof L === 'undefined' || !s || s.stage !== 'overworld'){
+  const scene = document.getElementById('smtFpScene');
+  if(!scene || !s || s.stage !== 'overworld'){
     stopSmtGameMap();
     return;
   }
-  stopSmtGameMap(); // renderSmtGame()が毎回innerHTMLを差し替えるため、地図とループを毎回作り直す
+  stopSmtGameMap(); // renderSmtGame()が毎回innerHTMLを差し替えるため、ループを毎回作り直す
   smtOverworldInput = { up:false, down:false, left:false, right:false };
   smtOverworldLastTime = null;
-  container.classList.remove('y2k-sepia');
-
-  const map = L.map(container, { zoomControl: true });
-  map.setView([s.pos.lat, s.pos.lng], s.mapZoom || 17);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19,
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-  }).addTo(map);
-  map.on('zoomend', () => { s.mapZoom = map.getZoom(); });
-
-  ['1','2','3'].forEach(corridor=>{
-    const cleared = s.clearedZones[corridor];
-    const color = smtZoneCircleColor(corridor, cleared);
-    L.circle(SMT_ZONE_CENTER[corridor], { radius: SMT_ZONE_RADIUS_M, color, fillColor: color, fillOpacity: 0.15, weight: 1 }).addTo(map);
-    L.marker(SMT_ZONE_BOSS_POINT[corridor], {
-      icon: L.divIcon({ className:'smt-boss-marker-wrap', html:`<div style="font-size:20px;">${cleared ? '✅' : '⛩️'}</div>`, iconSize:[24,24], iconAnchor:[12,12] })
-    }).addTo(map);
-  });
-
-  SHIMOKITA_SPOTS.forEach(spot=>{
-    if(typeof spot.lat !== 'number' || typeof spot.lng !== 'number') return;
-    const claimed = !!s.claimedSpots[spot.id];
-    const marker = L.marker([spot.lat, spot.lng], {
-      icon: L.divIcon({ className:'smt-shop-marker-wrap', html: smtShopIconHtml(claimed), iconSize:[18,18], iconAnchor:[9,9] })
-    }).addTo(map);
-    marker.bindTooltip(escapeHtml(spot.name), { direction:'top', offset:[0,-8] });
-  });
-
-  smtLeafletPlayerMarker = L.marker([s.pos.lat, s.pos.lng], {
-    icon: L.divIcon({ className:'smt-player-icon-wrap', html: smtPlayerIconHtml(s.alignment), iconSize:[34,34], iconAnchor:[17,17] }),
-    zIndexOffset: 1000
-  }).addTo(map);
-
-  smtLeafletMapInstance = map;
-  window.addEventListener('keydown', smtOverworldKeyDown);
-  window.addEventListener('keyup', smtOverworldKeyUp);
-  smtOverworldKeyHandlerBound = true;
-  smtOverworldRafId = requestAnimationFrame(smtOverworldLoop);
-}
-// 2000年編のオーバーワールド。SMT風に、地図を上から見る代わりに進行方向の街並みを
-// CSS/絵文字で描いた一人称視点で表示する。移動ロジック・十字キー操作は現在編と共通。
-function initSmtFirstPersonOverworld(){
-  const s = smtGameState;
-  const scene = document.getElementById('smtFirstPersonScene');
-  if(!scene || !s || s.stage !== 'overworld' || s.era !== 'y2000'){
-    stopSmtGameMap();
-    return;
-  }
-  stopSmtGameMap();
-  smtOverworldInput = { up:false, down:false, left:false, right:false };
-  smtOverworldLastTime = null;
-  smtFirstPersonRefresh(s); // 初期状態を即座に描画
+  smtIsoRefresh(s); // 初期状態を即座に描画
   window.addEventListener('keydown', smtOverworldKeyDown);
   window.addEventListener('keyup', smtOverworldKeyUp);
   smtOverworldKeyHandlerBound = true;
@@ -8009,20 +7999,9 @@ function initSmtY2000MapViewMap(){
   // 見るだけの画面のため、ここではキー操作の再バインドやRAFループの起動は行わない
   // (移動・遭遇判定は「街を歩く画面へ戻る」でoverworldに戻ってから再開する)。
 }
-const SMT_FP_FOV = 100; // 一人称視点の水平画角(度)。この範囲外のスポットは描画しない
-const SMT_FP_MAX_DIST = 220; // これより遠いスポットは描画しない(メートル)
-// 一人称ビューの背景の建物並び(スカイライン)。旋回してもスポットが視界に入らない限り
-// 画面に何も変化が起きず「向きを変えた感じがしない」ことのないよう、旋回角度に応じて
-// この並びを横方向にスクロールさせ、視界そのものが振り向いたように見せる。継ぎ目が
-// 見えないよう同じ並び(SMT_FP_BUILDING_UNIT)を複数回繰り返して並べておく。
-const SMT_FP_BUILDING_UNIT = ['🏚️','🏮','🏪','🏠','🍡','🏮','🏬','🏚️','⛩️','🏮'];
-const SMT_FP_BUILDING_ITEM_PX = 46; // 建物1つぶんの幅(px)。この幅×並びの数=360度で一周する距離
-const SMT_FP_BUILDING_STRIP_WIDTH = SMT_FP_BUILDING_UNIT.length * SMT_FP_BUILDING_ITEM_PX;
-const SMT_FP_BUILDING_STRIP_HTML = Array(4).fill(SMT_FP_BUILDING_UNIT).flat()
-  .map(e => `<span>${e}</span>`).join('');
-// 一人称ビューの隅に重ねる、上から見た小さなミニマップ(レーダー)用の設定。
-// 「まっすぐ進むだけ」にならないよう、周辺の通り(3つの縄張りへの道)とスポットの
-// おおまかな位置関係を、常に北を上にした固定視点で表示する(プレイヤーの現在地は中心)。
+// 見下ろし型アイソメトリック風アウトドア画面の隅に重ねる、小さなミニマップ(レーダー)用の設定。
+// 周辺の通り(3つの縄張りへの道)とゲートのおおまかな位置関係を、常に北を上にした
+// 固定視点で表示する(プレイヤーの現在地は中心)。
 const SMT_MINI_RANGE_M = 260; // ミニマップに表示する範囲の半径(メートル)
 const SMT_MINI_SIZE_PX = 112; // ミニマップのSVG一辺のサイズ(px)
 // 駅前(下北沢マップの原点)から各縄張りの中心を経て気配の出現地点へ至る、3本の通りを
@@ -8032,17 +8011,11 @@ const SMT_Y2000_ROAD_SPOKES = ['1','2','3'].map(corridor => [
   SHIMOKITA_STATION_CENTER, SMT_ZONE_CENTER[corridor], SMT_ZONE_BOSS_POINT[corridor]
 ]);
 function smtMinimapProject(originLat, originLng, lat, lng, rangeM, sizePx){
-  // 北を上にした平面近似での投影(smtDistMeters/smtBearingDegと同じ簡易換算式)。
+  // 北を上にした平面近似での投影(smtDistMetersと同じ簡易換算式)。
   const dNorth = (lat - originLat) * 111320;
   const dEast = (lng - originLng) * 111320 * Math.cos(originLat * Math.PI/180);
   const scale = (sizePx/2) / rangeM;
   return { x: sizePx/2 + dEast*scale, y: sizePx/2 - dNorth*scale };
-}
-function smtBearingDeg(lat1, lng1, lat2, lng2){
-  // smtDistMetersと同じ平面近似で、北=0度・東=90度の方位角を求める
-  const dLat = (lat2-lat1) * 111320;
-  const dLng = (lng2-lng1) * 111320 * Math.cos(lat1*Math.PI/180);
-  return (Math.atan2(dLng, dLat) * 180/Math.PI + 360) % 360;
 }
 function smtHeadingLabel(heading){
   const dirs = ['北','北東','東','南東','南','南西','西','北西'];
@@ -8050,21 +8023,23 @@ function smtHeadingLabel(heading){
 }
 // レトロなダンジョンRPG風に、画面隅に「今どのあたりにいるか」を示す額縁付きの
 // 場所表示タグを出すための、現在地から一番近い縄張り(通り)名を返すヘルパー。
-function smtY2000NearestZoneLabel(s){
+function smtNearestZoneLabel(s){
   let bestCorridor = '1', bestDist = Infinity;
   for(const corridor of ['1','2','3']){
     const center = SMT_ZONE_CENTER[corridor];
     const d = smtDistMeters(s.pos.lat, s.pos.lng, center[0], center[1]);
     if(d < bestDist){ bestDist = d; bestCorridor = corridor; }
   }
-  const zoneKey = Y2K_CORRIDOR_MAP[bestCorridor];
-  return Y2K_ZONE_REGULAR[zoneKey].zone;
+  if(s.era === 'y2000'){
+    return Y2K_ZONE_REGULAR[Y2K_CORRIDOR_MAP[bestCorridor]].zone;
+  }
+  return SMT2_ZONE_REGULAR[bestCorridor].zone;
 }
-// 2000年編の一人称ビューを毎フレーム(移動があったときだけ)軽量に更新する。
-// initSmtGameMap()のようにDOMをまるごと作り直すのではなく、既存のDOM要素を
-// そのつどピンポイントで書き換えるだけにして、Leafletのpanto/setLatLngと同じ考え方に揃えている。
-function smtFirstPersonRefresh(s){
-  const scene = document.getElementById('smtFirstPersonScene');
+// 現在編・2000年編で共通の、見下ろし型アイソメトリック風アウトドア画面を毎フレーム
+// (移動があったときだけ)軽量に更新する。initSmtGameMap()のようにDOMをまるごと
+// 作り直すのではなく、既存のDOM要素をそのつどピンポイントで書き換えるだけにしている。
+function smtIsoRefresh(s){
+  const scene = document.getElementById('smtFpScene');
   if(!scene) return;
   const heading = s.heading || 0;
   const needle = document.getElementById('smtFpCompassNeedle');
@@ -8072,63 +8047,72 @@ function smtFirstPersonRefresh(s){
   const label = document.getElementById('smtFpCompassLabel');
   if(label) label.textContent = smtHeadingLabel(heading);
 
-  // 旋回そのものが画面に反映されるよう、背景の建物スカイラインを向きに応じて横スクロールさせる。
-  // 近くにスポットが無い方角を向いていても、これで「振り向いた」ことがはっきり見える。
-  const buildingsStrip = document.getElementById('smtFpBuildingsStrip');
-  if(buildingsStrip){
-    const offset = ((heading/360) * SMT_FP_BUILDING_STRIP_WIDTH) % SMT_FP_BUILDING_STRIP_WIDTH;
-    buildingsStrip.style.transform = `translateX(${-offset}px)`;
-  }
-
   // レトロRPG風の額縁タグに、今いる場所(一番近い縄張り)を表示する。
   const locationTag = document.getElementById('smtFpLocationTag');
   if(locationTag){
-    locationTag.innerHTML = `<div class="smt-fp-location-name">${escapeHtml(smtY2000NearestZoneLabel(s))}</div><div class="smt-fp-location-sub">2000年編 ・ ${escapeHtml(smtHeadingLabel(heading))}</div>`;
+    const eraLabel = s.era === 'y2000' ? '2000年編' : '現在編';
+    locationTag.innerHTML = `<div class="smt-fp-location-name">${escapeHtml(smtNearestZoneLabel(s))}</div><div class="smt-fp-location-sub">${eraLabel} ・ ${escapeHtml(smtHeadingLabel(heading))}</div>`;
   }
 
+  // 地面のひし形パターンを、駅前を原点にした実移動量ぶんスクロールさせる演出。継ぎ目が
+  // 見えないよう、タイル1枚ぶんの幅・高さで割った余りだけを使う(建物スカイラインの
+  // 横スクロールと同じ「向きや移動が画面に必ず反映される」考え方)。
+  const ground = document.getElementById('smtFpGround');
+  if(ground){
+    const p = smtIsoProject(SHIMOKITA_STATION_CENTER[0], SHIMOKITA_STATION_CENTER[1], s.pos.lat, s.pos.lng);
+    const bgX = ((p.x % SMT_ISO_TILE_W) + SMT_ISO_TILE_W) % SMT_ISO_TILE_W;
+    const bgY = ((p.y % SMT_ISO_TILE_H) + SMT_ISO_TILE_H) % SMT_ISO_TILE_H;
+    ground.style.backgroundPosition = `${bgX}px ${bgY}px`;
+  }
+
+  const player = document.getElementById('smtFpPlayer');
+  if(player) player.innerHTML = smtPlayerIconHtml(s.alignment);
+
   const markersWrap = document.getElementById('smtFpMarkers');
-  if(!markersWrap) return;
+  if(markersWrap){
+    const isY2000 = s.era === 'y2000';
+    const candidates = [];
+    ['1','2','3'].forEach(corridor=>{
+      const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[corridor] : corridor;
+      const clearedZones = isY2000 ? s.y2000.clearedZones : s.clearedZones;
+      const cleared = clearedZones[zoneKey];
+      const pt = SMT_ZONE_CENTER[corridor];
+      const label = isY2000 ? Y2K_ZONE_REGULAR[zoneKey].zone : SMT2_ZONE_REGULAR[corridor].zone;
+      candidates.push({ lat:pt[0], lng:pt[1], icon: cleared ? '✅' : SMT_ZONE_GATE_ICON[corridor], claimed:cleared, kind:'gate', label });
+    });
+    if(!isY2000){
+      SHIMOKITA_SPOTS.forEach(spot=>{
+        if(typeof spot.lat !== 'number') return;
+        const claimed = !!s.claimedSpots[spot.id];
+        candidates.push({ lat:spot.lat, lng:spot.lng, icon:'🏮', claimed, kind:'shop', label:spot.name });
+      });
+    }
 
-  const candidates = [];
-  Y2K_SPOTS.forEach(spot=>{
-    const claimed = !!s.y2000.visited[spot.id];
-    candidates.push({ lat:spot.lat, lng:spot.lng, icon:'💭', claimed, kind:'spot' });
-  });
-  ['1','2','3'].forEach(corridor=>{
-    const zoneKey = Y2K_CORRIDOR_MAP[corridor];
-    const cleared = s.y2000.clearedZones[zoneKey];
-    const pt = SMT_ZONE_BOSS_POINT[corridor];
-    candidates.push({ lat:pt[0], lng:pt[1], icon: cleared ? '✅' : '⛩️', claimed:cleared, label: cleared ? '解放済み' : '気配', kind:'boss' });
-  });
+    const visible = [];
+    candidates.forEach(c=>{
+      const dist = smtDistMeters(s.pos.lat, s.pos.lng, c.lat, c.lng);
+      if(dist > SMT_ISO_MAX_DIST) return;
+      const proj = smtIsoProject(s.pos.lat, s.pos.lng, c.lat, c.lng);
+      visible.push(Object.assign({}, c, { dist, proj }));
+    });
+    visible.sort((a,b)=> a.proj.y - b.proj.y); // 奥から手前の順に描画する(ペインターズアルゴリズム)
 
-  const visible = [];
-  candidates.forEach(c=>{
-    const dist = smtDistMeters(s.pos.lat, s.pos.lng, c.lat, c.lng);
-    if(dist > SMT_FP_MAX_DIST) return;
-    const bearing = smtBearingDeg(s.pos.lat, s.pos.lng, c.lat, c.lng);
-    const rel = ((bearing - heading + 540) % 360) - 180;
-    if(Math.abs(rel) > SMT_FP_FOV/2) return;
-    visible.push(Object.assign({}, c, { dist, rel }));
-  });
-  visible.sort((a,b)=> b.dist - a.dist); // 遠いものから描画し、近いものを手前に重ねる
+    markersWrap.innerHTML = visible.map(v=>{
+      const scale = Math.max(0.5, 1 - v.dist/SMT_ISO_MAX_DIST);
+      const fontSize = Math.round(14 + scale*20);
+      const opacity = v.claimed ? 0.4 : Math.max(0.55, scale);
+      return `<div class="smt-fp-marker" data-kind="${v.kind}" data-claimed="${v.claimed?1:0}" style="left:calc(50% + ${v.proj.x.toFixed(1)}px);top:calc(56% + ${v.proj.y.toFixed(1)}px);opacity:${opacity};">
+        <span class="smt-fp-marker-icon" style="font-size:${fontSize}px;">${v.icon}</span>
+        ${v.kind==='gate' ? `<span class="smt-fp-marker-label">${escapeHtml(v.label)}</span>` : ''}
+      </div>`;
+    }).join('');
+  }
 
-  markersWrap.innerHTML = visible.map(v=>{
-    const leftPct = 50 + (v.rel / (SMT_FP_FOV/2)) * 46;
-    const scale = Math.max(0.35, 1 - v.dist / SMT_FP_MAX_DIST);
-    const bottomPct = 14 + (1 - v.dist/SMT_FP_MAX_DIST) * 10;
-    const fontSize = Math.round(14 + scale*22);
-    const opacity = v.claimed ? 0.4 : Math.max(0.5, scale);
-    return `<div class="smt-fp-marker" data-kind="${v.kind}" data-claimed="${v.claimed?1:0}" style="left:${leftPct}%;bottom:${bottomPct}%;opacity:${opacity};">
-      <span class="smt-fp-marker-icon" style="font-size:${fontSize}px;">${v.icon}</span>
-      ${v.kind==='boss' ? `<span class="smt-fp-marker-label">${escapeHtml(v.label)}</span>` : ''}
-    </div>`;
-  }).join('');
-
-  smtFirstPersonMinimapRefresh(s, heading, candidates);
+  smtIsoMinimapRefresh(s, heading);
 }
-// 一人称ビューの隅に重ねる、上から見たミニマップ(北が常に上)。3本の通りの見当・周辺
-// スポット/気配の位置・自分の現在地と向きを、常時(移動時だけでなく旋回時にも)更新する。
-function smtFirstPersonMinimapRefresh(s, heading, candidates){
+// アイソメ画面の隅に重ねる、上から見たミニマップ(北が常に上)。3本の通りの見当・
+// 各縄張りの入口・自分の現在地と向きを、移動のたびに更新する。
+function smtIsoMinimapRefresh(s, heading){
   const wrap = document.getElementById('smtFpMinimap');
   if(!wrap) return;
   const R = SMT_MINI_RANGE_M, SZ = SMT_MINI_SIZE_PX, half = SZ/2;
@@ -8139,13 +8123,16 @@ function smtFirstPersonMinimapRefresh(s, heading, candidates){
     return `<polyline points="${p.map(q=>q.x.toFixed(1)+','+q.y.toFixed(1)).join(' ')}" class="smt-mini-road"/>`;
   }).join('');
 
-  const dots = candidates.map(c => {
-    const dist = smtDistMeters(s.pos.lat, s.pos.lng, c.lat, c.lng);
+  const isY2000 = s.era === 'y2000';
+  const dots = ['1','2','3'].map(corridor=>{
+    const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[corridor] : corridor;
+    const clearedZones = isY2000 ? s.y2000.clearedZones : s.clearedZones;
+    const cleared = clearedZones[zoneKey];
+    const pt = SMT_ZONE_CENTER[corridor];
+    const dist = smtDistMeters(s.pos.lat, s.pos.lng, pt[0], pt[1]);
     if(dist > R) return '';
-    const p = proj(c.lat, c.lng);
-    return c.kind === 'boss'
-      ? `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" class="smt-mini-boss${c.claimed?' smt-mini-claimed':''}"/>`
-      : `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="1.6" class="smt-mini-spot${c.claimed?' smt-mini-claimed':''}"/>`;
+    const p = proj(pt[0], pt[1]);
+    return `<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="3.2" class="smt-mini-boss${cleared?' smt-mini-claimed':''}"/>`;
   }).join('');
 
   const rad = heading * Math.PI/180;
@@ -8179,16 +8166,9 @@ function smtOverworldLoop(ts){
   }
 }
 function smtCheckShopProximity(s){
-  if(s.era === 'y2000'){
-    for(const spot of Y2K_SPOTS){
-      if(s.y2000.visited[spot.id]) continue;
-      if(smtDistMeters(s.pos.lat, s.pos.lng, spot.lat, spot.lng) < SMT_SHOP_RADIUS_M){
-        y2000VisitSpot(spot);
-        return true;
-      }
-    }
-    return false;
-  }
+  // 2000年編のスポット探索(Y2K_SPOTS)は、アウトドアではなく縄張りのダンジョンの
+  // 中で行うようにしたため、ここでは現在編の実在店舗(SHIMOKITA_SPOTS)だけを見る。
+  if(s.era === 'y2000') return false;
   for(const spot of SHIMOKITA_SPOTS){
     if(typeof spot.lat !== 'number' || s.claimedSpots[spot.id]) continue;
     if(smtDistMeters(s.pos.lat, s.pos.lng, spot.lat, spot.lng) < SMT_SHOP_RADIUS_M){
@@ -8198,83 +8178,148 @@ function smtCheckShopProximity(s){
   }
   return false;
 }
-function smtCheckZoneEncounter(s, dt, moving){
-  const isY2000 = s.era === 'y2000';
+// アウトドアでは戦闘そのものは発生させず、3つの縄張りの入口(SMT_ZONE_CENTER)に
+// 実際に歩いて近づいたときだけダンジョンへの突入を判定する(standing stillでは
+// 発生させない。駅前=corridor3の入口の実座標がプレイヤーの初期スポーン地点と
+// 重なっているため、この判定が無いとゲーム開始直後に強制的にダンジョン入りしてしまう)。
+// 解放済みの縄張りでも、まだ拾っていないスポット・特別な気配が残っている場合が
+// あるので、素通りさせずダンジョンへの入口は常に開けておく。
+function smtCheckZoneGate(s, moving){
+  if(s.dungeon || !moving) return;
   for(const corridor of ['1','2','3']){
-    const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[corridor] : corridor;
-    const clearedZones = isY2000 ? s.y2000.clearedZones : s.clearedZones;
-    if(clearedZones[zoneKey]) continue;
-    const bossPt = SMT_ZONE_BOSS_POINT[corridor];
-    if(smtDistMeters(s.pos.lat, s.pos.lng, bossPt[0], bossPt[1]) < SMT_BOSS_RADIUS_M){
-      smtStartEncounter(isY2000 ? Y2K_ZONE_BOSS[zoneKey] : SMT2_ZONE_BOSS[corridor]);
-      return;
-    }
     const center = SMT_ZONE_CENTER[corridor];
-    if(smtDistMeters(s.pos.lat, s.pos.lng, center[0], center[1]) < SMT_ZONE_RADIUS_M){
-      if(moving){
-        // 一度だけの特別な気配(現代編限定)は、確率抽選を待たず、実際に歩いて踏み込んだ時にだけ
-        // 保証で出会わせる。standing still(スポーン直後・時代切り替え直後など)では発生させない。
-        if(!isY2000 && !s.rareMet[corridor]){
-          s.rareMet[corridor] = true;
-          smtStartEncounter(SMT2_ZONE_SPECIAL[corridor]);
-          return;
-        }
-        s.encounterTimer -= dt;
-        if(s.encounterTimer <= 0){
-          s.encounterTimer = 1.0 + Math.random()*1.3;
-          if(Math.random() < 0.4){
-            smtStartEncounter(isY2000 ? Y2K_ZONE_REGULAR[zoneKey] : SMT2_ZONE_REGULAR[corridor]);
-            return;
-          }
-        }
-      }
+    if(smtDistMeters(s.pos.lat, s.pos.lng, center[0], center[1]) < SMT_DUNGEON_GATE_RADIUS_M){
+      smtEnterDungeon(corridor);
       return;
     }
   }
 }
-const SMT_FP_TURN_DEG_PER_SEC = 130; // 一人称視点(2000年編)の旋回速度(度/秒)
 function smtOverworldUpdate(s, dt){
-  let moving;
-  if(s.era === 'y2000'){
-    // 一人称視点: ◀️/▶️はその場での旋回(移動しない)、▲/▼は今向いている方角への
-    // 前進・後退。見下ろし型のように8方向へすっと平行移動するのではなく、向きを
-    // 変えてから進む・戻るという、一人称視点らしい操作感にする。
-    let turned = false;
-    if(smtOverworldInput.left){ s.heading = (s.heading - SMT_FP_TURN_DEG_PER_SEC*dt + 360) % 360; turned = true; }
-    if(smtOverworldInput.right){ s.heading = (s.heading + SMT_FP_TURN_DEG_PER_SEC*dt) % 360; turned = true; }
-    const forward = smtOverworldInput.up ? 1 : (smtOverworldInput.down ? -1 : 0);
-    moving = forward !== 0;
-    if(forward !== 0){
-      const rad = s.heading * Math.PI/180;
-      const speedMps = 18.2;
-      const metersPerDegLat = 111320;
-      const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
-      s.pos.lat += (Math.cos(rad)*forward*speedMps*dt) / metersPerDegLat;
-      s.pos.lng += (Math.sin(rad)*forward*speedMps*dt) / metersPerDegLng;
-    }
-    if((moving || turned) && s.stage==='overworld'){ smtFirstPersonRefresh(s); }
-  } else {
-    let dx = 0, dy = 0;
-    if(smtOverworldInput.left) dx -= 1;
-    if(smtOverworldInput.right) dx += 1;
-    if(smtOverworldInput.up) dy += 1;
-    if(smtOverworldInput.down) dy -= 1;
-    moving = dx !== 0 || dy !== 0;
-    if(moving){
-      if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
-      s.heading = (Math.atan2(dx,dy)*180/Math.PI + 360) % 360; // 北=0/東=90/南=180/西=270
-      const speedMps = 18.2; // 14 * 1.3(移動速度アップ)
-      const metersPerDegLat = 111320;
-      const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
-      s.pos.lat += (dy*speedMps*dt) / metersPerDegLat;
-      s.pos.lng += (dx*speedMps*dt) / metersPerDegLng;
-      if(smtLeafletMapInstance){ smtLeafletMapInstance.panTo([s.pos.lat, s.pos.lng], { animate:false }); }
-    }
-    if(smtLeafletPlayerMarker){ smtLeafletPlayerMarker.setLatLng([s.pos.lat, s.pos.lng]); }
+  if(s.dungeon) return; // ダンジョン内は十字キー1回=1マスの別ロジック(smtDungeonMove)で動く
+  let dx = 0, dy = 0;
+  if(smtOverworldInput.left) dx -= 1;
+  if(smtOverworldInput.right) dx += 1;
+  if(smtOverworldInput.up) dy += 1;
+  if(smtOverworldInput.down) dy -= 1;
+  const moving = dx !== 0 || dy !== 0;
+  if(moving){
+    if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
+    s.heading = (Math.atan2(dx,dy)*180/Math.PI + 360) % 360; // 北=0/東=90/南=180/西=270
+    const speedMps = 18.2; // 14 * 1.3(移動速度アップ)
+    const metersPerDegLat = 111320;
+    const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
+    s.pos.lat += (dy*speedMps*dt) / metersPerDegLat;
+    s.pos.lng += (dx*speedMps*dt) / metersPerDegLng;
   }
+  if(s.stage==='overworld') smtIsoRefresh(s);
 
   if(smtCheckShopProximity(s)) return;
-  smtCheckZoneEncounter(s, dt, moving);
+  smtCheckZoneGate(s, moving);
+}
+// --- 徒歩ダンジョン(異世界の書き割り) ------------------------------------------
+// 文字列から決定的な擬似乱数のシード値を作るだけの、暗号強度を必要としない簡易ハッシュ。
+function smtSeedFromString(str){
+  let h = 0;
+  for(const c of str){ h = (h*31 + c.charCodeAt(0)) >>> 0; }
+  return h;
+}
+// 縄張りに入るたびに、その縄張りの「残っている記憶/気配」をもとに、毎回同じ配置になる
+// (再現性のある)小さなダンジョンを組み立てる。演出用の大きな建物のシルエットは、内容とは
+// 無関係な障害物として配置する。
+function smtBuildDungeon(s, corridor){
+  const isY2000 = s.era === 'y2000';
+  const w = SMT_DUNGEON_W, h = SMT_DUNGEON_H;
+  const occupied = new Set();
+  const startX = Math.floor(w/2), startY = h-1; // 入口(兼出口)は手前中央のマス
+  occupied.add(startX+','+startY);
+  function pickCell(seed){
+    let idx = seed % (w*h);
+    for(let tries=0; tries<w*h; tries++){
+      const gx = idx % w, gy = Math.floor(idx/w) % h;
+      const key = gx+','+gy;
+      if(!occupied.has(key)){ occupied.add(key); return { x:gx, y:gy }; }
+      idx = (idx+1) % (w*h);
+    }
+    return { x:startX, y:startY };
+  }
+
+  const events = [];
+  if(isY2000){
+    const zoneKey = Y2K_CORRIDOR_MAP[corridor];
+    Y2K_SPOTS.filter(sp => sp.corridor === corridor && !s.y2000.visited[sp.id]).forEach(sp=>{
+      const cell = pickCell(smtSeedFromString('spot:'+sp.id));
+      events.push({ kind:'spot', x:cell.x, y:cell.y, icon:'💭', label:sp.title, def:sp });
+    });
+    if(!s.y2000.clearedZones[zoneKey]){
+      const cell = pickCell(smtSeedFromString('boss:'+zoneKey));
+      events.push({ kind:'boss', x:cell.x, y:cell.y, icon:'⛩️', label:'気配', def:Y2K_ZONE_BOSS[zoneKey] });
+    }
+  } else {
+    if(!s.rareMet[corridor]){
+      const special = SMT2_ZONE_SPECIAL[corridor];
+      const cell = pickCell(smtSeedFromString('special:'+corridor));
+      events.push({ kind:'special', x:cell.x, y:cell.y, icon:special.sprite, label:special.name, def:special });
+    }
+    if(!s.clearedZones[corridor]){
+      const cell = pickCell(smtSeedFromString('boss:'+corridor));
+      events.push({ kind:'boss', x:cell.x, y:cell.y, icon:'⛩️', label:'気配', def:SMT2_ZONE_BOSS[corridor] });
+    }
+  }
+
+  const decor = [];
+  for(let i=0;i<SMT_DUNGEON_DECOR_COUNT;i++){
+    const cell = pickCell(smtSeedFromString('decor:'+corridor+':'+(isY2000?'y2000':'today')+':'+i));
+    decor.push({ x:cell.x, y:cell.y, icon: SMT_DUNGEON_DECOR_ICONS[i % SMT_DUNGEON_DECOR_ICONS.length] });
+  }
+
+  return { corridor, w, h, x:startX, y:startY, events, decor };
+}
+function smtEnterDungeon(corridor){
+  const s = smtGameState;
+  if(!s || s.stage !== 'overworld') return;
+  s.dungeon = smtBuildDungeon(s, corridor);
+  s.stage = 'dungeon';
+  smtVibrate(12);
+  render();
+}
+function smtExitDungeon(){
+  const s = smtGameState;
+  if(!s || s.stage !== 'dungeon') return;
+  s.dungeon = null;
+  s.stage = 'overworld';
+  render();
+}
+function smtDungeonMove(dx, dy){
+  const s = smtGameState;
+  if(!s || s.stage !== 'dungeon' || !s.dungeon) return;
+  const d = s.dungeon;
+  const nx = Math.max(0, Math.min(d.w-1, d.x+dx));
+  const ny = Math.max(0, Math.min(d.h-1, d.y+dy));
+  if(nx===d.x && ny===d.y) return;
+  if(d.decor.some(c => c.x===nx && c.y===ny)){ toast('🚧 大きな影に阻まれて進めない'); return; }
+  d.x = nx; d.y = ny;
+  const ev = d.events.find(e => e.x===nx && e.y===ny);
+  if(ev){ smtDungeonTriggerEvent(ev); return; }
+  if(Math.random() < SMT_DUNGEON_REGULAR_CHANCE){
+    const isY2000 = s.era === 'y2000';
+    const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[d.corridor] : d.corridor;
+    smtStartEncounter(isY2000 ? Y2K_ZONE_REGULAR[zoneKey] : SMT2_ZONE_REGULAR[d.corridor]);
+    return;
+  }
+  render();
+}
+function smtDungeonTriggerEvent(ev){
+  const s = smtGameState;
+  if(!s || !s.dungeon) return;
+  s.dungeon.events = s.dungeon.events.filter(e => e !== ev);
+  if(ev.kind === 'spot'){
+    y2000VisitSpot(ev.def);
+  } else if(ev.kind === 'special'){
+    s.rareMet[s.dungeon.corridor] = true;
+    smtStartEncounter(ev.def);
+  } else if(ev.kind === 'boss'){
+    smtStartEncounter(ev.def);
+  }
 }
 function smtChooseFight(){
   const s = smtGameState;
@@ -8368,7 +8413,7 @@ function smtAttemptFlee(){
   const s = smtGameState;
   if(!s || s.stage !== 'battle') return;
   if(s.enemy.isBoss){ toast(s.enemy.era==='y2000' ? '🌀 この気配からは逃げられない!' : '🌀 結界の悪魔からは逃げられない!'); return; }
-  s.stage = 'overworld';
+  s.stage = smtFieldStage(s);
   toast('🏃 逃げ出した');
   render();
 }
@@ -8505,6 +8550,62 @@ function smtLeaveFacility(){
   s.stage = 'overworld';
   render();
 }
+// 現在編・2000年編で共通の、見下ろし型アイソメトリック風アウトドア画面のHTML。
+// era別のHUD・下部ボタンはrenderSmtGame側で分けたままにしつつ、肝心のシーン(地面・
+// 自分・周囲のアイコン・コンパス・ミニマップ)そのものは完全に同じテンプレートを使う。
+function smtIsoSceneHtml(s, showEraFlash){
+  const hintText = s.era==='y2000' ? '⛩️/🗿/🏯は3つの縄張りの入口です' : '⛩️/🗿/🏯は3つの縄張りの入口、🏮はお店です';
+  return `
+    <div style="position:relative;">
+      <div id="smtFpScene" class="smt-fp-scene${s.era==='y2000' ? ' smt-fp-scene-y2000' : ''}">
+        <div id="smtFpLocationTag" class="smt-fp-location-tag"></div>
+        <div id="smtFpGround" class="smt-fp-ground"></div>
+        <div id="smtFpMarkers" class="smt-fp-markers"></div>
+        <div id="smtFpPlayer" class="smt-fp-player"></div>
+        <div class="smt-fp-compass">
+          <span id="smtFpCompassNeedle" class="smt-fp-compass-needle">▲</span>
+          <span id="smtFpCompassLabel">北</span>
+        </div>
+        <div id="smtFpMinimap" class="smt-fp-minimap"></div>
+        <div class="smt-fp-hint">${hintText}</div>
+      </div>
+      ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
+    </div>
+    ${smtIsoDpadHtml()}
+  `;
+}
+// アウトドア画面の十字キー(押している間、連続で移動する)
+function smtIsoDpadHtml(){
+  return `
+    <div class="smt-dpad">
+      <div></div>
+      <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
+      <div></div>
+      <button class="invader-btn" style="grid-column:1;grid-row:2;" ontouchstart="smtOverworldTouch(event,'left',true)" ontouchend="smtOverworldTouch(event,'left',false)" onmousedown="smtOverworldSetInput('left',true)" onmouseup="smtOverworldSetInput('left',false)" onmouseleave="smtOverworldSetInput('left',false)">◀️</button>
+      <div style="grid-column:2;grid-row:2;"></div>
+      <button class="invader-btn" style="grid-column:3;grid-row:2;" ontouchstart="smtOverworldTouch(event,'right',true)" ontouchend="smtOverworldTouch(event,'right',false)" onmousedown="smtOverworldSetInput('right',true)" onmouseup="smtOverworldSetInput('right',false)" onmouseleave="smtOverworldSetInput('right',false)">▶️</button>
+      <div></div>
+      <button class="invader-btn" style="grid-column:2;grid-row:3;" ontouchstart="smtOverworldTouch(event,'down',true)" ontouchend="smtOverworldTouch(event,'down',false)" onmousedown="smtOverworldSetInput('down',true)" onmouseup="smtOverworldSetInput('down',false)" onmouseleave="smtOverworldSetInput('down',false)">▼</button>
+      <div></div>
+    </div>
+  `;
+}
+// 徒歩ダンジョンの十字キー(1回押すごとに1マスだけ進む、discreteな操作)
+function smtDungeonDpadHtml(){
+  return `
+    <div class="smt-dpad">
+      <div></div>
+      <button class="invader-btn" style="grid-column:2;grid-row:1;" onclick="smtDungeonMove(0,-1)">▲</button>
+      <div></div>
+      <button class="invader-btn" style="grid-column:1;grid-row:2;" onclick="smtDungeonMove(-1,0)">◀️</button>
+      <div style="grid-column:2;grid-row:2;"></div>
+      <button class="invader-btn" style="grid-column:3;grid-row:2;" onclick="smtDungeonMove(1,0)">▶️</button>
+      <div></div>
+      <button class="invader-btn" style="grid-column:2;grid-row:3;" onclick="smtDungeonMove(0,1)">▼</button>
+      <div></div>
+    </div>
+  `;
+}
 function renderSmtGame(){
   const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
   const header = `<span class="back-link" onclick="go('${backScreen}')">← 戻る</span><h2>🕰️ 下北沢開発プロジェクト</h2>`;
@@ -8551,32 +8652,7 @@ function renderSmtGame(){
         <div class="row" style="justify-content:center;margin-bottom:6px;">
           <span class="tag">🕰️ 2000年編(再開発前)</span>
         </div>
-        <div style="position:relative;">
-          <div id="smtFirstPersonScene" class="smt-fp-scene">
-            <div id="smtFpLocationTag" class="smt-fp-location-tag"></div>
-            <div class="smt-fp-buildings"><div id="smtFpBuildingsStrip" class="smt-fp-buildings-strip">${SMT_FP_BUILDING_STRIP_HTML}</div></div>
-            <div class="smt-fp-road"></div>
-            <div class="smt-fp-compass">
-              <span id="smtFpCompassNeedle" class="smt-fp-compass-needle">▲</span>
-              <span id="smtFpCompassLabel">北</span>
-            </div>
-            <div id="smtFpMarkers" class="smt-fp-markers"></div>
-            <div id="smtFpMinimap" class="smt-fp-minimap"></div>
-            <div class="smt-fp-hint">💭は当時の記憶、⛩️/✅は気配の出現地点</div>
-          </div>
-          ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
-        </div>
-        <div class="smt-dpad">
-          <div></div>
-          <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
-          <div></div>
-          <button class="invader-btn" style="grid-column:1;grid-row:2;font-size:18px;" ontouchstart="smtOverworldTouch(event,'left',true)" ontouchend="smtOverworldTouch(event,'left',false)" onmousedown="smtOverworldSetInput('left',true)" onmouseup="smtOverworldSetInput('left',false)" onmouseleave="smtOverworldSetInput('left',false)">↺</button>
-          <div style="grid-column:2;grid-row:2;"></div>
-          <button class="invader-btn" style="grid-column:3;grid-row:2;font-size:18px;" ontouchstart="smtOverworldTouch(event,'right',true)" ontouchend="smtOverworldTouch(event,'right',false)" onmousedown="smtOverworldSetInput('right',true)" onmouseup="smtOverworldSetInput('right',false)" onmouseleave="smtOverworldSetInput('right',false)">↻</button>
-          <div></div>
-          <button class="invader-btn" style="grid-column:2;grid-row:3;" ontouchstart="smtOverworldTouch(event,'down',true)" ontouchend="smtOverworldTouch(event,'down',false)" onmousedown="smtOverworldSetInput('down',true)" onmouseup="smtOverworldSetInput('down',false)" onmouseleave="smtOverworldSetInput('down',false)">▼</button>
-          <div></div>
-        </div>
+        ${smtIsoSceneHtml(s, showEraFlash)}
         <div class="row" style="gap:8px;margin:12px 0 4px;flex-wrap:wrap;">
           <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityJob')">🔄 転職</button>
           <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityDemon')">😈 召喚の館</button>
@@ -8585,7 +8661,7 @@ function renderSmtGame(){
         <button class="btn btn-secondary" style="width:100%;margin-top:2px;" onclick="y2000OpenMapView()">🗺️ 地図で見る</button>
         <button class="btn btn-secondary" style="width:100%;margin-top:8px;" onclick="y2000OpenArchive()">📖 街の記録帳を見る(${visitedCount}/${Y2K_SPOTS.length})</button>
         <button class="btn btn-primary" style="width:100%;margin-top:8px;" onclick="y2000ToggleEra()">🏙️ 現在の下北沢へ戻る</button>
-        <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">◀️/▶️でその場で向きを変え、▲/▼で今向いている方角へ前進・後退します。右上の小さな円は、駅からの3本の通りとスポットの位置がわかる簡易ミニマップ(常に北が上)です。💭は当時の記憶のある場所、⛩️/✅は気配の出現地点です。実際の地図で見たいときは「🗺️ 地図で見る」を押してください。</div>
+        <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。⛩️/🗿/🏯は3つの縄張りの入口で、近づくと小さなダンジョンに入ります。右上の小さな円は簡易ミニマップです。実際の地図で見たいときは「🗺️ 地図で見る」を押してください。</div>
       `;
     }
     const clearedCount = Object.values(s.clearedZones).filter(Boolean).length;
@@ -8607,28 +8683,51 @@ function renderSmtGame(){
       <div class="row" style="justify-content:center;margin-bottom:6px;">
         <span class="tag">🏙️ 現在の下北沢</span>
       </div>
-      <div style="position:relative;">
-        <div id="smtOverworldMap" style="height:320px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#e6e6e6;"></div>
-        ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
-      </div>
-      <div class="smt-dpad">
-        <div></div>
-        <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="smtOverworldTouch(event,'up',true)" ontouchend="smtOverworldTouch(event,'up',false)" onmousedown="smtOverworldSetInput('up',true)" onmouseup="smtOverworldSetInput('up',false)" onmouseleave="smtOverworldSetInput('up',false)">▲</button>
-        <div></div>
-        <button class="invader-btn" style="grid-column:1;grid-row:2;" ontouchstart="smtOverworldTouch(event,'left',true)" ontouchend="smtOverworldTouch(event,'left',false)" onmousedown="smtOverworldSetInput('left',true)" onmouseup="smtOverworldSetInput('left',false)" onmouseleave="smtOverworldSetInput('left',false)">◀️</button>
-        <div style="grid-column:2;grid-row:2;"></div>
-        <button class="invader-btn" style="grid-column:3;grid-row:2;" ontouchstart="smtOverworldTouch(event,'right',true)" ontouchend="smtOverworldTouch(event,'right',false)" onmousedown="smtOverworldSetInput('right',true)" onmouseup="smtOverworldSetInput('right',false)" onmouseleave="smtOverworldSetInput('right',false)">▶️</button>
-        <div></div>
-        <button class="invader-btn" style="grid-column:2;grid-row:3;" ontouchstart="smtOverworldTouch(event,'down',true)" ontouchend="smtOverworldTouch(event,'down',false)" onmousedown="smtOverworldSetInput('down',true)" onmouseup="smtOverworldSetInput('down',false)" onmouseleave="smtOverworldSetInput('down',false)">▼</button>
-        <div></div>
-      </div>
+      ${smtIsoSceneHtml(s, showEraFlash)}
       <div class="row" style="gap:8px;margin:12px 0 4px;flex-wrap:wrap;">
         <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityJob')">🔄 転職</button>
         <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityDemon')">😈 召喚の館</button>
         <button class="btn btn-secondary btn-sm" style="margin:0;" onclick="smtOpenFacility('facilityShop')">🗡️ 強化(G)</button>
       </div>
       <button class="btn btn-primary" style="width:100%;margin-top:2px;" onclick="y2000ToggleEra()">🕰️ 2000年の下北沢へ(再開発前)</button>
-      <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。地図はピンチ・スクロールでズームできます。赤/青い円は結界エリア(緑は解放済み)、⛩️はボスの出現地点、🏮は下北沢マップのお店です。</div>
+      <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">矢印キー、または上のボタンで移動できます。⛩️/🗿/🏯は3つの縄張りの入口(近づくとダンジョンへ)、🏮は下北沢マップのお店です。</div>
+    `;
+  }
+  if(s.stage==='dungeon' && s.dungeon){
+    const d = s.dungeon;
+    const isY2000 = s.era==='y2000';
+    const clearedCount = isY2000
+      ? Object.values(s.y2000.clearedZones).filter(Boolean).length
+      : Object.values(s.clearedZones).filter(Boolean).length;
+    const zoneLabel = isY2000 ? Y2K_ZONE_REGULAR[Y2K_CORRIDOR_MAP[d.corridor]].zone : SMT2_ZONE_REGULAR[d.corridor].zone;
+    let grid = '';
+    for(let gy=0; gy<d.h; gy++){
+      for(let gx=0; gx<d.w; gx++){
+        const isPlayer = d.x===gx && d.y===gy;
+        const dec = d.decor.find(c=>c.x===gx && c.y===gy);
+        const ev = d.events.find(e=>e.x===gx && e.y===gy);
+        let content = '', cellClass = 'smt-dungeon-cell';
+        if(isPlayer){ content = smtPlayerIconHtml(s.alignment); cellClass += ' smt-dungeon-cell-player'; }
+        else if(dec){ content = `<span>${dec.icon}</span>`; cellClass += ' smt-dungeon-cell-decor'; }
+        else if(ev){ content = `<span>${ev.icon}</span>`; cellClass += ' smt-dungeon-cell-event'; }
+        grid += `<div class="${cellClass}">${content}</div>`;
+      }
+    }
+    return `
+      ${header}
+      <div class="smt-hud">
+        <span>HP <b>${s.player.hp}/${s.player.maxHp}</b></span>
+        <span>MP <b>${s.player.mp}/${s.player.maxMp}</b></span>
+        <span>💰 <b>${s.gold}</b>G</span>
+        <span>🔓 解放 <b>${clearedCount}/3</b></span>
+      </div>
+      <div class="row" style="justify-content:center;margin-bottom:6px;">
+        <span class="tag">🌀 異界の書き割り:${escapeHtml(zoneLabel)}</span>
+      </div>
+      <div id="smtDungeonGrid" class="smt-dungeon-grid" style="grid-template-columns:repeat(${d.w},1fr);">${grid}</div>
+      ${smtDungeonDpadHtml()}
+      <button class="btn btn-secondary" style="width:100%;margin-top:10px;" onclick="smtExitDungeon()">🚪 外に出る</button>
+      <div class="muted" style="margin-top:6px;text-align:center;font-size:11px;">歩いて気配(⛩️など)に触れると遭遇します。大きな影のマスは通り抜けられません。「🚪 外に出る」でいつでも街に戻れます。</div>
     `;
   }
   if(s.stage==='y2000MapView'){
