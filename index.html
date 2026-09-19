@@ -1489,14 +1489,14 @@ function renderOwnerHome(){
       <button class="big-post-btn" onclick="startPost()"><span class="ic">📷</span>今の様子を投稿する</button>
     `}
     <div class="nav-list">
-      <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('shimokitaMap')"><span class="nav-label"><span class="nav-icon">🚶</span>さんサクっと下北沢マップ</span><span class="muted">→</span></div>
-      <div class="nav-row" onclick="go('barManner')"><span class="nav-label"><span class="nav-icon">📖</span>バーのお作法</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('gamesHub')"><span class="nav-label"><span class="nav-icon">🕹️</span>レトロゲームをサクッと</span><span class="muted">→</span></div>
       ${false && store.is_test ? `<div class="nav-row" onclick="go('revengeGame')"><span class="nav-label"><span class="nav-icon">🔥</span>復讐の断章 <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- 復讐の断章: 一旦非表示(false&&を外せば再表示できます) -->
       ${false && store.is_test ? `<div class="nav-row" onclick="go('batterBoxGame')"><span class="nav-label"><span class="nav-icon">⚾</span>バッターボックス <span class="tag">テスト</span></span><span class="muted">→</span></div>` : ''}<!-- バッターボックス: 一旦非表示(false&&を外せば再表示できます) -->
+      <div class="nav-row" onclick="go('cardCollection')"><span class="nav-label"><span class="nav-icon">🎴</span>集めたカード${(cache.myCards||[]).length>0?` <span class="tag">${(cache.myCards||[]).length}</span>`:''}</span><span class="muted">→</span></div>
+      <div class="nav-row" onclick="go('murmurs')"><span class="nav-label"><span class="nav-icon">💬</span>店主のつぶやき</span><span class="muted">→</span></div>
       <div class="nav-row" onclick="go('settings')"><span class="nav-label"><span class="nav-icon">⚙️</span>設定</span><span class="muted">${pendingCount>0?`<span class="tag warn">${pendingCount}</span> `:''}→</span></div>
+      <div class="nav-row" onclick="go('barManner')"><span class="nav-label"><span class="nav-icon">📖</span>バーのお作法</span><span class="muted">→</span></div>
     </div>
   `;
 }
