@@ -336,32 +336,79 @@
     50%{transform:translateY(-3px);}
   }
   .smt-street-walking{animation:smtStreetWalkBob .42s ease-in-out infinite;}
-  .smt-street-ground{position:absolute;left:-260%;right:-260%;bottom:-4%;height:340px;
-    transform-origin:50% 0%;transform:rotateX(78deg);
-    background-color:#37493d;
+  /* 地面:コンクリの車道(中央の白い破線つき)+その外側の歩道、という現実の通りに近い
+     断面をCSSのグラデーションで描く。断面の色帯そのものは(横に流れて見えないよう)
+     動かさず、中央の破線(#smtStreet Centerline)だけを奥行き分だけタイル状にスクロール
+     させて、歩くほど流れるようにしている。左右のズレ(横ずれ)は地面全体をtranslateXで
+     真横にスライドさせて表現する(smtIsoRefresh側で処理)。
+     幅の内訳(片側): 車道4m+歩道2.5m=6.5m → 6.5×SMT_STREET_PX_PER_M(13)≒85px。 */
+  .smt-street-ground{position:absolute;left:50%;margin-left:-85px;width:170px;bottom:-4%;height:360px;
+    transform-origin:50% 0%;overflow:hidden;
+    background-color:#4a4a4d;
     background-image:
-      repeating-linear-gradient(90deg, rgba(255,255,255,.09) 0 2px, transparent 2px 44px),
-      radial-gradient(ellipse 70% 60% at 50% 30%, rgba(150,190,215,.16) 0%, transparent 65%),
-      linear-gradient(0deg, rgba(0,0,0,.4) 0%, transparent 55%);
-    background-size:44px 44px, 100% 100%, 100% 100%;
-    filter:saturate(1.12) contrast(1.05);}
+      linear-gradient(90deg, #9598a0 0 30px, #6f7275 30px 33px, #45464a 33px 137px, #6f7275 137px 140px, #9598a0 140px 170px),
+      radial-gradient(ellipse 70% 55% at 50% 25%, rgba(150,190,215,.14) 0%, transparent 65%),
+      linear-gradient(0deg, rgba(0,0,0,.42) 0%, transparent 55%);
+    filter:saturate(1.05) contrast(1.05);}
+  .smt-street-centerline{position:absolute;left:50%;top:0;bottom:0;width:5px;margin-left:-2.5px;
+    background-image:repeating-linear-gradient(180deg, rgba(255,255,255,.85) 0 20px, transparent 20px 46px);}
+  /* 駅前ロータリーから他の2本の通りへ、実際の方角で分かれていく分岐路。地面と同じ断面の
+     コンクリ舗装を、ロータリー地点を軸にrotateYで実座標の角度だけ開く(smtIsoRefresh側)。 */
+  .smt-street-branches{position:absolute;inset:0;transform-style:preserve-3d;}
+  .smt-street-branch{position:absolute;left:50%;margin-left:-85px;bottom:34%;width:170px;
+    transform-origin:50% 100% 0;background-color:#454548;
+    background-image:linear-gradient(90deg, #8a8d90 0 30px, #6a6d70 30px 33px, #414245 33px 137px, #6a6d70 137px 140px, #8a8d90 140px 170px),
+      linear-gradient(0deg, rgba(0,0,0,.45) 0%, transparent 60%);
+    opacity:.92;}
   .smt-street-buildings{position:absolute;inset:0;transform-style:preserve-3d;}
   .smt-street-facade{position:absolute;left:50%;bottom:32%;transform-style:preserve-3d;
     filter:drop-shadow(0 6px 6px rgba(0,0,0,.5));}
+  /* 建物は「絵文字1個の看板」ではなく、軒先(awning)・窓の明かり・ドアを持つ簡単な
+     イラストとして描く。実在の店舗の外観をそのまま再現するのではなく、バー・居酒屋・
+     喫茶店らしい色味と軒先の飾りだけで、なんとなくその業態らしい雰囲気を出す。 */
   .smt-street-facade-body{position:relative;left:-50%;width:74px;height:94px;
-    border-radius:4px 4px 2px 2px;display:flex;flex-direction:column;align-items:center;
-    justify-content:center;gap:4px;padding-bottom:6px;background:linear-gradient(180deg,#5a4a38,#332a1f);
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,.4), inset 0 12px 14px rgba(255,255,255,.06);}
-  .smt-street-facade-icon{font-size:25px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6));}
-  .smt-street-facade-label{font-size:8.5px;background:rgba(0,0,0,.55);color:#f3e6c8;
-    border-radius:4px;padding:0 4px;margin-top:2px;white-space:nowrap;max-width:70px;
+    border-radius:3px 3px 1px 1px;background:linear-gradient(180deg,#5a4a38,#332a1f);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.4), inset 0 12px 14px rgba(255,255,255,.06);
+    overflow:visible;}
+  .smt-bldg-awning{position:absolute;top:0;left:-3px;right:-3px;height:13px;border-radius:2px 2px 0 0;
+    background:linear-gradient(180deg,#6a4a34,#4a321f);box-shadow:0 2px 3px rgba(0,0,0,.45);}
+  .smt-bldg-windows{position:absolute;top:20px;left:7px;right:7px;display:flex;justify-content:space-between;gap:4px;}
+  .smt-bldg-window{flex:1;height:15px;border-radius:1px;background:linear-gradient(180deg,#c9a35a,#8a6a30);
+    box-shadow:0 0 6px 1px rgba(224,180,90,.5), inset 0 0 0 1px rgba(0,0,0,.35);}
+  .smt-bldg-door{position:absolute;bottom:0;left:50%;width:18px;height:26px;transform:translateX(-50%);
+    background:linear-gradient(180deg,#3a2a1c,#241a10);border-radius:2px 2px 0 0;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.5);}
+  .smt-bldg-accent{position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:13px;
+    filter:drop-shadow(0 2px 2px rgba(0,0,0,.6));}
+  .smt-street-facade-label{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);
+    font-size:8.5px;background:rgba(0,0,0,.55);color:#f3e6c8;
+    border-radius:4px;padding:0 4px;white-space:nowrap;max-width:70px;
     overflow:hidden;text-overflow:ellipsis;}
-  .smt-street-facade[data-kind="shop"] .smt-street-facade-body{background:linear-gradient(180deg,#7a3a30,#42201a);}
+  /* ジャンルごとの色味の描き分け(あくまで一般的な「らしさ」だけの簡易分類)。 */
+  .smt-street-facade[data-style="bar"] .smt-bldg-awning{background:linear-gradient(180deg,#3a3038,#221a20);}
+  .smt-street-facade[data-style="bar"] .smt-bldg-window{background:linear-gradient(180deg,#e0a050,#8a5a20);
+    box-shadow:0 0 8px 2px rgba(224,160,80,.7), inset 0 0 0 1px rgba(0,0,0,.4);}
+  .smt-street-facade[data-style="izakaya"] .smt-bldg-awning{background:repeating-linear-gradient(90deg,#8a3229 0 7px,#c9c0a0 7px 14px);}
+  .smt-street-facade[data-style="izakaya"] .smt-bldg-window{background:linear-gradient(180deg,#ffb060,#d1402c);
+    box-shadow:0 0 8px 2px rgba(255,150,80,.7), inset 0 0 0 1px rgba(0,0,0,.4);}
+  .smt-street-facade[data-style="cafe"] .smt-bldg-awning{background:linear-gradient(180deg,#8a6a48,#5a3f28);}
+  .smt-street-facade[data-style="cafe"] .smt-bldg-window{background:linear-gradient(180deg,#f0d9a0,#c9a35a);
+    box-shadow:0 0 6px 1px rgba(240,217,160,.6), inset 0 0 0 1px rgba(0,0,0,.35);}
+  .smt-street-facade[data-style="karaoke"] .smt-bldg-awning{background:linear-gradient(180deg,#4a2a5a,#2a1638);}
+  .smt-street-facade[data-style="karaoke"] .smt-bldg-window{background:linear-gradient(180deg,#e070e0,#8030a0);
+    box-shadow:0 0 10px 2px rgba(224,110,224,.75), inset 0 0 0 1px rgba(0,0,0,.4);}
   .smt-street-facade[data-kind="filler"] .smt-street-facade-body{width:58px;height:72px;}
+  .smt-street-facade[data-kind="filler"] .smt-bldg-window{opacity:.65;}
   .smt-street-facade[data-kind="gate"] .smt-street-facade-body{width:118px;height:150px;
     background:linear-gradient(180deg,#6a5040,#362619);}
+  .smt-street-facade[data-kind="gate"] .smt-bldg-windows{top:26px;}
+  .smt-street-facade[data-kind="gate"] .smt-bldg-window{height:20px;background:linear-gradient(180deg,#a9c9d8,#5a7a8a);
+    box-shadow:0 0 6px 1px rgba(170,210,220,.5), inset 0 0 0 1px rgba(0,0,0,.35);}
+  .smt-street-facade[data-kind="gate"] .smt-bldg-door{width:32px;height:44px;}
+  .smt-street-facade[data-kind="gate"] .smt-bldg-accent{font-size:26px;top:-22px;}
   .smt-street-facade[data-kind="gate"][data-claimed="1"] .smt-street-facade-body{
     background:linear-gradient(180deg,#3a6a4a,#1f3824);}
+  .smt-street-facade[data-kind="gate"][data-claimed="1"] .smt-bldg-window{background:linear-gradient(180deg,#9ae0a8,#4a9a5a);}
   .smt-street-facade[data-kind="gate"][data-claimed="0"]{animation:smtGatePulse 1.8s ease-in-out infinite;}
   @keyframes smtGatePulse{0%,100%{filter:drop-shadow(0 6px 6px rgba(0,0,0,.5)) drop-shadow(0 0 4px rgba(224,196,88,.4));}
     50%{filter:drop-shadow(0 6px 6px rgba(0,0,0,.5)) drop-shadow(0 0 16px rgba(224,196,88,.85));}}
@@ -7847,22 +7894,49 @@ function smtNearestStreetCorridor(s){
   return best;
 }
 const SMT_STREET_PX_PER_M = 13; // 奥行き・横ずれ1メートルが3D空間上で何pxに相当するか(共通スケール)
-const SMT_STREET_HALF_WIDTH_M = 9; // 通りの中心線から、左右の建物の並びまでのおおよその距離(メートル)
+const SMT_STREET_HALF_WIDTH_M = 9; // 通りの中心線(車道)から、左右の建物の並びまでのおおよその距離(メートル)
+// 車道・歩道の幅(メートル)。建物(SMT_STREET_HALF_WIDTH_M=9m)より内側に、舗装のある
+// 道路と歩道を敷く。実際のpx値はCSS側(.smt-street-ground/.smt-street-branch)で、この
+// 定数と同じ計算(半幅×SMT_STREET_PX_PER_M)を直接書いている(静的なCSSのため定数化はせず、
+// 変更する場合は両方を合わせて直す)。
+const SMT_STREET_ROAD_HALF_M = 4;      // 車道の中心線から端までの幅
+const SMT_STREET_SIDEWALK_M = 2.5;     // 歩道の幅(車道の外側に続く)
 const SMT_STREET_VIEW_DIST_M = 130; // これより奥の建物・お店は描画しない
 const SMT_STREET_FILLER_STEP_M = 16; // 実在の建物・お店がない区間を埋める、飾りの店先の間隔
+const SMT_STREET_BRANCH_LEN_M = 60; // 駅前ロータリーから分岐する他の通りを、見た目としてどこまで描くか
+// 実在の店舗(SHIMOKITA_SPOTS)のジャンル文字列から、バー/居酒屋/喫茶店らしい外観の
+// スタイル分類を決める。実在の店の意匠を再現するのではなく、「バーらしい・居酒屋らしい」
+// という一般的な雰囲気だけを、色味と軒先の飾りでゆるく描き分けるための分類。
+function smtStreetFacadeStyle(genre){
+  const g = genre || '';
+  if(/カラオケ/.test(g)) return 'karaoke';
+  if(/居酒屋|おばんざい|焼き鳥|小料理屋|食堂|ラーメン|定食/.test(g)) return 'izakaya';
+  if(/喫茶|カフェ/.test(g)) return 'cafe';
+  if(/バー|バル/.test(g)) return 'bar';
+  return 'generic';
+}
+// 建物の軒先に小さく添える、ジャンルを軽く思わせるだけの控えめなアクセント(主役は
+// あくまでイラストとしての建物本体で、アイコンを建物代わりにはしない)。
+const SMT_STREET_STYLE_ACCENT = { bar:'🍸', izakaya:'🏮', cafe:'☕', karaoke:'🎤', generic:'' };
 // 通り沿いに並べる店先(建物)候補の一覧を作る。実在の建物の意匠をそのまま再現するのでは
 // なく、実座標から求めた奥行き・左右だけを使い、何もない区間はオリジナルの飾りの店先
-// (filler)で埋めて、一本道がずっと続いているような雰囲気を出す。
+// (filler)で埋めて、一本道がずっと続いているような雰囲気を出す。3つの縄張りの入口は
+// (自分がいま歩いている通りだけでなく)3つとも、現在の通りの軸に対する実際の奥行き・
+// 横ずれで投影するので、駅前ロータリー付近では他の2本の通りの入口が、それぞれの実際の
+// 方角に分かれて見える(=「道が分岐している」ように見える)。
 function smtStreetFacadeList(s, corridor){
   const axis = SMT_STREET_AXIS[corridor];
   const isY2000 = s.era === 'y2000';
   const list = [];
-  // 通りの突き当たりに立つ、縄張りの入口(ひと目でわかる大きな建物)
-  const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[corridor] : corridor;
   const clearedZones = isY2000 ? s.y2000.clearedZones : s.clearedZones;
-  const cleared = clearedZones[zoneKey];
-  const label = isY2000 ? Y2K_ZONE_REGULAR[zoneKey].zone : SMT2_ZONE_REGULAR[corridor].zone;
-  list.push({ forwardM: axis.lenM, side:0, kind:'gate', icon: cleared ? '✅' : SMT_ZONE_GATE_ICON[corridor], label, claimed:cleared });
+  ['1','2','3'].forEach(otherCorridor=>{
+    const center = SMT_ZONE_CENTER[otherCorridor];
+    const proj = smtStreetProjectOnAxis(center[0], center[1], axis);
+    const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[otherCorridor] : otherCorridor;
+    const cleared = clearedZones[zoneKey];
+    const label = isY2000 ? Y2K_ZONE_REGULAR[zoneKey].zone : SMT2_ZONE_REGULAR[otherCorridor].zone;
+    list.push({ forwardM: proj.forwardM, lateralM: proj.lateralM, kind:'gate', icon: cleared ? '✅' : SMT_ZONE_GATE_ICON[otherCorridor], label, claimed:cleared, isMain: otherCorridor===corridor });
+  });
   // 現在編の実在店舗(2000年編のスポットはダンジョン内で拾う仕様のため、屋外には出さない)
   if(!isY2000){
     SHIMOKITA_SPOTS.forEach(spot=>{
@@ -7871,20 +7945,29 @@ function smtStreetFacadeList(s, corridor){
       if(proj.forwardM < 0 || proj.forwardM > SMT_STREET_VIEW_DIST_M) return;
       if(Math.abs(proj.lateralM) > 45) return; // この通り沿いとは言えないくらい離れている店は出さない
       const claimed = !!s.claimedSpots[spot.id];
-      list.push({ forwardM: proj.forwardM, side: proj.lateralM >= 0 ? 1 : -1, kind:'shop', icon:'🏮', label:spot.name, claimed });
+      const side = proj.lateralM >= 0 ? 1 : -1;
+      list.push({ forwardM: proj.forwardM, side, kind:'shop', style: smtStreetFacadeStyle(spot.genre), label:spot.name, claimed });
     });
   }
   // 実在の建物・お店がない区間を、雰囲気だけのオリジナルの店先で埋める
-  const occupiedSteps = new Set(list.map(f => Math.round(f.forwardM / SMT_STREET_FILLER_STEP_M)));
+  const occupiedSteps = new Set(list.filter(f=>f.kind==='shop').map(f => Math.round(f.forwardM / SMT_STREET_FILLER_STEP_M)));
   let side = 1;
   for(let d = SMT_STREET_FILLER_STEP_M; d < axis.lenM; d += SMT_STREET_FILLER_STEP_M){
     const step = Math.round(d / SMT_STREET_FILLER_STEP_M);
     if(!occupiedSteps.has(step)){
-      list.push({ forwardM: d, side, kind:'filler', icon:'🏪', label:null, claimed:false });
+      list.push({ forwardM: d, side, kind:'filler', style:'generic', label:null, claimed:false });
     }
     side = -side;
   }
   return list;
+}
+// 現在の通り(currentAxis)の正面を基準にしたとき、別の通り(otherAxis)が実際には何度
+// 右(または左)に分かれて伸びているかを返す(度)。地面の分岐道(.smt-street-branch)を
+// CSSのrotateYで正しい向きに開くために使う、実座標ベースの角度計算。
+function smtStreetBranchAngleDeg(otherAxis, currentAxis){
+  const fwd = otherAxis.east*currentAxis.east + otherAxis.north*currentAxis.north;
+  const lat = otherAxis.east*currentAxis.north - otherAxis.north*currentAxis.east;
+  return Math.atan2(-lat, fwd) * 180/Math.PI;
 }
 // 徒歩でうろつける小さなダンジョン(異世界の書き割り)のグリッド寸法。演出だけの
 // (通行できない)大きな建物・障害物のシルエットもここにまとめておく。
@@ -8291,17 +8374,44 @@ function smtIsoRefresh(s){
   const corridor = smtNearestStreetCorridor(s);
   const axis = SMT_STREET_AXIS[corridor];
   const playerProj = smtStreetProjectOnAxis(s.pos.lat, s.pos.lng, axis);
+  const lateralPx = playerProj.lateralM * SMT_STREET_PX_PER_M;
 
+  // 地面(コンクリの車道+歩道)。左右のズレ(横ずれ)ぶんだけ画面上で真横にスライドさせ、
+  // センターラインの破線だけは奥行き分をタイル状にスクロールさせて、歩くほど流れる
+  // ようにする(車道・歩道そのものの色帯は、遠近感だけで十分なので動かさない)。
   const ground = document.getElementById('smtStreetGround');
-  if(ground){
-    const TILE = 44;
-    const bgX = ((-playerProj.lateralM * SMT_STREET_PX_PER_M % TILE) + TILE) % TILE;
-    const bgY = ((-playerProj.forwardM * SMT_STREET_PX_PER_M % TILE) + TILE) % TILE;
-    ground.style.backgroundPosition = `${bgX}px ${bgY}px`;
+  if(ground) ground.style.transform = `translateX(${(-lateralPx).toFixed(1)}px) rotateX(78deg)`;
+  const centerline = document.getElementById('smtStreetCenterline');
+  if(centerline){
+    const TILE = 46;
+    const by = ((-playerProj.forwardM * SMT_STREET_PX_PER_M % TILE) + TILE) % TILE;
+    centerline.style.backgroundPosition = `0 ${by.toFixed(1)}px`;
   }
 
   const world = document.getElementById('smtStreetWorld');
   if(world) world.classList.toggle('smt-street-walking', !!s.moving);
+
+  // 駅前ロータリーから、他の2本の通りへ実際の方角で分かれていく舗装(コンクリの分岐路)。
+  // ロータリー(=駅前、forwardM=0)が今の描画範囲に入っているときだけ、実座標から求めた
+  // 角度(smtStreetBranchAngleDeg)でCSSのrotateYを使い、本当にその方角へ道が開いている
+  // ように見せる(見た目だけの飾りではなく、実際の街の位置関係にもとづく角度)。
+  const branchesWrap = document.getElementById('smtStreetBranches');
+  if(branchesWrap){
+    const hubRelM = 0 - playerProj.forwardM;
+    if(hubRelM > -18 && hubRelM < SMT_STREET_VIEW_DIST_M){
+      const hubZpx = -hubRelM * SMT_STREET_PX_PER_M;
+      const hubXpx = -lateralPx;
+      branchesWrap.innerHTML = ['1','2','3'].filter(c=>c!==corridor).map(otherCorridor=>{
+        const otherAxis = SMT_STREET_AXIS[otherCorridor];
+        const angleDeg = smtStreetBranchAngleDeg(otherAxis, axis);
+        const lenM = Math.min(otherAxis.lenM, SMT_STREET_BRANCH_LEN_M);
+        const lenPx = lenM * SMT_STREET_PX_PER_M;
+        return `<div class="smt-street-branch" style="height:${lenPx.toFixed(1)}px;transform:translate3d(${hubXpx.toFixed(1)}px,0,${hubZpx.toFixed(1)}px) rotateY(${angleDeg.toFixed(1)}deg) rotateX(78deg);"></div>`;
+      }).join('');
+    } else {
+      branchesWrap.innerHTML = '';
+    }
+  }
 
   const buildingsWrap = document.getElementById('smtStreetBuildings');
   if(buildingsWrap){
@@ -8312,13 +8422,21 @@ function smtIsoRefresh(s){
 
     buildingsWrap.innerHTML = facades.map(f=>{
       const zPx = -f.relM * SMT_STREET_PX_PER_M;
-      const lateralM = f.side===0 ? 0 : f.side * SMT_STREET_HALF_WIDTH_M;
-      const xPx = (lateralM - playerProj.lateralM) * SMT_STREET_PX_PER_M;
+      // 縄張りの入口(kind==='gate')は、実際に投影された横ずれをそのまま使う(自分の通りの
+      // 入口ならlateralM=0で正面に、他の通りの入口なら実際の方角のぶんだけ脇に見える=分岐)。
+      // お店・飾りの店先は、実測の横ずれをそのまま使うと不自然に散らばるため、中心線から
+      // 一定距離(SMT_STREET_HALF_WIDTH_M)の位置に「奥に見える側」だけ実座標から借りる。
+      const lateralM = f.kind==='gate' ? f.lateralM : (f.side===0 ? 0 : f.side * SMT_STREET_HALF_WIDTH_M);
+      const xPx = (lateralM * SMT_STREET_PX_PER_M) - lateralPx;
       const nearness = Math.max(0, 1 - f.relM / SMT_STREET_VIEW_DIST_M);
       const opacity = f.claimed ? 0.4 : Math.max(0.45, nearness);
-      return `<div class="smt-street-facade" data-kind="${f.kind}" data-claimed="${f.claimed?1:0}" style="transform:translate3d(${xPx.toFixed(1)}px,0,${zPx.toFixed(1)}px);opacity:${opacity.toFixed(2)};">
+      const accent = f.kind==='gate' ? f.icon : SMT_STREET_STYLE_ACCENT[f.style] || '';
+      return `<div class="smt-street-facade" data-kind="${f.kind}" data-style="${f.style||''}" data-claimed="${f.claimed?1:0}" style="transform:translate3d(${xPx.toFixed(1)}px,0,${zPx.toFixed(1)}px);opacity:${opacity.toFixed(2)};">
         <div class="smt-street-facade-body">
-          <div class="smt-street-facade-icon">${f.icon}</div>
+          <div class="smt-bldg-awning"></div>
+          <div class="smt-bldg-windows"><span class="smt-bldg-window"></span><span class="smt-bldg-window"></span><span class="smt-bldg-window"></span></div>
+          <div class="smt-bldg-door"></div>
+          ${accent ? `<div class="smt-bldg-accent">${accent}</div>` : ''}
           ${f.label ? `<div class="smt-street-facade-label">${escapeHtml(f.label)}</div>` : ''}
         </div>
       </div>`;
@@ -8818,7 +8936,10 @@ function smtIsoSceneHtml(s, showEraFlash){
         <div id="smtFpLocationTag" class="smt-fp-location-tag"></div>
         <div class="smt-street-viewport">
           <div id="smtStreetWorld" class="smt-street-world">
-            <div id="smtStreetGround" class="smt-street-ground"></div>
+            <div id="smtStreetGround" class="smt-street-ground">
+              <div id="smtStreetCenterline" class="smt-street-centerline"></div>
+            </div>
+            <div id="smtStreetBranches" class="smt-street-branches"></div>
             <div id="smtStreetBuildings" class="smt-street-buildings"></div>
           </div>
         </div>
