@@ -352,6 +352,24 @@
     82%{opacity:.9;}
     100%{transform:translate(-8px,-34px) scale(0.8);opacity:0;}
   }
+  /* 「アーケード商店街」をなんとなく思わせる、日よけの縞模様+赤提灯のオリジナル
+     イラスト装飾。実在の店舗・写真の再現ではなく、あくまで雰囲気だけの飾り。
+     2000年編は画面全体のセピアfilterが自動でかかるので、同じ装飾のまま古びて見える。 */
+  .smt-fp-arcade-roof{position:absolute;top:0;left:0;right:0;height:30px;z-index:2;
+    background:repeating-linear-gradient(90deg, #8a3229 0 16px, #d8c9a0 16px 32px);
+    box-shadow:0 3px 7px rgba(0,0,0,.5);border-bottom:2px solid rgba(20,14,8,.65);}
+  .smt-fp-arcade-roof::after{content:'';position:absolute;inset:0;
+    background:linear-gradient(180deg, rgba(0,0,0,.28) 0%, transparent 75%);}
+  .smt-fp-lantern{position:absolute;top:30px;width:13px;height:17px;transform-origin:top center;
+    animation:smtLanternSway 3.4s ease-in-out infinite;filter:drop-shadow(0 2px 2px rgba(0,0,0,.5));}
+  .smt-fp-lantern-string{position:absolute;top:-6px;left:50%;width:1px;height:6px;background:rgba(35,25,15,.75);}
+  .smt-fp-lantern-body{position:absolute;top:0;left:0;width:13px;height:15px;border-radius:42% 42% 46% 46%;
+    background:radial-gradient(ellipse at 35% 30%, #ff9a72 0%, #d1402c 55%, #8a2216 100%);}
+  .smt-fp-lantern-band{position:absolute;left:1px;right:1px;height:1.5px;background:rgba(20,10,5,.6);}
+  .smt-fp-lantern-band.b1{top:4px;}
+  .smt-fp-lantern-band.b2{top:9px;}
+  .smt-fp-lantern-tassel{position:absolute;bottom:-4px;left:50%;width:1px;height:4px;background:rgba(35,20,12,.75);}
+  @keyframes smtLanternSway{0%,100%{transform:rotate(-4deg);}50%{transform:rotate(4deg);}}
   .smt-fp-markers{position:absolute;inset:0;pointer-events:none;}
   .smt-fp-marker{position:absolute;transform:translate(-50%,-100%);text-align:center;
     filter:drop-shadow(0 2px 2px rgba(0,0,0,.65));animation:smtMarkerBob 2.6s ease-in-out infinite;animation-delay:inherit;}
@@ -8703,6 +8721,26 @@ function smtLeaveFacility(){
 // 現在編・2000年編で共通の、見下ろし型アイソメトリック風アウトドア画面のHTML。
 // era別のHUD・下部ボタンはrenderSmtGame側で分けたままにしつつ、肝心のシーン(地面・
 // 自分・周囲のアイコン・コンパス・ミニマップ)そのものは完全に同じテンプレートを使う。
+// 「駅前食品市場」や「一番街」の、屋根付きアーケード商店街をなんとなく思わせる、
+// オリジナルのイラスト演出。実在の写真やお店を再現するのではなく、日よけの縞模様と
+// 赤提灯のシルエットだけを使った、あくまで「雰囲気」どまりの装飾。
+function smtArcadeRoofHtml(){
+  const n = 7;
+  let lanterns = '';
+  for(let i=0;i<n;i++){
+    const left = 6 + i * (88/(n-1));
+    const delay = (i * 0.45) % 3.2;
+    lanterns += `<div class="smt-fp-lantern" style="left:${left.toFixed(1)}%;animation-delay:-${delay.toFixed(2)}s;">
+      <div class="smt-fp-lantern-string"></div>
+      <div class="smt-fp-lantern-body">
+        <div class="smt-fp-lantern-band b1"></div>
+        <div class="smt-fp-lantern-band b2"></div>
+      </div>
+      <div class="smt-fp-lantern-tassel"></div>
+    </div>`;
+  }
+  return `<div class="smt-fp-arcade-roof">${lanterns}</div>`;
+}
 function smtIsoSceneHtml(s, showEraFlash){
   const hintText = s.era==='y2000' ? '🏢/🏰/🍸は3つの縄張りの入口の建物です' : '🏢/🏰/🍸は3つの縄張りの入口の建物、🏮はお店です';
   return `
@@ -8711,6 +8749,7 @@ function smtIsoSceneHtml(s, showEraFlash){
         <div id="smtFpLocationTag" class="smt-fp-location-tag"></div>
         <div id="smtFpGround" class="smt-fp-ground"></div>
         <div id="smtFpAmbient" class="smt-fp-ambient"></div>
+        ${smtArcadeRoofHtml()}
         <div id="smtFpMarkers" class="smt-fp-markers"></div>
         <div id="smtFpDust" class="smt-fp-dust-layer"></div>
         <div id="smtFpPlayer" class="smt-fp-player"></div>
