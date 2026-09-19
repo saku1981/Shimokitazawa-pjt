@@ -304,18 +304,39 @@
   @keyframes smtSpinCCW{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
   .smt-spin-cw{animation:smtSpinCW 3s linear infinite;}
   .smt-spin-ccw{animation:smtSpinCCW 3s linear infinite;}
-  .smt-fp-scene{position:relative;height:280px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#28382f;}
+  .smt-fp-scene{position:relative;height:280px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#1c2a22;}
   .smt-fp-scene::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;
-    background:radial-gradient(ellipse 90% 75% at 50% 58%, transparent 45%, rgba(6,10,8,.55) 100%);}
+    background:radial-gradient(ellipse 90% 75% at 50% 58%, transparent 40%, rgba(4,8,7,.62) 100%);}
   .smt-fp-scene-y2000{filter:sepia(0.55) contrast(1.05) brightness(0.92) saturate(1.15) hue-rotate(-6deg);}
-  .smt-fp-ground{position:absolute;inset:0;background-color:#3c5245;
+  /* 地面:単なる市松のグラデーションだけだと安っぽく見えるため、格子模様に加えて
+     「月明かり」のような青みがかった光だまりと、隅の方に暖色の陰を1枚ずつ重ねて、
+     色味に厚みを持たせている(すべて既存のCSSグラデーションのみ・画像素材は使わない)。 */
+  .smt-fp-ground{position:absolute;inset:0;background-color:#37493d;
     background-image:
-      linear-gradient(135deg, rgba(255,255,255,.09) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.09) 75%),
-      linear-gradient(135deg, rgba(255,255,255,.09) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.09) 75%),
-      linear-gradient(180deg, rgba(255,255,255,.07) 0%, transparent 45%, rgba(0,0,0,.22) 100%);
-    background-size:44px 44px, 44px 44px, 100% 100%;
-    background-position:0 0, 22px 22px, 0 0;
-    background-blend-mode:normal, normal, overlay;}
+      radial-gradient(ellipse 65% 55% at 28% 22%, rgba(150,190,215,.16) 0%, transparent 60%),
+      radial-gradient(ellipse 70% 60% at 82% 88%, rgba(90,60,30,.18) 0%, transparent 65%),
+      linear-gradient(135deg, rgba(255,255,255,.10) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.10) 75%),
+      linear-gradient(135deg, rgba(255,255,255,.10) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.10) 75%),
+      linear-gradient(180deg, rgba(210,230,255,.08) 0%, transparent 45%, rgba(0,0,0,.28) 100%);
+    background-size:100% 100%, 100% 100%, 44px 44px, 44px 44px, 100% 100%;
+    background-position:0 0, 0 0, 0 0, 22px 22px, 0 0;
+    background-blend-mode:normal, normal, normal, normal, overlay;
+    filter:saturate(1.12) contrast(1.05);}
+  .smt-fp-ambient{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1;}
+  .smt-fp-mote{position:absolute;width:4px;height:4px;border-radius:50%;
+    background:radial-gradient(circle, rgba(248,230,165,1) 0%, rgba(248,230,165,0) 72%);
+    box-shadow:0 0 8px 2.5px rgba(248,230,165,.75);
+    animation-name:smtMoteDrift;animation-timing-function:ease-in-out;animation-iteration-count:infinite;}
+  .smt-fp-scene:not(.smt-fp-scene-y2000) .smt-fp-mote{
+    background:radial-gradient(circle, rgba(175,225,255,1) 0%, rgba(175,225,255,0) 72%);
+    box-shadow:0 0 8px 2.5px rgba(175,225,255,.7);}
+  @keyframes smtMoteDrift{
+    0%{transform:translate(0,0) scale(0.8);opacity:0;}
+    18%{opacity:1;}
+    50%{transform:translate(10px,-18px) scale(1.15);opacity:.7;}
+    82%{opacity:.9;}
+    100%{transform:translate(-8px,-34px) scale(0.8);opacity:0;}
+  }
   .smt-fp-markers{position:absolute;inset:0;pointer-events:none;}
   .smt-fp-marker{position:absolute;transform:translate(-50%,-100%);text-align:center;
     filter:drop-shadow(0 2px 2px rgba(0,0,0,.65));animation:smtMarkerBob 2.6s ease-in-out infinite;animation-delay:inherit;}
@@ -334,6 +355,26 @@
     z-index:5;filter:drop-shadow(0 3px 3px rgba(0,0,0,.55));}
   .smt-fp-player::after{content:'';position:absolute;left:50%;bottom:-8px;transform:translate(-50%,0);
     width:28px;height:9px;border-radius:50%;background:rgba(0,0,0,.42);filter:blur(1.3px);z-index:-1;}
+  /* 歩いている間だけ、小さく弾むような足踏みモーションを付ける(止まればすぐ元に戻る)。 */
+  @keyframes smtPlayerWalkBob{
+    0%,100%{transform:translate(-50%,-50%) translateY(0) rotate(0deg);}
+    25%{transform:translate(-50%,-50%) translateY(-2.5px) rotate(-4deg);}
+    75%{transform:translate(-50%,-50%) translateY(-2.5px) rotate(4deg);}
+  }
+  .smt-fp-player-walking{animation:smtPlayerWalkBob .42s ease-in-out infinite;}
+  /* 足元に一瞬だけ出す砂埃。プレイヤーの固定表示位置(left:50%/top:56%)を基準に、
+     実際にプレイヤーの足(接地影のあたり)に出るよう少し下にずらしている。 */
+  .smt-fp-dust-layer{position:absolute;left:50%;top:56%;width:0;height:0;pointer-events:none;z-index:4;}
+  .smt-fp-dust{position:absolute;bottom:-22px;width:9px;height:5px;border-radius:50%;
+    background:rgba(235,235,222,.65);box-shadow:0 0 3px rgba(235,235,222,.4);
+    animation:smtDustPuff .6s ease-out forwards;}
+  .smt-fp-dust-l{left:-15px;}
+  .smt-fp-dust-r{left:7px;}
+  @keyframes smtDustPuff{
+    0%{opacity:.7;transform:translateY(0) scale(0.6);}
+    60%{opacity:.55;}
+    100%{opacity:0;transform:translateY(9px) scale(1.7);}
+  }
   .smt-fp-compass{position:absolute;top:8px;left:50%;transform:translateX(-50%);display:flex;align-items:center;
     gap:5px;background:rgba(16,14,11,.72);color:#f3e6c8;border:1px solid rgba(224,196,88,.4);border-radius:20px;
     padding:3px 11px;font-size:11px;z-index:3;filter:none;box-shadow:0 2px 6px rgba(0,0,0,.35);}
@@ -7956,6 +7997,7 @@ function initSmtIsoOverworld(){
   stopSmtGameMap(); // renderSmtGame()が毎回innerHTMLを差し替えるため、ループを毎回作り直す
   smtOverworldInput = { up:false, down:false, left:false, right:false };
   smtOverworldLastTime = null;
+  smtSpawnAmbientMotes(); // 漂う光の粒を配置し直す(renderSmtGame()でDOMごと作り直されるため)
   smtIsoRefresh(s); // 初期状態を即座に描画
   window.addEventListener('keydown', smtOverworldKeyDown);
   window.addEventListener('keyup', smtOverworldKeyUp);
@@ -8067,6 +8109,34 @@ function smtNearestZoneLabel(s){
 // 現在編・2000年編で共通の、見下ろし型アイソメトリック風アウトドア画面を毎フレーム
 // (移動があったときだけ)軽量に更新する。initSmtGameMap()のようにDOMをまるごと
 // 作り直すのではなく、既存のDOM要素をそのつどピンポイントで書き換えるだけにしている。
+// 歩いている間、足元に小さな砂埃をひとつ出しては消す。判定には一切関わらない、
+// 見た目だけの演出(DOM要素を都度1個追加し、アニメーション終了後に自分で消える)。
+let smtDustFoot = false;
+function smtSpawnFootDust(){
+  const layer = document.getElementById('smtFpDust');
+  if(!layer) return;
+  smtDustFoot = !smtDustFoot;
+  const el = document.createElement('div');
+  el.className = 'smt-fp-dust' + (smtDustFoot ? ' smt-fp-dust-r' : ' smt-fp-dust-l');
+  layer.appendChild(el);
+  setTimeout(() => { el.remove(); }, 520);
+}
+// アウトドア画面に漂う、蛍のような光の粒(異世界の書き割りらしい雰囲気づけだけの演出)。
+// 固定のランダム位置・遅延で一度だけ配置し、あとはCSSアニメーションだけで漂わせる。
+function smtSpawnAmbientMotes(){
+  const layer = document.getElementById('smtFpAmbient');
+  if(!layer) return;
+  const n = 7;
+  let html = '';
+  for(let i=0;i<n;i++){
+    const left = 8 + (i * 13 + (i%3)*7) % 84;
+    const top = 10 + (i * 17 + (i%2)*11) % 70;
+    const delay = (i * 0.9) % 6;
+    const dur = 5.5 + (i % 3);
+    html += `<div class="smt-fp-mote" style="left:${left}%;top:${top}%;animation-delay:-${delay.toFixed(1)}s;animation-duration:${dur}s;"></div>`;
+  }
+  layer.innerHTML = html;
+}
 function smtIsoRefresh(s){
   const scene = document.getElementById('smtFpScene');
   if(!scene) return;
@@ -8095,7 +8165,10 @@ function smtIsoRefresh(s){
   }
 
   const player = document.getElementById('smtFpPlayer');
-  if(player) player.innerHTML = smtPlayerIconHtml(s.alignment);
+  if(player){
+    player.innerHTML = smtPlayerIconHtml(s.alignment);
+    player.classList.toggle('smt-fp-player-walking', !!s.moving);
+  }
 
   const markersWrap = document.getElementById('smtFpMarkers');
   if(markersWrap){
@@ -8235,6 +8308,7 @@ function smtOverworldUpdate(s, dt){
   if(smtOverworldInput.up) dy += 1;
   if(smtOverworldInput.down) dy -= 1;
   const moving = dx !== 0 || dy !== 0;
+  s.moving = moving; // 歩行モーション(足踏み・砂埃)の演出用に、今フレーム動いているかを持っておく
   if(moving){
     if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
     s.heading = (Math.atan2(dx,dy)*180/Math.PI + 360) % 360; // 北=0/東=90/南=180/西=270
@@ -8243,6 +8317,14 @@ function smtOverworldUpdate(s, dt){
     const metersPerDegLng = 111320 * Math.cos(s.pos.lat*Math.PI/180);
     s.pos.lat += (dy*speedMps*dt) / metersPerDegLat;
     s.pos.lng += (dx*speedMps*dt) / metersPerDegLng;
+    // 一定間隔ごとに足元へ砂埃を出す、簡易な足踏みの演出(見た目だけで判定には無関係)。
+    s.dustTimer = (s.dustTimer || 0) + dt;
+    if(s.dustTimer > 0.16){
+      s.dustTimer = 0;
+      smtSpawnFootDust();
+    }
+  } else {
+    s.dustTimer = 0;
   }
   if(s.stage==='overworld') smtIsoRefresh(s);
 
@@ -8593,7 +8675,9 @@ function smtIsoSceneHtml(s, showEraFlash){
       <div id="smtFpScene" class="smt-fp-scene${s.era==='y2000' ? ' smt-fp-scene-y2000' : ''}">
         <div id="smtFpLocationTag" class="smt-fp-location-tag"></div>
         <div id="smtFpGround" class="smt-fp-ground"></div>
+        <div id="smtFpAmbient" class="smt-fp-ambient"></div>
         <div id="smtFpMarkers" class="smt-fp-markers"></div>
+        <div id="smtFpDust" class="smt-fp-dust-layer"></div>
         <div id="smtFpPlayer" class="smt-fp-player"></div>
         <div class="smt-fp-compass">
           <span id="smtFpCompassNeedle" class="smt-fp-compass-needle">▲</span>
