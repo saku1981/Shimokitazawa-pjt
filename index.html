@@ -202,7 +202,22 @@
   .revenge-story-box{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
   .revenge-story-box p{margin:0 0 8px;line-height:1.6;font-size:13.5px;}
   .revenge-story-box p:last-child{margin-bottom:0;}
-  .revenge-battle-wrap{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  .revenge-battle-wrap{position:relative;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;}
+  /* 魔法を唱えた瞬間だけ一度出す、属性色の魔法陣+アイコンの詠唱演出。判定には無関係。 */
+  .smt-cast-fx{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    pointer-events:none;z-index:6;animation:smtCastFxFade .9s ease-out forwards;}
+  .smt-cast-ring{position:absolute;width:120px;height:120px;border-radius:50%;
+    border:3px solid var(--cast-color,#fff);opacity:.85;animation:smtCastRingExpand .9s ease-out forwards;}
+  .smt-cast-ring2{width:78px;height:78px;border-style:dashed;animation-delay:.08s;}
+  .smt-cast-bolt{position:relative;font-size:42px;filter:drop-shadow(0 0 12px var(--cast-color,#fff));
+    animation:smtCastBoltPop .9s ease-out forwards;}
+  @keyframes smtCastFxFade{0%{opacity:0;}15%{opacity:1;}68%{opacity:1;}100%{opacity:0;}}
+  @keyframes smtCastRingExpand{0%{transform:scale(0.3) rotate(0deg);opacity:0;}30%{opacity:.9;}100%{transform:scale(1.35) rotate(130deg);opacity:0;}}
+  @keyframes smtCastBoltPop{0%{transform:scale(0.4) rotate(-15deg);opacity:0;}38%{transform:scale(1.18) rotate(4deg);opacity:1;}58%{transform:scale(1) rotate(0deg);opacity:1;}100%{transform:scale(1) rotate(0deg);opacity:0;}}
+  .smt-cast-fire{--cast-color:#ff6a3d;}
+  .smt-cast-ice{--cast-color:#7fd8ff;}
+  .smt-cast-elec{--cast-color:#f5e14a;}
+  .smt-cast-force{--cast-color:#8affa0;}
   .revenge-enemy{text-align:center;margin-bottom:10px;}
   .revenge-enemy-sprite{font-size:44px;line-height:1;}
   .revenge-enemy-name{font-weight:bold;margin:4px 0 6px;}
@@ -7773,10 +7788,10 @@ const SMT_JOBS = {
   fighter: { name:'拳士', atkMod:6, magicMod:-2, desc:'直接攻撃の威力が上がるが、属性弾はやや弱くなる。' }
 };
 const SMT_SPELLS = {
-  fire:  { label:'🔥 火炎弾', short:'火炎弾', mp:6 },
-  ice:   { label:'❄️ 氷結弾', short:'氷結弾', mp:6 },
-  elec:  { label:'⚡ 電撃弾', short:'電撃弾', mp:6 },
-  force: { label:'🌪️ 疾風弾', short:'疾風弾', mp:6 }
+  fire:  { label:'🔥 火炎弾', short:'火炎弾', mp:6, icon:'🔥', color:'#ff6a3d' },
+  ice:   { label:'❄️ 氷結弾', short:'氷結弾', mp:6, icon:'❄️', color:'#7fd8ff' },
+  elec:  { label:'⚡ 電撃弾', short:'電撃弾', mp:6, icon:'⚡', color:'#f5e14a' },
+  force: { label:'🌪️ 疾風弾', short:'疾風弾', mp:6, icon:'🌪️', color:'#8affa0' }
 };
 function smtElementLabel(el){
   return el==='fire' ? '火' : el==='ice' ? '氷' : el==='elec' ? '電' : el==='force' ? '風' : '物理';
@@ -8153,12 +8168,16 @@ function smtIsoRefresh(s){
     locationTag.innerHTML = `<div class="smt-fp-location-name">${escapeHtml(smtNearestZoneLabel(s))}</div><div class="smt-fp-location-sub">${eraLabel} ・ ${escapeHtml(smtHeadingLabel(heading))}</div>`;
   }
 
-  // 地面のひし形パターンを、駅前を原点にした実移動量ぶんスクロールさせる演出。継ぎ目が
-  // 見えないよう、タイル1枚ぶんの幅・高さで割った余りだけを使う(建物スカイラインの
-  // 横スクロールと同じ「向きや移動が画面に必ず反映される」考え方)。
+  // 地面のひし形パターンを、実移動量ぶんスクロールさせる演出。マーカー(#smtFpMarkers)は
+  // 「自分から見た対象の相対位置」= smtIsoProject(自分, 対象) で描いており、歩けば歩くほど
+  // 遠ざかる建物ほど画面奥へ流れていく。地面もこれと必ず同じ向きに動かないと、建物は
+  // 右へ流れているのに足元の模様だけ左へ流れる…といった逆走しているような違和感が出る
+  // ため、駅前(固定点)を対象にしたsmtIsoProject(自分, 駅前)を使い、マーカーと全く同じ
+  // 向きの計算にそろえている(以前は引数の順序が逆で、模様だけ進行方向と反対に見えていた)。
+  // 継ぎ目が見えないよう、タイル1枚ぶんの幅・高さで割った余りだけを使う。
   const ground = document.getElementById('smtFpGround');
   if(ground){
-    const p = smtIsoProject(SHIMOKITA_STATION_CENTER[0], SHIMOKITA_STATION_CENTER[1], s.pos.lat, s.pos.lng);
+    const p = smtIsoProject(s.pos.lat, s.pos.lng, SHIMOKITA_STATION_CENTER[0], SHIMOKITA_STATION_CENTER[1]);
     const bgX = ((p.x % SMT_ISO_TILE_W) + SMT_ISO_TILE_W) % SMT_ISO_TILE_W;
     const bgY = ((p.y % SMT_ISO_TILE_H) + SMT_ISO_TILE_H) % SMT_ISO_TILE_H;
     ground.style.backgroundPosition = `${bgX}px ${bgY}px`;
@@ -8442,6 +8461,9 @@ function smtChooseFight(){
   s.stage = 'battle';
   s.icons = smtMaxIcons(s);
   s.magicMenuOpen = false;
+  s.enemyHitFlash = false;
+  s.playerHitFlash = false;
+  s.castElement = null;
   s.log = [`${s.enemy.name}との戦闘が始まった!`];
   smtShiftAlignment(5);
   render();
@@ -8521,6 +8543,7 @@ function smtToggleMagicMenu(open){
   if(!s) return;
   s.enemyHitFlash = false;
   s.playerHitFlash = false;
+  s.castElement = null;
   s.magicMenuOpen = open;
   render();
 }
@@ -8542,6 +8565,7 @@ function smtAction(action, element){
   let outcome = 'normal';
   s.enemyHitFlash = false;
   s.playerHitFlash = false;
+  s.castElement = null; // 魔法を唱えた演出(魔法陣)は1回のアクションぶんだけ表示する
 
   if(action==='attack'){
     const base = 6 + Math.floor(Math.random()*6) + s.atkBonus + job.atkMod + perks.physBonus;
@@ -8561,6 +8585,7 @@ function smtAction(action, element){
     enemy.hp = Math.max(0, enemy.hp - r.dmg);
     outcome = r.outcome;
     s.enemyHitFlash = true;
+    s.castElement = element; // 詠唱の魔法陣・属性の弾を一度だけ演出する(判定には無関係)
     smtVibrate(12);
     msgs.push(`${spell.label}! ${r.dmg}のダメージ!${r.tag}${perks.magicBonus ? ' (自由な発想)' : ''}`);
   } else if(action==='defend'){
@@ -9075,6 +9100,11 @@ function renderSmtGame(){
   return `
     ${header}
     <div class="revenge-battle-wrap">
+      ${s.castElement ? `<div class="smt-cast-fx smt-cast-${s.castElement}">
+        <div class="smt-cast-ring"></div>
+        <div class="smt-cast-ring smt-cast-ring2"></div>
+        <div class="smt-cast-bolt">${SMT_SPELLS[s.castElement].icon}</div>
+      </div>` : ''}
       <div class="revenge-enemy">
         <div class="smt-zone-label">${escapeHtml(enemy.zone)} ・ 弱点:${smtElementLabel(enemy.weak)} 耐性:${smtElementLabel(enemy.resist)}</div>
         <div class="revenge-enemy-sprite${s.enemyHitFlash ? ' smt-hit-flash' : ''}${enemy.isBoss ? ' smt-boss-glow' : (enemy.special ? ' smt-special-glow' : '')}">${enemy.sprite}</div>
