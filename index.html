@@ -174,7 +174,7 @@
   .home-hero-card{text-align:center;margin-bottom:16px;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:transparent;}
   .card-visual-hero{height:24vh;min-height:160px;max-height:230px;aspect-ratio:5/7;width:auto;margin:0 auto;}
   .invader-game-wrap{position:relative;text-align:center;}
-  #invaderCanvas, #blockTowerCanvas, #batterBoxCanvas, #shooterCanvas, #islandCanvas{border-radius:10px;border:1px solid var(--line);background:#0b0c0e;display:block;margin:0 auto;max-width:100%;height:auto;}
+  #invaderCanvas, #blockTowerCanvas, #batterBoxCanvas, #shooterCanvas, #islandCanvas, #spCanvas{border-radius:10px;border:1px solid var(--line);background:#0b0c0e;display:block;margin:0 auto;max-width:100%;height:auto;}
   .invader-end-overlay{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(11,12,14,.9);border-radius:10px;color:#fff;}
   .invader-end-title{font-size:18px;font-weight:bold;}
   .invader-end-score{margin-top:6px;font-size:13px;}
@@ -182,6 +182,14 @@
   .invader-btn{width:60px;height:52px;font-size:20px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--text);touch-action:none;-webkit-tap-highlight-color:transparent;user-select:none;}
   .invader-btn:active{background:var(--panel);}
   .invader-btn-fire{background:#c0453c;border-color:#c0453c;color:#fff;}
+  .mr-board{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin:10px 0;}
+  .mr-cell{position:relative;border:1px solid var(--line);border-radius:8px;padding:6px 4px;min-height:58px;font-size:10px;text-align:center;}
+  .mr-cell-idx{position:absolute;top:2px;left:4px;font-size:8px;opacity:.5;}
+  .mr-cell-name{margin-top:8px;line-height:1.2;word-break:break-word;font-size:9.5px;}
+  .mr-cell-price{margin-top:2px;font-size:9px;color:var(--sub);}
+  .mr-cell-tokens{margin-top:2px;font-size:13px;}
+  .mr-player-row{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid var(--line);border-radius:8px;margin-bottom:6px;font-size:12px;gap:8px;}
+  .mr-player-row.mr-turn{border-color:var(--accent);background:var(--panel2);}
   .hanafuda-card{width:52px;height:74px;border-radius:6px;background:#0f2818;border:2px solid #d4af6a;
     display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;
     color:#fff;font-size:10px;box-shadow:0 2px 4px rgba(0,0,0,.4);flex-shrink:0;}
@@ -1293,7 +1301,9 @@ const ACHIEVEMENT_CARDS = {
   island:     { sceneKey:'achv_island',     threshold:250,  message:'🏝️ 実績カード「アイランドランマスター」を獲得!集めたカードに追加されました。' },
   rpgChronicle: { sceneKey:'achv_rpg_chronicle', threshold:1, message:'⚔️ 実績カード「下北沢クロニクル・クリア」を獲得!集めたカードに追加されました。' },
   moAlienRuckus: { sceneKey:'achv_mo_alien', threshold:1, message:'👽 実績カード「下北沢エイリアン騒動・クリア」を獲得!集めたカードに追加されました。' },
-  kmMusha: { sceneKey:'achv_km_musha', threshold:1, message:'🤖 実績カード「下北沢からくり武者伝・クリア」を獲得!集めたカードに追加されました。' }
+  kmMusha: { sceneKey:'achv_km_musha', threshold:1, message:'🤖 実績カード「下北沢からくり武者伝・クリア」を獲得!集めたカードに追加されました。' },
+  skyPatrol: { sceneKey:'achv_skypatrol', threshold:400, message:'🛩️ 実績カード「スカイパトロールマスター」を獲得!集めたカードに追加されました。' },
+  moneyRoad: { sceneKey:'achv_moneyroad', threshold:1, message:'🎲 実績カード「マネーロード制覇」を獲得!集めたカードに追加されました。' }
 };
 async function maybeAwardGameAchievement(gameKey, score){
   const def = ACHIEVEMENT_CARDS[gameKey];
@@ -1356,6 +1366,8 @@ async function go(screen){
   if(state.screen==='rpgGame' && screen!=='rpgGame'){ stopRpgGame(); }
   if(state.screen==='moGame' && screen!=='moGame'){ stopMoGame(); }
   if(state.screen==='kmGame' && screen!=='kmGame'){ stopKmGame(); }
+  if(state.screen==='skyPatrolGame' && screen!=='skyPatrolGame'){ stopSpGame(); }
+  if(state.screen==='moneyRoadGame' && screen!=='moneyRoadGame'){ stopMrGame(); }
   state.screen = screen;
   render(); // まず今あるデータで即座に画面を切り替え、後から新しいデータで更新する(反応を速く感じさせるため)
   if(screen==='home'){ await loadPosts(state.currentStoreId, 5); }
@@ -1513,7 +1525,9 @@ const GAMES_HUB_ENTRIES = [
   { screen:'moGame',        icon:'📡', label:'下北沢エイリアン騒動', hidden:true }, // 下北沢クロニクルとゲーム感覚が重複するため、いったん一本化してコードのみ残し非表示
   { screen:'kmGame',        icon:'🤖', label:'下北沢からくり武者伝', hidden:true }, // 同上、いったん一本化してコードのみ残し非表示
   { screen:'hanafudaGame',  icon:'🎴', label:'花札(こいこい)', testOnly:true },
-  { screen:'smtGame',       icon:'🕰️', label:'下北沢開発プロジェクト' }
+  { screen:'smtGame',       icon:'🕰️', label:'下北沢開発プロジェクト' },
+  { screen:'skyPatrolGame', icon:'🛩️', label:'スカイパトロール' },
+  { screen:'moneyRoadGame', icon:'🎲', label:'マネーロードすごろく' }
 ];
 function renderGamesHub(){
   const store = storeById(state.currentStoreId);
@@ -2510,6 +2524,8 @@ const CARD_POSES = [
   { key:'achv_rpg_chronicle', label:'実績・下北沢クロニクル・クリア', tiers:['supreme'], achievement:true, achvEmoji:'⚔️' },
   { key:'achv_mo_alien', label:'実績・下北沢エイリアン騒動・クリア', tiers:['supreme'], achievement:true, achvEmoji:'👽' },
   { key:'achv_km_musha', label:'実績・下北沢からくり武者伝・クリア', tiers:['supreme'], achievement:true, achvEmoji:'🤖' },
+  { key:'achv_skypatrol', label:'実績・スカイパトロールマスター', tiers:['supreme'], achievement:true, achvEmoji:'🛩️' },
+  { key:'achv_moneyroad', label:'実績・マネーロード制覇', tiers:['supreme'], achievement:true, achvEmoji:'🎲' },
 ];
 function charKeyForStore(store){
   if(!store) return null;
@@ -2783,6 +2799,110 @@ function renderBarManner(){
     <div class="banner" style="margin-top:16px;">🍸 かしこまりすぎず、でも周りへのちょっとした気づかいを。それだけで、お店の時間はぐっと心地よくなります。</div>
   `;
 }
+
+/* ===================== 共通:チップチューン風サウンド(Web Audio API) =====================
+   これまでのミニゲームには音が一切なかったため、新しいミニゲーム(スカイパトロール/
+   マネーロードすごろく)向けに共通のサウンド基盤をここに追加する。実在の楽曲・効果音は
+   一切使わず、その場でオシレーターから音を組み立てるオリジナルのピコピコ音・BGMのみを
+   鳴らす。iOSのSafariは「ユーザー操作の直後」でないとAudioContextを開始できないため、
+   必ず各ゲームの「開始」ボタン押下(=ユーザー操作)から呼び出すこと。
+*/
+let sakuAudioCtx = null;
+let sakuAudioMuted = false;
+let sakuBgmTimer = null;
+let sakuBgmStep = 0;
+const SAKU_NOTE_FREQ = {
+  'C3':130.81,'D3':146.83,'E3':164.81,'F3':174.61,'G3':196.00,'A3':220.00,'B3':246.94,
+  'C4':261.63,'D4':293.66,'E4':329.63,'F4':349.23,'G4':392.00,'A4':440.00,'B4':493.88,
+  'C5':523.25,'D5':587.33,'E5':659.25,'F5':698.46,'G5':783.99,'A5':880.00,'B5':987.77,
+  'C6':1046.50,'D6':1174.66,'E6':1318.51
+};
+function sakuGetAudioCtx(){
+  if(sakuAudioMuted) return null;
+  if(!sakuAudioCtx){
+    try{ sakuAudioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch(e){ return null; }
+  }
+  if(sakuAudioCtx && sakuAudioCtx.state==='suspended'){ sakuAudioCtx.resume().catch(()=>{}); }
+  return sakuAudioCtx;
+}
+function sakuPlayBeep(opts){
+  opts = opts || {};
+  const ctx = sakuGetAudioCtx();
+  if(!ctx) return;
+  const freq = opts.freq || 440, dur = opts.dur || 0.08, type = opts.type || 'square';
+  const vol = opts.vol==null ? 0.05 : opts.vol, when = opts.when || 0;
+  try{
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    const t0 = ctx.currentTime + when;
+    gain.gain.setValueAtTime(Math.max(0.0001, vol), t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.05);
+  }catch(e){ /* サウンド再生に失敗してもゲーム自体は続行する */ }
+}
+function sakuPlayNote(noteName, opts){
+  const freq = SAKU_NOTE_FREQ[noteName];
+  if(!freq) return;
+  sakuPlayBeep(Object.assign({freq}, opts||{}));
+}
+function sakuStartBgm(pattern, stepDur){
+  sakuStopBgm();
+  if(sakuAudioMuted) return;
+  const ctx = sakuGetAudioCtx();
+  if(!ctx) return;
+  stepDur = stepDur || 0.15;
+  sakuBgmStep = 0;
+  sakuBgmTimer = setInterval(()=>{
+    const mi = sakuBgmStep % pattern.melody.length;
+    const mNote = pattern.melody[mi];
+    if(mNote) sakuPlayNote(mNote, { dur: stepDur*0.85, type:'square', vol:0.045 });
+    if(pattern.bass && pattern.bass.length){
+      const bi = sakuBgmStep % pattern.bass.length;
+      const bNote = pattern.bass[bi];
+      if(bNote) sakuPlayNote(bNote, { dur: stepDur*0.9, type:'triangle', vol:0.05 });
+    }
+    if(pattern.hat && pattern.hat.length){
+      const hi = sakuBgmStep % pattern.hat.length;
+      if(pattern.hat[hi]) sakuPlayBeep({ freq: 1900+Math.random()*300, dur:0.02, type:'square', vol:0.018 });
+    }
+    sakuBgmStep++;
+  }, stepDur*1000);
+}
+function sakuStopBgm(){
+  if(sakuBgmTimer){ clearInterval(sakuBgmTimer); sakuBgmTimer = null; }
+}
+function sakuToggleMute(){
+  sakuAudioMuted = !sakuAudioMuted;
+  if(sakuAudioMuted) sakuStopBgm();
+  return sakuAudioMuted;
+}
+// スカイパトロール用オリジナルBGM(スピード感のある短い8小節ループ、実在楽曲の引用なし)
+const SP_BGM_PATTERN = {
+  melody: ['E5',null,'E5',null,'G5',null,'E5',null, 'D5',null,'D5',null,'C5',null,'D5',null,
+           'E5',null,'E5',null,'G5',null,'A5',null, 'G5',null,'E5',null,'D5',null,null,null],
+  bass:   ['A3','A3','A3','A3','F3','F3','F3','F3','C3','C3','C3','C3','G3','G3','G3','G3'],
+  hat:    [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0]
+};
+// マネーロードすごろく用オリジナルBGM(のんびりした商店街ワルツ風ループ、実在楽曲の引用なし)
+const MR_BGM_PATTERN = {
+  melody: ['C4',null,'E4',null,'G4',null,null,null, 'A4',null,'G4',null,'E4',null,null,null,
+           'F4',null,'A4',null,'C5',null,null,null, 'G4',null,'F4',null,'E4',null,null,null],
+  bass:   ['C3',null,null,'G3',null,null,'A3',null,null,'F3',null,null],
+  hat:    []
+};
+// 新ミニゲーム(スカイパトロール/マネーロードすごろく)で共通して使う、店主キャラの
+// 軽量な絵文字表現。ガチャカードの重いイラスト画像はここでは使わず、既存のsmtGame等と
+// 同じ「絵文字ベースの簡易表現」の方針に合わせている。
+const SAKU_CHAR_SKINS = {
+  invader: { emoji:'👾', label:'INVADER ONE', color:'#e0a458' },
+  u7:      { emoji:'🍖', label:'U7', color:'#d97b3f' },
+  civetta: { emoji:'🦉', label:'Bar Civetta', color:'#8a6fd0' }
+};
 
 /* ===================== インベーダーゲーム(テスト機能・遊びのみ) =====================
    Invader one の店主にちなんだ、ちょっとした息抜き用のクラシックなシューティングゲーム。
@@ -10329,6 +10449,759 @@ async function doLeave(){
   render();
 }
 
+/* ===================== 下北沢スカイパトロール(店主開放・遊びのみ) =====================
+   縦スクロールの元祖的なシューティングゲームにインスパイアされた、オリジナルデザインの
+   一人用ゲーム。実在の作品の敵キャラ・自機デザイン・BGMはそのまま使わず、見た目・音楽とも
+   オリジナル(BGM・効果音はWeb Audio APIでその場合成するピコピコ音)。「空中の敵は連射弾、
+   地上の的は照準を合わせて爆弾」という2種類の攻撃を使い分ける操作感だけを踏襲している。
+   スコアや進行状況はどこにも保存せず、画面を出入りするたびに最初からになる。
+*/
+const SP_W = 240, SP_H = 360;
+const SP_STAGE_DURATION = 55; // この秒数まで雑魚を出し続けたら、ボスが出現する
+let spGameState = null;
+let spCtx = null;
+let spRafId = null;
+let spKeyHandlerBound = false;
+
+function spKeyDown(e){
+  if(!spGameState) return;
+  if(e.key==='ArrowLeft') spGameState.input.left = true;
+  if(e.key==='ArrowRight') spGameState.input.right = true;
+  if(e.key==='ArrowUp') spGameState.input.up = true;
+  if(e.key==='ArrowDown') spGameState.input.down = true;
+  if(e.key===' '){ e.preventDefault(); spGameState.input.fire = true; }
+  if(e.key==='b' || e.key==='B' || e.key==='Shift'){ e.preventDefault(); spFireBomb(); }
+}
+function spKeyUp(e){
+  if(!spGameState) return;
+  if(e.key==='ArrowLeft') spGameState.input.left = false;
+  if(e.key==='ArrowRight') spGameState.input.right = false;
+  if(e.key==='ArrowUp') spGameState.input.up = false;
+  if(e.key==='ArrowDown') spGameState.input.down = false;
+  if(e.key===' ') spGameState.input.fire = false;
+}
+function spSetInput(key, val){
+  if(!spGameState) return;
+  spGameState.input[key] = val;
+}
+function spTouch(e, key, val){
+  if(e && e.preventDefault) e.preventDefault();
+  spSetInput(key, val);
+}
+function spBombTap(e){
+  if(e && e.preventDefault) e.preventDefault();
+  spFireBomb();
+}
+function stopSpGame(){
+  if(spRafId){ cancelAnimationFrame(spRafId); spRafId = null; }
+  if(spKeyHandlerBound){
+    window.removeEventListener('keydown', spKeyDown);
+    window.removeEventListener('keyup', spKeyUp);
+    spKeyHandlerBound = false;
+  }
+  sakuStopBgm();
+  spGameState = null;
+  spCtx = null;
+}
+function newSpGroundTarget(){
+  const kinds = ['beacon','beacon','beacon','turret']; // タレットは控えめな出現率
+  const kind = kinds[Math.floor(Math.random()*kinds.length)];
+  const x = 20 + Math.random()*(SP_W-40);
+  return { kind, x, y:-16, w: kind==='turret'?20:16, h: kind==='turret'?16:14,
+           alive:true, value: kind==='turret'?60:30, fireTimer: 1.2+Math.random()*1.5 };
+}
+function spPickEnemyKind(elapsed){
+  const r = Math.random();
+  if(elapsed < 12) return r<0.7 ? 'straight' : 'sine';
+  if(elapsed < 30){ if(r<0.45) return 'straight'; if(r<0.8) return 'sine'; return 'diver'; }
+  if(r<0.35) return 'straight';
+  if(r<0.65) return 'sine';
+  return 'diver';
+}
+function spSpawnEnemy(s){
+  const kind = spPickEnemyKind(s.elapsed);
+  const x = 16 + Math.random()*(SP_W-32);
+  const e = { kind, x, baseX:x, y:-16, phase: Math.random()*Math.PI*2, fireTimer: 1.0+Math.random()*1.4 };
+  if(kind==='straight'){ e.w=14; e.h=12; e.hp=1; e.speed=58+Math.random()*14; e.value=40; }
+  else if(kind==='sine'){ e.w=14; e.h=12; e.hp=1; e.speed=48+Math.random()*10; e.amp=22+Math.random()*16; e.value=55; }
+  else { e.w=16; e.h=14; e.hp=2; e.speed=62; e.value=80; } // diver
+  s.enemies.push(e);
+}
+function spSpawnBoss(s){
+  s.boss = {
+    x: SP_W/2, y: 60, phase: 0,
+    turretHp: 18, turretMaxHp: 18,
+    coreHp: 24, coreMaxHp: 24,
+    fireTimer: 1.2
+  };
+}
+function spSpawnParticles(s, x, y, color, count){
+  for(let i=0;i<count;i++){
+    const ang = Math.random()*Math.PI*2;
+    const spd = 24+Math.random()*70;
+    s.particles.push({ x, y, vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd, life:0.35+Math.random()*0.3, maxLife:0.5, color, size:1+Math.random()*2 });
+  }
+}
+function newSpGameState(charKey){
+  const skin = SAKU_CHAR_SKINS[charKey] || SAKU_CHAR_SKINS.invader;
+  return {
+    charKey: SAKU_CHAR_SKINS[charKey] ? charKey : 'invader', skin,
+    player: { x: SP_W/2, y: SP_H-60, invuln:0, speed:140 },
+    bullets: [], bombFlashes: [], enemyBullets: [],
+    groundTargets: [], enemies: [], particles: [],
+    score:0, lives:3, elapsed:0,
+    groundSpawnTimer:0, groundSpawnInterval:1.3,
+    enemySpawnTimer:0, enemySpawnInterval:1.6,
+    boss:null, bossSpawned:false, cleared:false, over:false, shake:0,
+    input:{ left:false, right:false, up:false, down:false, fire:false },
+    lastFireAt:0, lastBombAt:0, lastTime:null, achievementChecked:false
+  };
+}
+function initSpGame(charKey){
+  stopSpGame();
+  spGameState = newSpGameState(charKey);
+  render(); // 1回だけ呼び、キャンバス付きの永続的なシェルを作る(以後はDOM直接操作)
+  const canvas = document.getElementById('spCanvas');
+  spCtx = canvas ? canvas.getContext('2d') : null;
+  if(!spCtx) return;
+  window.addEventListener('keydown', spKeyDown);
+  window.addEventListener('keyup', spKeyUp);
+  spKeyHandlerBound = true;
+  sakuStartBgm(SP_BGM_PATTERN, 0.13);
+  spRafId = requestAnimationFrame(spGameLoop);
+}
+function spFireBomb(){
+  const s = spGameState;
+  if(!s || s.over || s.cleared) return;
+  const now = performance.now();
+  if(now - s.lastBombAt < 500) return;
+  s.lastBombAt = now;
+  const reticleY = s.player.y - 46; // 照準は自機の少し先(上方)に表示する
+  let hit = false;
+  s.groundTargets.forEach(t=>{
+    if(!t.alive) return;
+    if(Math.abs(t.x - s.player.x) < 18 && Math.abs(t.y - reticleY) < 22){
+      t.alive = false; hit = true; s.score += t.value;
+      spSpawnParticles(s, t.x, t.y, '#e0a458', 10);
+      sakuPlayBeep({ freq:180, dur:0.14, type:'sawtooth', vol:0.06 });
+    }
+  });
+  if(s.boss && s.boss.coreHp > 0){
+    const core = s.boss;
+    const coreY = core.y + 34;
+    if(Math.abs(core.x - s.player.x) < 20 && Math.abs(coreY - reticleY) < 22){
+      core.coreHp = Math.max(0, core.coreHp - 4);
+      hit = true;
+      spSpawnParticles(s, core.x, coreY, '#e0a458', 10);
+      sakuPlayBeep({ freq:160, dur:0.16, type:'sawtooth', vol:0.07 });
+    }
+  }
+  s.bombFlashes.push({ x:s.player.x, y:reticleY, life:0.18, hit });
+  if(!hit) sakuPlayBeep({ freq:120, dur:0.1, type:'sawtooth', vol:0.03 });
+}
+function spPlayerHit(s){
+  if(s.player.invuln > 0) return;
+  s.lives -= 1;
+  s.player.invuln = 1.6;
+  s.shake = 0.3;
+  spSpawnParticles(s, s.player.x, s.player.y, '#c0453c', 12);
+  sakuPlayBeep({ freq:100, dur:0.3, type:'sawtooth', vol:0.07 });
+  if(s.lives <= 0) s.over = true;
+}
+function spUpdate(s, dt, ts){
+  s.elapsed += dt;
+  if(s.player.invuln > 0) s.player.invuln -= dt;
+  if(s.shake > 0) s.shake = Math.max(0, s.shake - dt);
+
+  if(s.input.left) s.player.x -= s.player.speed*dt;
+  if(s.input.right) s.player.x += s.player.speed*dt;
+  if(s.input.up) s.player.y -= s.player.speed*dt;
+  if(s.input.down) s.player.y += s.player.speed*dt;
+  s.player.x = Math.max(10, Math.min(SP_W-10, s.player.x));
+  s.player.y = Math.max(SP_H*0.35, Math.min(SP_H-16, s.player.y));
+
+  if(s.input.fire && ts - s.lastFireAt > 180){
+    s.bullets.push({ x:s.player.x, y:s.player.y-12, w:3, h:9 });
+    s.lastFireAt = ts;
+    sakuPlayBeep({ freq:880, dur:0.05, type:'square', vol:0.03 });
+  }
+  s.bullets.forEach(b=> b.y -= 280*dt);
+  s.bullets = s.bullets.filter(b=> b.y > -12);
+
+  if(!s.boss){
+    s.groundSpawnTimer += dt;
+    if(s.groundSpawnTimer >= s.groundSpawnInterval){
+      s.groundSpawnTimer = 0;
+      s.groundTargets.push(newSpGroundTarget());
+    }
+    s.enemySpawnTimer += dt;
+    if(s.enemySpawnTimer >= s.enemySpawnInterval){
+      s.enemySpawnTimer = 0;
+      spSpawnEnemy(s);
+      s.enemySpawnInterval = Math.max(0.6, 1.6 - s.elapsed*0.01);
+    }
+    if(s.elapsed >= SP_STAGE_DURATION && !s.bossSpawned){
+      s.bossSpawned = true;
+      spSpawnBoss(s);
+      s.groundTargets = s.groundTargets.filter(t=> t.y < SP_H*0.4);
+      s.enemies = [];
+    }
+  }
+
+  const groundSpeed = 46;
+  s.groundTargets.forEach(t=>{
+    t.y += groundSpeed*dt;
+    if(t.kind==='turret' && t.alive){
+      t.fireTimer -= dt;
+      if(t.fireTimer <= 0 && t.y > 0 && t.y < SP_H-40){
+        t.fireTimer = 1.6 + Math.random()*1.2;
+        s.enemyBullets.push({ x:t.x, y:t.y+8, w:4, h:8, vx:0, vy:70 });
+      }
+    }
+  });
+  s.groundTargets = s.groundTargets.filter(t=> t.alive && t.y < SP_H+20);
+
+  s.enemies.forEach(e=>{
+    e.y += e.speed*dt;
+    if(e.kind==='sine') e.x = e.baseX + Math.sin(s.elapsed*2.4 + e.phase)*e.amp;
+    if(e.kind==='diver'){
+      const dx = s.player.x - e.x;
+      e.x += Math.sign(dx) * Math.min(Math.abs(dx), 40*dt);
+    }
+    e.fireTimer -= dt;
+    if(e.fireTimer <= 0){
+      e.fireTimer = 1.3 + Math.random()*1.3;
+      const dx = s.player.x-e.x, dy = s.player.y-e.y, len = Math.max(1, Math.hypot(dx,dy));
+      s.enemyBullets.push({ x:e.x, y:e.y, w:4, h:4, vx:(dx/len)*90, vy:(dy/len)*90 });
+    }
+  });
+  s.enemies = s.enemies.filter(e=> e.hp > 0 && e.y < SP_H+20);
+
+  s.enemyBullets.forEach(b=>{
+    b.x += (b.vx||0)*dt;
+    b.y += (b.vy!=null ? b.vy : 80)*dt;
+  });
+  s.enemyBullets = s.enemyBullets.filter(b=> b.y < SP_H+20 && b.y > -20 && b.x > -20 && b.x < SP_W+20);
+
+  s.bullets.forEach(b=>{
+    s.enemies.forEach(e=>{
+      if(e.hp <= 0) return;
+      if(Math.abs(b.x-e.x) < e.w/2+3 && Math.abs(b.y-e.y) < e.h/2+5){
+        e.hp -= 1; b.y = -100;
+        if(e.hp <= 0){
+          s.score += e.value;
+          spSpawnParticles(s, e.x, e.y, '#7ad0e0', 8);
+          sakuPlayBeep({ freq:520, dur:0.06, type:'square', vol:0.035 });
+        }
+      }
+    });
+    if(s.boss && s.boss.turretHp > 0){
+      const bo = s.boss;
+      if(Math.abs(b.x-bo.x) < 20 && Math.abs(b.y-bo.y) < 16){
+        bo.turretHp = Math.max(0, bo.turretHp-1); b.y = -100;
+        sakuPlayBeep({ freq:600, dur:0.05, type:'square', vol:0.03 });
+      }
+    }
+  });
+  s.bullets = s.bullets.filter(b=> b.y > -50);
+
+  s.enemyBullets.forEach(b=>{
+    if(Math.abs(b.x-s.player.x) < 8 && Math.abs(b.y-s.player.y) < 9){ b.y = -999; spPlayerHit(s); }
+  });
+  s.enemies.forEach(e=>{
+    if(Math.abs(e.x-s.player.x) < (e.w/2+7) && Math.abs(e.y-s.player.y) < (e.h/2+7)){ e.hp = 0; spPlayerHit(s); }
+  });
+
+  if(s.boss){
+    const bo = s.boss;
+    bo.phase += dt;
+    bo.x = SP_W/2 + Math.sin(bo.phase*0.7)*(SP_W/2-30);
+    bo.fireTimer -= dt;
+    if(bo.fireTimer <= 0 && bo.turretHp > 0){
+      bo.fireTimer = 1.1;
+      [-0.35,0,0.35].forEach(off=>{
+        s.enemyBullets.push({ x:bo.x, y:bo.y+16, vx:Math.sin(off)*70, vy:100+Math.cos(off)*20, w:4, h:6 });
+      });
+      sakuPlayBeep({ freq:220, dur:0.1, type:'sawtooth', vol:0.04 });
+    }
+    if(bo.turretHp <= 0 && bo.coreHp <= 0 && !s.cleared){
+      s.cleared = true;
+      s.score += 300;
+      spSpawnParticles(s, bo.x, bo.y, '#ffd479', 26);
+    }
+  }
+
+  s.particles.forEach(p=>{ p.x += p.vx*dt; p.y += p.vy*dt; p.life -= dt; });
+  s.particles = s.particles.filter(p=> p.life > 0);
+  s.bombFlashes.forEach(f=> f.life -= dt);
+  s.bombFlashes = s.bombFlashes.filter(f=> f.life > 0);
+}
+function spDraw(s){
+  const ctx = spCtx;
+  if(!ctx) return;
+  const shakeX = s.shake > 0 ? (Math.random()-0.5)*6*s.shake : 0;
+  ctx.save();
+  ctx.translate(shakeX, 0);
+  ctx.fillStyle = '#0c1a12';
+  ctx.fillRect(0, 0, SP_W, SP_H);
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  for(let i=0;i<6;i++){
+    const y = ((s.elapsed*46 + i*60) % (SP_H+60)) - 30;
+    ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(SP_W,y); ctx.stroke();
+  }
+  s.groundTargets.forEach(t=>{
+    ctx.fillStyle = t.kind==='turret' ? '#8a6fd0' : '#4d7a52';
+    ctx.fillRect(t.x-t.w/2, t.y-t.h/2, t.w, t.h);
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.fillRect(t.x-t.w/2, t.y+t.h/2-3, t.w, 3);
+  });
+  ctx.fillStyle = '#d9645a';
+  s.enemies.forEach(e=>{
+    ctx.beginPath();
+    ctx.ellipse(e.x, e.y, e.w/2, e.h/2, 0, 0, Math.PI*2);
+    ctx.fill();
+  });
+  if(s.boss){
+    const bo = s.boss;
+    ctx.fillStyle = bo.coreHp > 0 ? '#b9803a' : '#333';
+    ctx.fillRect(bo.x-22, bo.y+22, 44, 24);
+    ctx.fillStyle = bo.turretHp > 0 ? '#e0645a' : '#333';
+    ctx.beginPath(); ctx.ellipse(bo.x, bo.y, 22, 16, 0, 0, Math.PI*2); ctx.fill();
+  }
+  ctx.fillStyle = '#fff';
+  s.bullets.forEach(b=> ctx.fillRect(b.x-b.w/2, b.y-b.h/2, b.w, b.h));
+  ctx.fillStyle = '#f2c94c';
+  s.enemyBullets.forEach(b=> ctx.fillRect(b.x-b.w/2, b.y-b.h/2, b.w, b.h));
+  const reticleY = s.player.y - 46;
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+  ctx.strokeRect(s.player.x-9, reticleY-9, 18, 18);
+  s.bombFlashes.forEach(f=>{
+    ctx.strokeStyle = f.hit ? 'rgba(224,164,88,0.9)' : 'rgba(255,255,255,0.4)';
+    ctx.beginPath(); ctx.arc(f.x, f.y, 18*(1-f.life/0.18), 0, Math.PI*2); ctx.stroke();
+  });
+  s.particles.forEach(p=>{
+    ctx.globalAlpha = Math.max(0, p.life/p.maxLife);
+    ctx.fillStyle = p.color;
+    ctx.fillRect(p.x-p.size/2, p.y-p.size/2, p.size, p.size);
+  });
+  ctx.globalAlpha = 1;
+  ctx.font = '20px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.globalAlpha = (s.player.invuln > 0 && Math.floor(s.elapsed*12)%2===0) ? 0.4 : 1;
+  ctx.fillText(s.skin.emoji, s.player.x, s.player.y+7);
+  ctx.globalAlpha = 1;
+  ctx.restore();
+
+  ctx.fillStyle = '#fff';
+  ctx.font = '12px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText(`SCORE ${s.score}`, 6, 16);
+  ctx.textAlign = 'right';
+  ctx.fillText(`💛×${Math.max(0,s.lives)}`, SP_W-6, 16);
+  if(s.boss){
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(30, 4, SP_W-60, 6);
+    const totalMax = s.boss.turretMaxHp + s.boss.coreMaxHp;
+    const totalHp = Math.max(0,s.boss.turretHp) + Math.max(0,s.boss.coreHp);
+    ctx.fillStyle = '#ff6b6b';
+    ctx.fillRect(30, 4, (SP_W-60)*(totalHp/totalMax), 6);
+  }
+}
+function spGameLoop(ts){
+  const s = spGameState;
+  if(!s) return;
+  if(s.lastTime == null) s.lastTime = ts;
+  const dt = Math.min(0.05, (ts - s.lastTime)/1000);
+  s.lastTime = ts;
+  if(!s.over && !s.cleared) spUpdate(s, dt, ts);
+  spDraw(s);
+  if(!s.over && !s.cleared){
+    spRafId = requestAnimationFrame(spGameLoop);
+  } else {
+    spRafId = null;
+    sakuStopBgm();
+    const endEl = document.getElementById('spEndOverlay');
+    if(endEl){
+      endEl.style.display = 'flex';
+      const titleEl = endEl.querySelector('.invader-end-title');
+      const scoreEl = endEl.querySelector('.invader-end-score');
+      if(titleEl) titleEl.textContent = s.over ? '💥 ゲームオーバー' : '🎉 ステージクリア!';
+      if(scoreEl) scoreEl.textContent = `スコア: ${s.score}`;
+    }
+    if(s.cleared) sakuPlayBeep({ freq:988, dur:0.5, type:'square', vol:0.05 });
+    if(!s.achievementChecked){ s.achievementChecked = true; maybeAwardGameAchievement('skyPatrol', s.score); }
+  }
+}
+function spMuteBtnHtml(){
+  return `<button class="invader-btn" style="width:auto;height:auto;padding:4px 10px;font-size:14px;position:absolute;top:8px;right:8px;" onclick="sakuToggleMute(); render();">${sakuAudioMuted?'🔇':'🔊'}</button>`;
+}
+function renderSpGame(){
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
+  const s = spGameState;
+  if(!s){
+    return `
+      <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+      <h2>🛩️ 下北沢スカイパトロール</h2>
+      <div class="muted" style="margin-bottom:10px;">縦スクロールの元祖的なシューティングにインスパイアされた、オリジナルデザインの1人用ゲームです。🔫で空中の敵を、💣で照準に入った地上の的をねらい撃ちしましょう。BGM・効果音はすべてブラウザ内でその場で作られるオリジナルのピコピコ音です。まずは出撃する機体を選んでください。</div>
+      <div class="row" style="justify-content:center;gap:10px;flex-wrap:wrap;">
+        ${Object.keys(SAKU_CHAR_SKINS).map(k=>{
+          const skin = SAKU_CHAR_SKINS[k];
+          return `<button class="btn btn-primary" onclick="initSpGame('${k}')">${skin.emoji} ${escapeHtml(skin.label)}</button>`;
+        }).join('')}
+      </div>
+    `;
+  }
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>🛩️ 下北沢スカイパトロール</h2>
+    <div class="invader-game-wrap">
+      ${spMuteBtnHtml()}
+      <canvas id="spCanvas" width="${SP_W}" height="${SP_H}"></canvas>
+      <div id="spEndOverlay" class="invader-end-overlay" style="display:none;">
+        <div class="invader-end-title">🎉 ステージクリア!</div>
+        <div class="invader-end-score muted">スコア: 0</div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="initSpGame('${s.charKey}')">もう一度あそぶ</button>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="promptRetroGameMurmur()">🕹 好きなレトロゲームをつぶやく</button>
+      </div>
+    </div>
+    <div class="muted" style="text-align:center;margin:6px 0;font-size:12px;">🔫で空中の敵、💣で照準内の地上物を破壊。最後は空中砲台+地上コアの2部構成ボスに挑もう</div>
+    <div class="row" style="justify-content:center;align-items:center;gap:14px;flex-wrap:wrap;">
+      <div class="smt-dpad">
+        <div></div>
+        <button class="invader-btn" style="grid-column:2;grid-row:1;" ontouchstart="spTouch(event,'up',true)" ontouchend="spTouch(event,'up',false)" onmousedown="spSetInput('up',true)" onmouseup="spSetInput('up',false)" onmouseleave="spSetInput('up',false)">▲</button>
+        <div></div>
+        <button class="invader-btn" style="grid-column:1;grid-row:2;" ontouchstart="spTouch(event,'left',true)" ontouchend="spTouch(event,'left',false)" onmousedown="spSetInput('left',true)" onmouseup="spSetInput('left',false)" onmouseleave="spSetInput('left',false)">◀️</button>
+        <div style="grid-column:2;grid-row:2;"></div>
+        <button class="invader-btn" style="grid-column:3;grid-row:2;" ontouchstart="spTouch(event,'right',true)" ontouchend="spTouch(event,'right',false)" onmousedown="spSetInput('right',true)" onmouseup="spSetInput('right',false)" onmouseleave="spSetInput('right',false)">▶️</button>
+        <div></div>
+        <button class="invader-btn" style="grid-column:2;grid-row:3;" ontouchstart="spTouch(event,'down',true)" ontouchend="spTouch(event,'down',false)" onmousedown="spSetInput('down',true)" onmouseup="spSetInput('down',false)" onmouseleave="spSetInput('down',false)">▼</button>
+        <div></div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <button class="invader-btn invader-btn-fire" style="width:64px;height:64px;border-radius:50%;" ontouchstart="spTouch(event,'fire',true)" ontouchend="spTouch(event,'fire',false)" onmousedown="spSetInput('fire',true)" onmouseup="spSetInput('fire',false)" onmouseleave="spSetInput('fire',false)">🔫</button>
+        <button class="invader-btn" style="width:64px;height:64px;border-radius:50%;background:#8a6fd0;border-color:#8a6fd0;color:#fff;" onclick="spBombTap(event)">💣</button>
+      </div>
+    </div>
+  `;
+}
+
+/* ===================== 下北沢マネーロードすごろく(店主開放・遊びのみ) =====================
+   いただきストリート/桃太郎電鉄のような「すごろく型の経済ゲーム」にインスパイアされた、
+   オリジナルデータの対戦ゲーム。実在の作品のキャラクター・デザイン・盤面は使わず、
+   マスには実在の下北沢一番街の店舗名(事実データ)を使用している。個人名や実際の
+   金額・経営状況とは無関係の、架空の出資ごっこ。INVADER ONE・U7・Bar Civetta の
+   3店主(CPU)と対戦する。スコアや進行状況はどこにも保存せず、画面を出入りするたびに
+   最初からになる。
+*/
+const MR_TOTAL_ROUNDS = 8;
+const MR_PRICE_CYCLE = [400,550,650,500,700,600,850,450,650,550,780,500,600,480,680,580,750,520];
+const MR_EVENT_CARDS = [
+  { text:'商店会の福引きで当たった!', delta:120 },
+  { text:'常連さんから差し入れをもらった', delta:60 },
+  { text:'自転車がパンクして修理代がかかった', delta:-70 },
+  { text:'看板が壊れて修理費がかかった', delta:-100 },
+  { text:'雑誌の取材が来て話題になった!', delta:150 },
+  { text:'うっかり忘れ物をしてしまった', delta:-40 },
+  { text:'商店街の掃除当番をがんばった(気持ちだけ)', delta:20 },
+  { text:'仕入れの値段が上がってしまった', delta:-90 },
+  { text:'雨の日でお客さんが少なかった', delta:-50 },
+  { text:'イベント出店が大盛況だった!', delta:180 }
+];
+let mrGameState = null;
+let mrTimers = [];
+let mrDiceTimer = null;
+
+function mrBuildBoard(){
+  const src = SHIMOKITA_SPOTS.filter(sp=> sp.name);
+  const picks = [];
+  const step = Math.max(1, Math.floor(src.length / 18));
+  for(let i=0; i<src.length && picks.length<18; i+=step) picks.push(src[i]);
+  const board = [{ id:'start', name:'下北沢駅前', kind:'start' }];
+  picks.forEach((sp,i)=>{
+    board.push({ id:sp.id, name:sp.name, kind:'shop', price: MR_PRICE_CYCLE[i%MR_PRICE_CYCLE.length], owner:null });
+    if((i+1)%4===0) board.push({ id:'event-'+i, name:'商店街イベント', kind:'event' });
+  });
+  return board;
+}
+function mrBuildPlayers(){
+  return [
+    { key:'human', isHuman:true, name:'あなた', emoji:'🧑‍💼', pos:0, cash:1500, owned:[] },
+    { key:'invader', isHuman:false, name:SAKU_CHAR_SKINS.invader.label, emoji:SAKU_CHAR_SKINS.invader.emoji, pos:0, cash:1500, owned:[] },
+    { key:'u7', isHuman:false, name:SAKU_CHAR_SKINS.u7.label, emoji:SAKU_CHAR_SKINS.u7.emoji, pos:0, cash:1500, owned:[] },
+    { key:'civetta', isHuman:false, name:SAKU_CHAR_SKINS.civetta.label, emoji:SAKU_CHAR_SKINS.civetta.emoji, pos:0, cash:1500, owned:[] }
+  ];
+}
+function newMrGameState(){
+  return {
+    board: mrBuildBoard(),
+    players: mrBuildPlayers(),
+    turnIndex: 0, round: 1,
+    phase: 'rollWait', // 'rollWait' | 'resolving'
+    log: [],
+    diceFace: 1, diceRolling: false,
+    pendingBuy: null,
+    over: false, ranking: null,
+    achievementChecked: false
+  };
+}
+function mrRent(space){ return Math.round(space.price*0.3/10)*10; }
+function mrCurrentPlayer(s){ return s.players[s.turnIndex]; }
+function mrLog(s, msg){
+  s.log.unshift(msg);
+  if(s.log.length>6) s.log.length = 6;
+}
+function mrClearTimers(){
+  mrTimers.forEach(t=> clearTimeout(t));
+  mrTimers = [];
+  if(mrDiceTimer){ clearInterval(mrDiceTimer); mrDiceTimer = null; }
+}
+function stopMrGame(){
+  mrClearTimers();
+  sakuStopBgm();
+  mrGameState = null;
+}
+function initMrGame(){
+  stopMrGame();
+  mrGameState = newMrGameState();
+  sakuStartBgm(MR_BGM_PATTERN, 0.22);
+  render();
+  mrMaybeAutoAdvance();
+}
+function mrMaybeAutoAdvance(){
+  const s = mrGameState;
+  if(!s || s.over) return;
+  const p = mrCurrentPlayer(s);
+  if(!p.isHuman && s.phase==='rollWait'){
+    const t = setTimeout(()=> mrRollDice(), 700);
+    mrTimers.push(t);
+  }
+}
+function mrRollDice(){
+  const s = mrGameState;
+  if(!s || s.over || s.phase!=='rollWait' || s.diceRolling) return;
+  s.diceRolling = true;
+  render();
+  let ticks = 0;
+  mrDiceTimer = setInterval(()=>{
+    if(!mrGameState){ clearInterval(mrDiceTimer); mrDiceTimer = null; return; }
+    mrGameState.diceFace = 1 + Math.floor(Math.random()*6);
+    sakuPlayBeep({ freq:700+Math.random()*200, dur:0.04, type:'square', vol:0.03 });
+    render();
+    ticks++;
+    if(ticks>=8){
+      clearInterval(mrDiceTimer); mrDiceTimer = null;
+      const face = 1 + Math.floor(Math.random()*6);
+      mrGameState.diceFace = face;
+      mrGameState.diceRolling = false;
+      mrMovePlayer(face);
+    }
+  }, 70);
+}
+function mrMovePlayer(steps){
+  const s = mrGameState;
+  if(!s) return;
+  const p = mrCurrentPlayer(s);
+  const boardLen = s.board.length;
+  const before = p.pos;
+  p.pos = (p.pos + steps) % boardLen;
+  if(p.pos < before){
+    p.cash += 200;
+    mrLog(s, `${p.name}は下北沢駅前を通過して200Gの売上をゲット!`);
+  }
+  s.phase = 'resolving';
+  render();
+  const t = setTimeout(()=> mrResolveSpace(), 550);
+  mrTimers.push(t);
+}
+function mrResolveSpace(){
+  const s = mrGameState;
+  if(!s) return;
+  const p = mrCurrentPlayer(s);
+  const space = s.board[p.pos];
+  if(space.kind==='start'){
+    mrLog(s, `${p.name}は下北沢駅前に到着。`);
+    mrEndTurn();
+    return;
+  }
+  if(space.kind==='event'){
+    const card = MR_EVENT_CARDS[Math.floor(Math.random()*MR_EVENT_CARDS.length)];
+    p.cash = Math.max(0, p.cash + card.delta);
+    mrLog(s, `${p.name}:「${card.text}」(${card.delta>=0?'+':''}${card.delta}G)`);
+    sakuPlayBeep({ freq: card.delta>=0?880:220, dur:0.15, type: card.delta>=0?'square':'sawtooth', vol:0.05 });
+    mrEndTurn();
+    return;
+  }
+  if(!space.owner){
+    if(p.isHuman){
+      s.pendingBuy = { spaceIdx: p.pos };
+      render();
+      return; // 人間プレイヤーの選択待ち(買う/見送る ボタン)
+    } else {
+      const willBuy = p.cash >= space.price && Math.random() < 0.7;
+      if(willBuy){
+        p.cash -= space.price; space.owner = p.key; p.owned.push(space.id);
+        mrLog(s, `${p.name}が「${space.name}」に出資した!(-${space.price}G)`);
+        sakuPlayBeep({ freq:400, dur:0.12, type:'triangle', vol:0.05 });
+      } else {
+        mrLog(s, `${p.name}は「${space.name}」への出資を見送った。`);
+      }
+      mrEndTurn();
+      return;
+    }
+  } else if(space.owner === p.key){
+    mrLog(s, `${p.name}は自分の「${space.name}」に立ち寄った。`);
+    mrEndTurn();
+  } else {
+    const owner = s.players.find(pl=> pl.key===space.owner);
+    const rent = mrRent(space);
+    p.cash = Math.max(0, p.cash - rent);
+    owner.cash += rent;
+    mrLog(s, `${p.name}は${owner.name}の「${space.name}」で${rent}Gを支払った。`);
+    sakuPlayBeep({ freq:300, dur:0.12, type:'sawtooth', vol:0.05 });
+    mrEndTurn();
+  }
+}
+function mrBuyDecision(buy){
+  const s = mrGameState;
+  if(!s || !s.pendingBuy) return;
+  const p = mrCurrentPlayer(s);
+  const space = s.board[s.pendingBuy.spaceIdx];
+  if(buy && p.cash >= space.price){
+    p.cash -= space.price; space.owner = p.key; p.owned.push(space.id);
+    mrLog(s, `${p.name}が「${space.name}」に出資した!(-${space.price}G)`);
+    sakuPlayBeep({ freq:400, dur:0.12, type:'triangle', vol:0.05 });
+  } else {
+    mrLog(s, `${p.name}は「${space.name}」への出資を見送った。`);
+  }
+  s.pendingBuy = null;
+  mrEndTurn();
+}
+function mrEndTurn(){
+  const s = mrGameState;
+  if(!s) return;
+  s.turnIndex += 1;
+  if(s.turnIndex >= s.players.length){
+    s.turnIndex = 0;
+    s.round += 1;
+    if(s.round > MR_TOTAL_ROUNDS){
+      mrFinishGame();
+      return;
+    }
+  }
+  s.phase = 'rollWait';
+  render();
+  mrMaybeAutoAdvance();
+}
+function mrAssetTotal(s, p){
+  return p.cash + p.owned.reduce((sum,id)=>{
+    const sp = s.board.find(b=> b.id===id);
+    return sum + (sp ? sp.price : 0);
+  }, 0);
+}
+function mrFinishGame(){
+  const s = mrGameState;
+  if(!s) return;
+  s.over = true;
+  sakuStopBgm();
+  const ranked = s.players.map(p=> ({ p, total: mrAssetTotal(s, p) })).sort((a,b)=> b.total-a.total);
+  s.ranking = ranked;
+  render();
+  sakuPlayBeep({ freq:660, dur:0.15, type:'square', vol:0.05 });
+  const t1 = setTimeout(()=> sakuPlayBeep({ freq:880, dur:0.15, type:'square', vol:0.05 }), 160);
+  const t2 = setTimeout(()=> sakuPlayBeep({ freq:1046, dur:0.3, type:'square', vol:0.06 }), 320);
+  mrTimers.push(t1, t2);
+  if(!s.achievementChecked){
+    s.achievementChecked = true;
+    const won = ranked[0].p.isHuman;
+    maybeAwardGameAchievement('moneyRoad', won ? 1 : 0);
+  }
+}
+function mrRenderPlayers(s){
+  return s.players.map((p,i)=>{
+    const isTurn = i===s.turnIndex && !s.over;
+    return `<div class="mr-player-row ${isTurn?'mr-turn':''}">
+      <span>${p.emoji} ${escapeHtml(p.name)}${p.isHuman?'(あなた)':''}</span>
+      <span>${p.cash}G ・ ${p.owned.length}件所有</span>
+    </div>`;
+  }).join('');
+}
+function mrRenderBoard(s){
+  const cells = s.board.map((sp,i)=>{
+    const herePlayers = s.players.filter(p=> p.pos===i);
+    const ownerSkin = sp.owner ? (sp.owner==='human' ? { emoji:'🧑‍💼', color:'var(--accent)' } : SAKU_CHAR_SKINS[sp.owner]) : null;
+    let bg = 'var(--panel)';
+    if(sp.kind==='start') bg = '#2f4a3b';
+    else if(sp.kind==='event') bg = '#3d3050';
+    else if(sp.owner) bg = 'rgba(224,164,88,0.15)';
+    const borderStyle = sp.owner && ownerSkin ? `border-color:${ownerSkin.color};` : '';
+    const priceLine = sp.kind==='shop'
+      ? `<div class="mr-cell-price">${sp.owner ? (ownerSkin.emoji + ' 所有') : sp.price+'G'}</div>`
+      : '';
+    const label = sp.kind==='start' ? ('🚉 '+sp.name) : sp.kind==='event' ? ('❓ '+sp.name) : sp.name;
+    return `
+      <div class="mr-cell" style="background:${bg};${borderStyle}">
+        <div class="mr-cell-idx">${i+1}</div>
+        <div class="mr-cell-name">${escapeHtml(label)}</div>
+        ${priceLine}
+        ${herePlayers.length ? `<div class="mr-cell-tokens">${herePlayers.map(p=>p.emoji).join('')}</div>` : ''}
+      </div>
+    `;
+  }).join('');
+  return `<div class="mr-board">${cells}</div>`;
+}
+function renderMrGame(){
+  const backScreen = state.role==='owner' ? 'gamesHub' : 'vlist';
+  const s = mrGameState;
+  if(!s){
+    return `
+      <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+      <h2>🎲 下北沢マネーロードすごろく</h2>
+      <div class="muted" style="margin-bottom:10px;">下北沢一番街の実在のお店をマスに見立てた、すごろく型の経済ゲームです。サイコロで進み、空いているお店に出資し、他の店主のマスに止まると応援料を支払います。${MR_TOTAL_ROUNDS}周したところで資産(現金+出資額)が一番多い人の勝ちです。INVADER ONE・U7・Bar Civetta の3店主(CPU)と対戦します。</div>
+      <div class="row" style="justify-content:center;">
+        <button class="btn btn-primary" onclick="initMrGame()">🎲 すごろくを始める</button>
+      </div>
+    `;
+  }
+  if(s.over){
+    return `
+      <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+      <h2>🎲 下北沢マネーロードすごろく</h2>
+      <div class="card" style="padding:16px;text-align:center;">
+        <div class="invader-end-title">🏁 ${MR_TOTAL_ROUNDS}周終了!最終結果</div>
+        <div style="margin-top:10px;">
+          ${s.ranking.map((r,i)=> `<div class="mr-player-row">${i+1}位: ${r.p.emoji} ${escapeHtml(r.p.name)}${r.p.isHuman?'(あなた)':''} — 資産 ${r.total}G</div>`).join('')}
+        </div>
+        <button class="btn btn-primary" style="margin-top:12px;" onclick="initMrGame()">もう一度あそぶ</button>
+        <button class="btn btn-ghost" style="margin-top:8px;" onclick="promptRetroGameMurmur()">🕹 好きなレトロゲームをつぶやく</button>
+      </div>
+    `;
+  }
+  const p = mrCurrentPlayer(s);
+  const buyBox = s.pendingBuy ? (()=>{
+    const space = s.board[s.pendingBuy.spaceIdx];
+    return `<div class="banner" style="text-align:center;">「${escapeHtml(space.name)}」に出資しますか?(費用 ${space.price}G / 所持金 ${p.cash}G)
+      <div class="row" style="justify-content:center;margin-top:8px;gap:10px;">
+        <button class="btn btn-primary" onclick="mrBuyDecision(true)" ${p.cash<space.price?'disabled':''}>出資する</button>
+        <button class="btn btn-ghost" onclick="mrBuyDecision(false)">見送る</button>
+      </div>
+    </div>`;
+  })() : `
+    <div class="row" style="justify-content:center;">
+      <button class="btn btn-primary" onclick="mrRollDice()" ${(!p.isHuman || s.phase!=='rollWait' || s.diceRolling)?'disabled':''}>🎲 サイコロを振る</button>
+    </div>
+  `;
+  return `
+    <span class="back-link" onclick="go('${backScreen}')">← 戻る</span>
+    <h2>🎲 下北沢マネーロードすごろく</h2>
+    <div class="smt-hud"><b>ラウンド ${s.round}/${MR_TOTAL_ROUNDS}</b><span>手番: ${p.emoji} ${escapeHtml(p.name)}${p.isHuman?'(あなた)':''}</span><span style="cursor:pointer;" onclick="sakuToggleMute(); render();">${sakuAudioMuted?'🔇':'🔊'}</span></div>
+    <div style="margin:8px 0;">${mrRenderPlayers(s)}</div>
+    <div style="text-align:center;font-size:32px;margin:6px 0;">🎲 ${s.diceFace}</div>
+    ${buyBox}
+    ${mrRenderBoard(s)}
+    <div class="muted" style="font-size:11px;margin-top:6px;">${s.log.map(l=> escapeHtml(l)).join('<br>')}</div>
+  `;
+}
+
 /* ===================== 常連：一覧・詳細 ===================== */
 function renderVisitorList(){
   const statusLabel = {open:'営業中', prep:'準備中', closed:'本日定休'};
@@ -10552,7 +11425,8 @@ function render(){
     blockTowerGame: renderBlockTowerGame,
     revengeGame: renderRevengeGame, smtGame: renderSmtGame, hanafudaGame: renderHanafudaGame,
     batterBoxGame: renderBatterBoxGame, shooterGame: renderShooterGame, islandGame: renderIslandGame,
-    rpgGame: renderRpgGame, moGame: renderMoGame, kmGame: renderKmGame
+    rpgGame: renderRpgGame, moGame: renderMoGame, kmGame: renderKmGame,
+    skyPatrolGame: renderSpGame, moneyRoadGame: renderMrGame
   };
   const fn = map[state.screen] || renderInvite;
   el.innerHTML = fn();
