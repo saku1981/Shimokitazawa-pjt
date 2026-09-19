@@ -7756,19 +7756,22 @@ const SMT_ZONE_BOSS_POINT = {
 const SMT_ZONE_RADIUS_M = 120;
 const SMT_BOSS_RADIUS_M = 26;
 const SMT_SHOP_RADIUS_M = 15;
-// アウトドアの見た目(見下ろし型アイソメトリック風表示)・徒歩ダンジョン共通の設定。
-// 実座標(緯度経度)を、ひし形に傾いた昔ながらのドット絵RPG風の画面px座標に変換する
-// だけで、実際の地図タイルや特定作品のマップ・タイル絵をそのまま使うわけではない。
-const SMT_ISO_UNIT_M = 6; // アイソメ1マス相当の実距離(メートル)
-const SMT_ISO_TILE_W = 40; // アイソメ1マスぶんの横幅(px)
-const SMT_ISO_TILE_H = 20; // アイソメ1マスぶんの縦幅(px)
+// アウトドアの見た目(見下ろし表示)・徒歩ダンジョン共通の設定。実座標(緯度経度)を、
+// 回転やスキューのない単純な「真上から見た」画面px座標に変換するだけで、実際の地図
+// タイルや特定作品のマップ・タイル絵をそのまま使うわけではない。
+// (以前はひし形に傾けたアイソメトリック風の投影を使っていたが、これだと「北」が画面の
+// 右斜め上に進む形になり、▲(上)を押しても画面の真上には進まないため方向がおかしく
+// 感じられていた。北=画面の真上、東=画面の右、という単純な対応に変更している。)
+const SMT_ISO_UNIT_M = 6; // 従来のタイル換算との互換用に残している基準距離(メートル)
+const SMT_ISO_TILE_W = 40; // 地面パターンのスクロール位置をmodで畳むための周期(px、幅)
+const SMT_ISO_TILE_H = 40; // 地面パターンのスクロール位置をmodで畳むための周期(px、高さ)
+const SMT_ISO_PX_PER_M = 4; // 1メートルが画面上で何pxに相当するか(等倍・回転なし)
 const SMT_ISO_MAX_DIST = 200; // これより遠いアイコンは描画しない(メートル)
 function smtIsoProject(originLat, originLng, lat, lng){
-  const dNorth = (lat - originLat) * 111320;
-  const dEast = (lng - originLng) * 111320 * Math.cos(originLat * Math.PI/180);
-  const gx = dEast / SMT_ISO_UNIT_M;
-  const gy = -dNorth / SMT_ISO_UNIT_M;
-  return { x: (gx - gy) * (SMT_ISO_TILE_W/2), y: (gx + gy) * (SMT_ISO_TILE_H/2) };
+  const dNorth = (lat - originLat) * 111320; // 正なら対象は自分より北
+  const dEast = (lng - originLng) * 111320 * Math.cos(originLat * Math.PI/180); // 正なら対象は自分より東
+  // 北=画面上方向(y減少)、東=画面右方向(x増加)のまま、回転やひし形スキューを加えない。
+  return { x: dEast * SMT_ISO_PX_PER_M, y: -dNorth * SMT_ISO_PX_PER_M };
 }
 // 各縄張りへの入口(ダンジョンゲート)のアイコン。実在のゲームや実在の建物の意匠を
 // そのまま再現するのではなく、「大きな建物・城・バー」など、はっきり歩いて入れる
@@ -7810,6 +7813,7 @@ function newSmtGame(){
     pos: { lat: SHIMOKITA_STATION_CENTER[0], lng: SHIMOKITA_STATION_CENTER[1] },
     mapZoom: 17,
     alignment: 0,
+    facingLeft: false, // ◀️を押して左へ歩いたときに、キャラの向き(左右反転)を覚えておく
     claimedSpots: {},
     encounterTimer: 1.4,
     shopVisit: null,
@@ -7981,11 +7985,13 @@ function smtZoneCircleColor(corridor, cleared){
   if(cleared) return '#3a8a4e';
   return corridor==='3' ? '#2f6f9e' : '#a0403a';
 }
-function smtPlayerIconHtml(alignment){
+function smtPlayerIconHtml(alignment, facingLeft){
   const dir = alignment > 10 ? 'law' : alignment < -10 ? 'chaos' : 'neutral';
   const ringColor = dir==='law' ? '#4a7fd0' : dir==='chaos' ? '#d0503f' : '#9aa0a8';
   const spinClass = dir==='law' ? 'smt-spin-cw' : dir==='chaos' ? 'smt-spin-ccw' : '';
-  return `<div class="smt-align-ring ${spinClass}" style="border-color:${ringColor};"></div><div class="smt-player-emoji">🧙</div>`;
+  // 左右に歩いたときだけ、キャラの絵文字そのものを反転させて向きを変える
+  // (上下方向は同じ絵柄のままだが、これだけでも「進む方へ体を向ける」感じが出る)。
+  return `<div class="smt-align-ring ${spinClass}" style="border-color:${ringColor};"></div><div class="smt-player-emoji" style="transform:scaleX(${facingLeft ? -1 : 1});">🧙</div>`;
 }
 function smtShopIconHtml(claimed){
   return `<div style="font-size:15px;line-height:1;opacity:${claimed?0.35:1};filter:drop-shadow(0 1px 1px rgba(0,0,0,.6));">🏮</div>`;
@@ -8185,7 +8191,7 @@ function smtIsoRefresh(s){
 
   const player = document.getElementById('smtFpPlayer');
   if(player){
-    player.innerHTML = smtPlayerIconHtml(s.alignment);
+    player.innerHTML = smtPlayerIconHtml(s.alignment, s.facingLeft);
     player.classList.toggle('smt-fp-player-walking', !!s.moving);
   }
 
@@ -8328,6 +8334,10 @@ function smtOverworldUpdate(s, dt){
   if(smtOverworldInput.down) dy -= 1;
   const moving = dx !== 0 || dy !== 0;
   s.moving = moving; // 歩行モーション(足踏み・砂埃)の演出用に、今フレーム動いているかを持っておく
+  // ◀️/▶️を押したときだけ、キャラの向き(左右反転)を更新する。▲/▼だけ押しているときは
+  // 直前の向きのままにする(上下では絵柄が変わらないため、向きを消さないようにする)。
+  if(dx < 0) s.facingLeft = true;
+  else if(dx > 0) s.facingLeft = false;
   if(moving){
     if(dx!==0 && dy!==0){ const inv = Math.SQRT1_2; dx*=inv; dy*=inv; }
     s.heading = (Math.atan2(dx,dy)*180/Math.PI + 360) % 360; // 北=0/東=90/南=180/西=270
