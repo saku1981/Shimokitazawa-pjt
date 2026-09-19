@@ -319,6 +319,20 @@
   @keyframes smtSpinCCW{from{transform:rotate(0deg);}to{transform:rotate(-360deg);}}
   .smt-spin-cw{animation:smtSpinCW 3s linear infinite;}
   .smt-spin-ccw{animation:smtSpinCCW 3s linear infinite;}
+  /* ===== 下北沢2000年編 街並みスタイルガイド(reference/STYLEGUIDE.md 参照)=====
+     フォトリアルな再現ではなく、「限定パレット+濃い陰影+荒廃感のあるレトロ様式」
+     (1990年代ドット絵RPGのダンジョン探索を思わせる様式)を基本方針とする。街並み関連の
+     CSSは、原則としてこの16色の変数だけを使う(実在のゲームシリーズ固有の意匠の参照・
+     複製はしない。あくまで一般的な「レトロな陰影表現・限定パレット」の考え方の話)。 */
+  :root{
+    --pal-night0:#0c0f0e; --pal-night1:#1a2320;
+    --pal-bldg-lit:#5a4a38; --pal-bldg-shadow:#2c2118;
+    --pal-bldg-lit-2:#4a3d4a; --pal-bldg-shadow-2:#241c26;
+    --pal-roof:#3a2a20;
+    --pal-warm-glow:#f0a840; --pal-cool-glow:#a8d8d0; --pal-neon:#e060c0;
+    --pal-sign-red:#a83228; --pal-sign-cream:#c9c0a0; --pal-gold:#e0c458;
+    --pal-road:#3f3f42; --pal-curb:#7a7d80; --pal-wire:#151513;
+  }
   .smt-fp-scene{position:relative;height:280px;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#1c2a22;}
   .smt-fp-scene::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;
     background:radial-gradient(ellipse 90% 75% at 50% 58%, transparent 40%, rgba(4,8,7,.62) 100%);}
@@ -344,20 +358,18 @@
      幅の内訳(片側): 車道4m+歩道2.5m=6.5m → 6.5×SMT_STREET_PX_PER_M(13)≒85px。 */
   .smt-street-ground{position:absolute;left:50%;margin-left:-85px;width:170px;bottom:-4%;height:360px;
     transform-origin:50% 0%;overflow:hidden;
-    background-color:#4a4a4d;
+    background-color:var(--pal-road);
     background-image:
-      linear-gradient(90deg, #9598a0 0 30px, #6f7275 30px 33px, #45464a 33px 137px, #6f7275 137px 140px, #9598a0 140px 170px),
-      radial-gradient(ellipse 70% 55% at 50% 25%, rgba(150,190,215,.14) 0%, transparent 65%),
-      linear-gradient(0deg, rgba(0,0,0,.42) 0%, transparent 55%);
-    filter:saturate(1.05) contrast(1.05);}
+      linear-gradient(90deg, var(--pal-curb) 0 30px, var(--pal-night1) 30px 33px, var(--pal-road) 33px 137px, var(--pal-night1) 137px 140px, var(--pal-curb) 140px 170px),
+      linear-gradient(0deg, rgba(0,0,0,.42) 0%, transparent 55%);}
   .smt-street-centerline{position:absolute;left:50%;top:0;bottom:0;width:5px;margin-left:-2.5px;
-    background-image:repeating-linear-gradient(180deg, rgba(255,255,255,.85) 0 20px, transparent 20px 46px);}
+    background-image:repeating-linear-gradient(180deg, var(--pal-sign-cream) 0 20px, transparent 20px 46px);}
   /* 駅前ロータリーから他の2本の通りへ、実際の方角で分かれていく分岐路。地面と同じ断面の
      コンクリ舗装を、ロータリー地点を軸にrotateYで実座標の角度だけ開く(smtIsoRefresh側)。 */
   .smt-street-branches{position:absolute;inset:0;transform-style:preserve-3d;}
   .smt-street-branch{position:absolute;left:50%;margin-left:-85px;bottom:34%;width:170px;
-    transform-origin:50% 100% 0;background-color:#454548;
-    background-image:linear-gradient(90deg, #8a8d90 0 30px, #6a6d70 30px 33px, #414245 33px 137px, #6a6d70 137px 140px, #8a8d90 140px 170px),
+    transform-origin:50% 100% 0;background-color:var(--pal-road);
+    background-image:linear-gradient(90deg, var(--pal-curb) 0 30px, var(--pal-night1) 30px 33px, var(--pal-road) 33px 137px, var(--pal-night1) 137px 140px, var(--pal-curb) 140px 170px),
       linear-gradient(0deg, rgba(0,0,0,.45) 0%, transparent 60%);
     opacity:.92;}
   .smt-street-buildings{position:absolute;inset:0;transform-style:preserve-3d;}
@@ -365,53 +377,99 @@
     filter:drop-shadow(0 6px 6px rgba(0,0,0,.5));}
   /* 建物は「絵文字1個の看板」ではなく、軒先(awning)・窓の明かり・ドアを持つ簡単な
      イラストとして描く。実在の店舗の外観をそのまま再現するのではなく、バー・居酒屋・
-     喫茶店らしい色味と軒先の飾りだけで、なんとなくその業態らしい雰囲気を出す。 */
+     喫茶店らしい色味と軒先の飾りだけで、なんとなくその業態らしい雰囲気を出す。
+     STYLEGUIDE.md セクション2「ハードシェーディング」に従い、写真的な滑らかなグラデー
+     ションは使わず、明部/暗部の境界がはっきりした2バンド(上62%/下38%)で塗り分ける。
+     配色は2種類(--pal-bldg-lit系/--pal-bldg-lit-2系)を[data-variant]で使い回す
+     (セクション4のモジュールパーツ方針)。 */
   .smt-street-facade-body{position:relative;left:-50%;width:74px;height:94px;
-    border-radius:3px 3px 1px 1px;background:linear-gradient(180deg,#5a4a38,#332a1f);
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,.4), inset 0 12px 14px rgba(255,255,255,.06);
+    border-radius:2px 2px 0 0;
+    background:linear-gradient(180deg, var(--pal-bldg-lit) 0%, var(--pal-bldg-lit) 62%, var(--pal-bldg-shadow) 62%, var(--pal-bldg-shadow) 100%);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.5);
     overflow:visible;}
+  .smt-street-facade[data-variant="2"] .smt-street-facade-body{
+    background:linear-gradient(180deg, var(--pal-bldg-lit-2) 0%, var(--pal-bldg-lit-2) 62%, var(--pal-bldg-shadow-2) 62%, var(--pal-bldg-shadow-2) 100%);}
   .smt-bldg-awning{position:absolute;top:0;left:-3px;right:-3px;height:13px;border-radius:2px 2px 0 0;
-    background:linear-gradient(180deg,#6a4a34,#4a321f);box-shadow:0 2px 3px rgba(0,0,0,.45);}
+    background:var(--pal-roof);box-shadow:0 2px 0 rgba(0,0,0,.5);}
   .smt-bldg-windows{position:absolute;top:20px;left:7px;right:7px;display:flex;justify-content:space-between;gap:4px;}
-  .smt-bldg-window{flex:1;height:15px;border-radius:1px;background:linear-gradient(180deg,#c9a35a,#8a6a30);
-    box-shadow:0 0 6px 1px rgba(224,180,90,.5), inset 0 0 0 1px rgba(0,0,0,.35);}
+  /* 窓明かりは単色の発光のみ(暖色/寒色の2択、STYLEGUIDE.md セクション2)。滑らかな
+     グラデーションでにじませない。 */
+  .smt-bldg-window{flex:1;height:15px;border-radius:1px;background:var(--pal-warm-glow);
+    box-shadow:0 0 6px 1px rgba(240,168,64,.5), inset 0 0 0 1px rgba(0,0,0,.4);}
   .smt-bldg-door{position:absolute;bottom:0;left:50%;width:18px;height:26px;transform:translateX(-50%);
-    background:linear-gradient(180deg,#3a2a1c,#241a10);border-radius:2px 2px 0 0;
-    box-shadow:inset 0 0 0 1px rgba(0,0,0,.5);}
+    background:var(--pal-night1);border-radius:2px 2px 0 0;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.6);}
   .smt-bldg-accent{position:absolute;top:-13px;left:50%;transform:translateX(-50%);font-size:13px;
     filter:drop-shadow(0 2px 2px rgba(0,0,0,.6));}
   .smt-street-facade-label{position:absolute;bottom:-13px;left:50%;transform:translateX(-50%);
     font-size:8.5px;background:rgba(0,0,0,.55);color:#f3e6c8;
     border-radius:4px;padding:0 4px;white-space:nowrap;max-width:70px;
     overflow:hidden;text-overflow:ellipsis;}
-  /* ジャンルごとの色味の描き分け(あくまで一般的な「らしさ」だけの簡易分類)。 */
-  .smt-street-facade[data-style="bar"] .smt-bldg-awning{background:linear-gradient(180deg,#3a3038,#221a20);}
-  .smt-street-facade[data-style="bar"] .smt-bldg-window{background:linear-gradient(180deg,#e0a050,#8a5a20);
-    box-shadow:0 0 8px 2px rgba(224,160,80,.7), inset 0 0 0 1px rgba(0,0,0,.4);}
-  .smt-street-facade[data-style="izakaya"] .smt-bldg-awning{background:repeating-linear-gradient(90deg,#8a3229 0 7px,#c9c0a0 7px 14px);}
-  .smt-street-facade[data-style="izakaya"] .smt-bldg-window{background:linear-gradient(180deg,#ffb060,#d1402c);
-    box-shadow:0 0 8px 2px rgba(255,150,80,.7), inset 0 0 0 1px rgba(0,0,0,.4);}
-  .smt-street-facade[data-style="cafe"] .smt-bldg-awning{background:linear-gradient(180deg,#8a6a48,#5a3f28);}
-  .smt-street-facade[data-style="cafe"] .smt-bldg-window{background:linear-gradient(180deg,#f0d9a0,#c9a35a);
-    box-shadow:0 0 6px 1px rgba(240,217,160,.6), inset 0 0 0 1px rgba(0,0,0,.35);}
-  .smt-street-facade[data-style="karaoke"] .smt-bldg-awning{background:linear-gradient(180deg,#4a2a5a,#2a1638);}
-  .smt-street-facade[data-style="karaoke"] .smt-bldg-window{background:linear-gradient(180deg,#e070e0,#8030a0);
-    box-shadow:0 0 10px 2px rgba(224,110,224,.75), inset 0 0 0 1px rgba(0,0,0,.4);}
+  /* 袖看板(建物の脇から通りに向かって突き出す縦長の看板)。生成り地+赤文字帯の2色だけで
+     構成する使い回し用パーツ(STYLEGUIDE.md セクション4)。実在の特定の看板の文字や
+     ロゴを再現するのではなく、袖看板があるというシルエットだけを表現する。 */
+  .smt-street-sign{position:absolute;top:8px;width:16px;height:46px;
+    background:var(--pal-sign-cream);border:1px solid var(--pal-night1);
+    box-shadow:2px 2px 0 rgba(0,0,0,.35);}
+  .smt-street-sign::before,.smt-street-sign::after{content:'';position:absolute;left:2px;right:2px;height:9px;background:var(--pal-sign-red);}
+  .smt-street-sign::before{top:4px;}
+  .smt-street-sign::after{top:17px;}
+  .smt-street-sign-l{left:-13px;}
+  .smt-street-sign-r{right:-13px;}
+  .smt-street-facade[data-kind="filler"] .smt-street-sign{width:11px;height:30px;top:6px;}
+  .smt-street-facade[data-kind="filler"] .smt-street-sign::before{top:3px;height:6px;}
+  .smt-street-facade[data-kind="filler"] .smt-street-sign::after{top:12px;height:6px;}
+  /* 電柱+電線。通り沿いに一定間隔で立てる、--pal-wire 1色のシルエットパーツ(セクション4)。
+     奥行きに応じて自動で小さくなるのは、他の建物パーツと同じtranslate3dの奥行き投影を
+     そのまま流用しているため(このパーツ専用のスケール計算はしない)。 */
+  .smt-street-pole{position:absolute;left:50%;bottom:32%;width:4px;height:120px;
+    background:var(--pal-wire);transform-origin:50% 100%;
+    filter:drop-shadow(0 6px 4px rgba(0,0,0,.4));}
+  .smt-street-pole::before,.smt-street-pole::after{content:'';position:absolute;background:var(--pal-wire);height:2px;}
+  .smt-street-pole::before{top:14px;left:-11px;width:26px;}
+  .smt-street-pole::after{top:24px;left:-8px;width:20px;}
+  /* ジャンルごとの色味の描き分け(あくまで一般的な「らしさ」だけの簡易分類。窓明かりは
+     常に--pal-warm-glow/--pal-cool-glow/--pal-neonのいずれか、パレット外の色は使わない)。 */
+  .smt-street-facade[data-style="bar"] .smt-bldg-awning{background:var(--pal-night1);}
+  .smt-street-facade[data-style="bar"] .smt-bldg-window{background:var(--pal-cool-glow);
+    box-shadow:0 0 8px 2px rgba(168,216,208,.6), inset 0 0 0 1px rgba(0,0,0,.4);}
+  .smt-street-facade[data-style="izakaya"] .smt-bldg-awning{background:repeating-linear-gradient(90deg,var(--pal-sign-red) 0 7px,var(--pal-sign-cream) 7px 14px);}
+  .smt-street-facade[data-style="izakaya"] .smt-bldg-window{background:var(--pal-warm-glow);
+    box-shadow:0 0 8px 2px rgba(240,168,64,.7), inset 0 0 0 1px rgba(0,0,0,.4);}
+  .smt-street-facade[data-style="cafe"] .smt-bldg-awning{background:var(--pal-roof);}
+  .smt-street-facade[data-style="cafe"] .smt-bldg-window{background:var(--pal-warm-glow);
+    box-shadow:0 0 6px 1px rgba(240,168,64,.55), inset 0 0 0 1px rgba(0,0,0,.35);}
+  .smt-street-facade[data-style="karaoke"] .smt-bldg-awning{background:var(--pal-night1);}
+  .smt-street-facade[data-style="karaoke"] .smt-bldg-window{background:var(--pal-neon);
+    box-shadow:0 0 10px 2px rgba(224,96,192,.75), inset 0 0 0 1px rgba(0,0,0,.4);}
   .smt-street-facade[data-kind="filler"] .smt-street-facade-body{width:58px;height:72px;}
   .smt-street-facade[data-kind="filler"] .smt-bldg-window{opacity:.65;}
+  /* 縄張りの入口(駅前食品市場・一番街の入口など、象徴的な場所)だけは、上記のパーツを
+     重ねて密度を上げる(建物+袖看板2枚+電柱、STYLEGUIDE.md セクション5「メリハリ」)。 */
   .smt-street-facade[data-kind="gate"] .smt-street-facade-body{width:118px;height:150px;
-    background:linear-gradient(180deg,#6a5040,#362619);}
+    background:linear-gradient(180deg, var(--pal-bldg-lit) 0%, var(--pal-bldg-lit) 62%, var(--pal-bldg-shadow) 62%, var(--pal-bldg-shadow) 100%);}
   .smt-street-facade[data-kind="gate"] .smt-bldg-windows{top:26px;}
-  .smt-street-facade[data-kind="gate"] .smt-bldg-window{height:20px;background:linear-gradient(180deg,#a9c9d8,#5a7a8a);
-    box-shadow:0 0 6px 1px rgba(170,210,220,.5), inset 0 0 0 1px rgba(0,0,0,.35);}
+  .smt-street-facade[data-kind="gate"] .smt-bldg-window{height:20px;background:var(--pal-cool-glow);
+    box-shadow:0 0 6px 1px rgba(168,216,208,.5), inset 0 0 0 1px rgba(0,0,0,.35);}
   .smt-street-facade[data-kind="gate"] .smt-bldg-door{width:32px;height:44px;}
   .smt-street-facade[data-kind="gate"] .smt-bldg-accent{font-size:26px;top:-22px;}
+  .smt-street-facade[data-kind="gate"] .smt-street-sign{top:30px;}
   .smt-street-facade[data-kind="gate"][data-claimed="1"] .smt-street-facade-body{
     background:linear-gradient(180deg,#3a6a4a,#1f3824);}
   .smt-street-facade[data-kind="gate"][data-claimed="1"] .smt-bldg-window{background:linear-gradient(180deg,#9ae0a8,#4a9a5a);}
   .smt-street-facade[data-kind="gate"][data-claimed="0"]{animation:smtGatePulse 1.8s ease-in-out infinite;}
   @keyframes smtGatePulse{0%,100%{filter:drop-shadow(0 6px 6px rgba(0,0,0,.5)) drop-shadow(0 0 4px rgba(224,196,88,.4));}
     50%{filter:drop-shadow(0 6px 6px rgba(0,0,0,.5)) drop-shadow(0 0 16px rgba(224,196,88,.85));}}
+  /* ポストエフェクト(走査線+粒子ノイズ+ビネット)。個々の建物パーツ側では何もせず、
+     画面全体に固定オーバーレイとして1枚だけ重ね、質感を統一する(セクション3)。 */
+  .smt-street-postfx{position:absolute;inset:0;z-index:6;pointer-events:none;}
+  .smt-street-postfx-scan{position:absolute;inset:0;
+    background:repeating-linear-gradient(180deg, rgba(0,0,0,.18) 0 1px, transparent 1px 2px);}
+  .smt-street-postfx-noise{position:absolute;inset:0;mix-blend-mode:overlay;opacity:.5;
+    background-image:repeating-radial-gradient(circle at 0 0, rgba(255,255,255,.5) 0 1px, transparent 1px 3px);
+    background-size:3px 3px;}
+  .smt-street-postfx-vignette{position:absolute;inset:-6px;
+    background:radial-gradient(ellipse 85% 72% at 50% 48%, transparent 55%, rgba(0,0,0,.6) 100%);}
   .smt-fp-ambient{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1;}
   .smt-fp-mote{position:absolute;width:4px;height:4px;border-radius:50%;
     background:radial-gradient(circle, rgba(248,230,165,1) 0%, rgba(248,230,165,0) 72%);
@@ -7639,6 +7697,61 @@ const Y2K_SPOTS = [
     '2000年代の初めに開いたんだけど、ビロード張りのソファや古いハイボールの看板なんかを集めてね、わざと昭和っぽい内装にしたんだよ。',
     '最近、道路の拡幅工事の話がちらほら聞こえてきててね。もしかしたら、そう遠くないうちに看板を下ろすことになるかもしれないなあ。'
   ]},
+  // ここから先は、下北沢駅前商店会が作っていた手描きの案内地図(プラザ下北沢)に載っていた
+  // 実在の店名を、あらためて拾い直して追加した10箇所。地図の画像そのものはそのまま複製
+  // していないが、店名という「事実」は既存のSHIMOKITA_SPOTS(現在編の実在バー名)と同じ
+  // 考え方でそのまま使っている。いずれも役どころの店主が語る一人称のセリフのみで、
+  // 実在の personal name は登場させていない。
+  { id:'y2kMikawaya', corridor:'3', lat:35.66098, lng:139.66695, title:'三河屋肉店の前', reward:'heal', speaker:'肉屋の店主', lines:[
+    'いらっしゃい。うちは三河屋肉店っていってね、この市場じゃそこそこ古株のつもりだよ。',
+    '揚げたてのコロッケの匂い、ここまで漂ってるだろう? 小腹が空いたらぜひ寄っていきな。',
+    '毎日この一角に立ってると、街の顔ぶれがちょっとずつ変わっていくのが分かるんだ。'
+  ]},
+  { id:'y2kTanakaShokudo', corridor:'3', lat:35.66231, lng:139.66738, title:'田中食堂ののれん', reward:'heal', speaker:'食堂のおかみ', lines:[
+    'あら、いらっしゃい。うちは田中食堂、この辺じゃずっと定食を出してる店だよ。',
+    '駅前で働く人も、買い物帰りの人も、みんな同じテーブルで飯を食っていくんだ。',
+    '今日のおすすめ? 聞いても教えてあげないよ、来てからのお楽しみさ。'
+  ]},
+  { id:'y2kOmiyaShoten', corridor:'3', lat:35.66087, lng:139.66808, title:'近江屋商店の軒先', reward:'gold', speaker:'よろず屋の店主', lines:[
+    'うちは近江屋商店、細々といろんなものを置いてるよろず屋でね。',
+    '駅前の商店会にゃ、うちみたいな小さい店もけっこう混ざってるんだよ。',
+    '欲しいものがあれば聞いてみな、たいていのものは揃えられるはずさ。'
+  ]},
+  { id:'y2kTokioKaijo', corridor:'3', lat:35.66155, lng:139.66935, title:'東京海上の看板', reward:'magic', speaker:'保険代理店の担当', lines:[
+    'この看板、東京海上さんの代理店をやらせてもらってるんだ。',
+    '商店街の店主も、火事や事故の備えにってよく相談に来るんだよ。',
+    '駅前でずっと商売を続けてくには、こういう備えも案外大事なのさ。'
+  ]},
+  { id:'y2kYamadaShika', corridor:'3', lat:35.66048, lng:139.66751, title:'山田歯科の待合室', reward:'magic', speaker:'歯科医院の受付', lines:[
+    'ここは山田歯科、駅前で長いこと診てる歯医者さんだよ。',
+    '買い物のついでに歯が痛いって駆け込んでくる人も、実は少なくないんだ。',
+    '痛みが取れると、街を歩くのもぐっと楽になるだろう?'
+  ]},
+  { id:'y2kTajimaya', corridor:'3', lat:35.66018, lng:139.66703, title:'但馬屋の店先', reward:'gold', speaker:'但馬屋の店主', lines:[
+    'いらっしゃい、うちは但馬屋。この市場のはずれで、ずっと店を構えてるよ。',
+    '大きな通りの派手さはないけど、常連さんに支えられてなんとかやってるのさ。',
+    'たまにはこういう小さな店も覗いていっとくれよ。'
+  ]},
+  { id:'y2kDaikokuya', corridor:'3', lat:35.66192, lng:139.66663, title:'大国屋の看板', reward:'atk', speaker:'大国屋の店主', lines:[
+    'うちは大国屋。名前のとおり、大黒様みたいにでんと構えてるのが自慢さ。',
+    '商店会の集まりじゃ、古株としてよく意見を求められるんだよ。',
+    '駅前の移り変わりを、この店先からずっと見てきたのさ。'
+  ]},
+  { id:'y2kAizawaCoffee', corridor:'3', lat:35.66163, lng:139.66798, title:'コーヒーあいざわの香り', reward:'heal', speaker:'コーヒー店の店主', lines:[
+    'いい匂いがするだろう? うちはコーヒーあいざわ、豆から挽いて淹れてるんだ。',
+    '買い物途中の一休みに、うちのコーヒーで一服していく客が多くてね。',
+    '苦味の効いた一杯で、疲れた足も少しは軽くなるだろう。'
+  ]},
+  { id:'y2kKusabueShishu', corridor:'3', lat:35.66204, lng:139.66958, title:'草笛刺繍の仕事場', reward:'magic', speaker:'刺繍屋の職人', lines:[
+    'うちは草笛刺繍。名前の入ったハッピや旗、頼まれればなんでも縫うのさ。',
+    '商店街の祭りの提灯や幟にも、うちの針目が入ってるものが結構あるんだよ。',
+    '細かい仕事だけど、街の晴れの日を支えてるのはこういう店だったりするんだ。'
+  ]},
+  { id:'y2kWashiya', corridor:'3', lat:35.66076, lng:139.66845, title:'わしやの店先', reward:'gold', speaker:'わしやの店主', lines:[
+    'いらっしゃい、うちは「わしや」。この市場じゃちょっと変わった屋号だろう?',
+    '名前の由来を聞かれても、うちも先代から聞いてないんだよ。',
+    'とにかく、この一角で長いこと商売させてもらってるのは確かなのさ。'
+  ]},
   { id:'y2kRyohana', corridor:'1', lat:35.6635, lng:139.6684, title:'大人の隠れ家酒場', reward:'magic', speaker:'酒場の店主', lines:[
     '目立たないビルの2階だから、初めての人には見つけにくいかもしれないね。',
     '1990年ごろに始めた店でね、食事よりも酒と雰囲気を楽しんでもらう「隠れ家」ってつもりでやってるんだ。常連さんには長いこと贔屓にしてもらってるよ。',
@@ -7909,6 +8022,7 @@ const SMT_STREET_SIDEWALK_M = 2.5;     // 歩道の幅(車道の外側に続く)
 const SMT_STREET_VIEW_DIST_M = 130; // これより奥の建物・お店は描画しない
 const SMT_STREET_FILLER_STEP_M = 16; // 実在の建物・お店がない区間を埋める、飾りの店先の間隔
 const SMT_STREET_BRANCH_LEN_M = 60; // 駅前ロータリーから分岐する他の通りを、見た目としてどこまで描くか
+const SMT_STREET_POLE_STEP_M = 24; // 電柱を立てる間隔(建物とは独立に、通り沿いに一定間隔で)
 // 実在の店舗(SHIMOKITA_SPOTS)のジャンル文字列から、バー/居酒屋/喫茶店らしい外観の
 // スタイル分類を決める。実在の店の意匠を再現するのではなく、「バーらしい・居酒屋らしい」
 // という一般的な雰囲気だけを、色味と軒先の飾りでゆるく描き分けるための分類。
@@ -7941,6 +8055,10 @@ function smtStreetFacadeList(s, corridor){
     const cleared = clearedZones[zoneKey];
     const label = isY2000 ? Y2K_ZONE_REGULAR[zoneKey].zone : SMT2_ZONE_REGULAR[otherCorridor].zone;
     list.push({ forwardM: proj.forwardM, lateralM: proj.lateralM, kind:'gate', icon: cleared ? '✅' : SMT_ZONE_GATE_ICON[otherCorridor], label, claimed:cleared, isMain: otherCorridor===corridor });
+    // 縄張りの入口(象徴的な場所)だけ、電柱を1本添えて密度を上げる
+    // (メリハリ、STYLEGUIDE.md セクション5)。
+    const poleLateral = proj.lateralM + (proj.lateralM >= 0 ? 6 : -6);
+    list.push({ forwardM: proj.forwardM, lateralM: poleLateral, kind:'pole', style:'generic', label:null, claimed:false });
   });
   // 現在編の実在店舗(2000年編のスポットはダンジョン内で拾う仕様のため、屋外には出さない)
   if(!isY2000){
@@ -7963,6 +8081,13 @@ function smtStreetFacadeList(s, corridor){
       list.push({ forwardM: d, side, kind:'filler', style:'generic', label:null, claimed:false });
     }
     side = -side;
+  }
+  // 電柱+電線は、建物・お店とは独立に一定間隔で立てる(通りの雰囲気を作る装飾で、
+  // 建物パーツをモジュール化したのと同じ考え方の、再利用できる単色シルエットパーツ)。
+  let poleSide = 1;
+  for(let d = 12; d < axis.lenM; d += SMT_STREET_POLE_STEP_M){
+    list.push({ forwardM: d, side: poleSide, kind:'pole', style:'generic', label:null, claimed:false });
+    poleSide = -poleSide;
   }
   return list;
 }
@@ -8427,20 +8552,43 @@ function smtIsoRefresh(s){
 
     buildingsWrap.innerHTML = facades.map(f=>{
       const zPx = -f.relM * SMT_STREET_PX_PER_M;
-      // 縄張りの入口(kind==='gate')は、実際に投影された横ずれをそのまま使う(自分の通りの
-      // 入口ならlateralM=0で正面に、他の通りの入口なら実際の方角のぶんだけ脇に見える=分岐)。
-      // お店・飾りの店先は、実測の横ずれをそのまま使うと不自然に散らばるため、中心線から
-      // 一定距離(SMT_STREET_HALF_WIDTH_M)の位置に「奥に見える側」だけ実座標から借りる。
-      const lateralM = f.kind==='gate' ? f.lateralM : (f.side===0 ? 0 : f.side * SMT_STREET_HALF_WIDTH_M);
+      // 縄張りの入口(kind==='gate')・入口に添える電柱は、実際に投影された横ずれを
+      // そのまま使う(自分の通りの入口ならlateralM=0で正面に、他の通りの入口なら実際の
+      // 方角のぶんだけ脇に見える=分岐)。お店・飾りの店先・通り沿いの電柱は、実測の横ずれ
+      // をそのまま使うと不自然に散らばるため、中心線から一定距離の位置に
+      // 「奥に見える側」だけ実座標から借りる。
+      const lateralM = (typeof f.lateralM === 'number') ? f.lateralM
+        : (f.kind==='pole' ? f.side * (SMT_STREET_HALF_WIDTH_M + 3)
+        : (f.side===0 ? 0 : f.side * SMT_STREET_HALF_WIDTH_M));
       const xPx = (lateralM * SMT_STREET_PX_PER_M) - lateralPx;
       const nearness = Math.max(0, 1 - f.relM / SMT_STREET_VIEW_DIST_M);
       const opacity = f.claimed ? 0.4 : Math.max(0.45, nearness);
+      // 電柱+電線は建物パーツとは別の、単色シルエットの再利用パーツ(STYLEGUIDE.md セクション4)。
+      if(f.kind === 'pole'){
+        return `<div class="smt-street-pole" style="transform:translate3d(${xPx.toFixed(1)}px,0,${zPx.toFixed(1)}px);opacity:${opacity.toFixed(2)};"></div>`;
+      }
       const accent = f.kind==='gate' ? f.icon : SMT_STREET_STYLE_ACCENT[f.style] || '';
-      return `<div class="smt-street-facade" data-kind="${f.kind}" data-style="${f.style||''}" data-claimed="${f.claimed?1:0}" style="transform:translate3d(${xPx.toFixed(1)}px,0,${zPx.toFixed(1)}px);opacity:${opacity.toFixed(2)};">
+      // 配色バリエーション(--pal-bldg-lit系/--pal-bldg-lit-2系)を奥行きの位置で機械的に
+      // 使い分け、個々の建物ごとに新しいCSSを書かずに済むようにする(セクション4)。
+      const variant = (Math.round(f.forwardM) % 2 === 0) ? '1' : '2';
+      // 袖看板は「密度の強弱(メリハリ)」の演出。縄張りの入口は2枚、実在の店舗は1枚、
+      // 何もない区間(filler)は1つおきに1枚だけと、象徴的な場所ほど密度を上げる
+      // (セクション5)。
+      let signHtml = '';
+      if(f.kind === 'gate'){
+        signHtml = `<div class="smt-street-sign smt-street-sign-l"></div><div class="smt-street-sign smt-street-sign-r"></div>`;
+      } else if(f.kind === 'shop'){
+        signHtml = `<div class="smt-street-sign smt-street-sign-l"></div>`;
+      } else if(f.kind === 'filler'){
+        const step = Math.round(f.forwardM / SMT_STREET_FILLER_STEP_M);
+        if(step % 2 === 0) signHtml = `<div class="smt-street-sign smt-street-sign-l"></div>`;
+      }
+      return `<div class="smt-street-facade" data-kind="${f.kind}" data-style="${f.style||''}" data-claimed="${f.claimed?1:0}" data-variant="${variant}" style="transform:translate3d(${xPx.toFixed(1)}px,0,${zPx.toFixed(1)}px);opacity:${opacity.toFixed(2)};">
         <div class="smt-street-facade-body">
           <div class="smt-bldg-awning"></div>
           <div class="smt-bldg-windows"><span class="smt-bldg-window"></span><span class="smt-bldg-window"></span><span class="smt-bldg-window"></span></div>
           <div class="smt-bldg-door"></div>
+          ${signHtml}
           ${accent ? `<div class="smt-bldg-accent">${accent}</div>` : ''}
           ${f.label ? `<div class="smt-street-facade-label">${escapeHtml(f.label)}</div>` : ''}
         </div>
@@ -8957,6 +9105,11 @@ function smtIsoSceneHtml(s, showEraFlash){
         </div>
         <div id="smtFpMinimap" class="smt-fp-minimap"></div>
         <div class="smt-fp-hint">${hintText}</div>
+        <div class="smt-street-postfx">
+          <div class="smt-street-postfx-scan"></div>
+          <div class="smt-street-postfx-noise"></div>
+          <div class="smt-street-postfx-vignette"></div>
+        </div>
       </div>
       ${showEraFlash ? `<div class="smt-era-flash" style="border-radius:12px;"></div>` : ''}
     </div>
