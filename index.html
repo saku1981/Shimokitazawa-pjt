@@ -323,20 +323,48 @@
   .smt-fp-scene::after{content:'';position:absolute;inset:0;pointer-events:none;z-index:3;
     background:radial-gradient(ellipse 90% 75% at 50% 58%, transparent 40%, rgba(4,8,7,.62) 100%);}
   .smt-fp-scene-y2000{filter:sepia(0.55) contrast(1.05) brightness(0.92) saturate(1.15) hue-rotate(-6deg);}
-  /* 地面:単なる市松のグラデーションだけだと安っぽく見えるため、格子模様に加えて
-     「月明かり」のような青みがかった光だまりと、隅の方に暖色の陰を1枚ずつ重ねて、
-     色味に厚みを持たせている(すべて既存のCSSグラデーションのみ・画像素材は使わない)。 */
-  .smt-fp-ground{position:absolute;inset:0;background-color:#37493d;
+  /* 一人称ストリート歩き:見下ろし表示をやめ、CSSのperspective/preserve-3dを使った
+     本格的な3D空間の中を、駅前から各縄張りへ伸びる通りに沿って歩く一人称視点にしている。
+     地面は大きく傾けた1枚の板(rotateX)、建物・お店は「常にカメラの方を向く板」(billboard)
+     として奥行き(translateZ)・横位置(translateX)だけを与え、遠近感の縮小・消失点への
+     収束はブラウザのperspective計算にまかせる(手作業のスケール計算をしない)。 */
+  .smt-street-viewport{position:absolute;inset:0;perspective:460px;perspective-origin:50% 40%;overflow:hidden;}
+  .smt-street-world{position:absolute;inset:0;transform-style:preserve-3d;}
+  /* 歩いている間だけ、カメラそのものが小さく弾むような足取りのモーションを付ける。 */
+  @keyframes smtStreetWalkBob{
+    0%,100%{transform:translateY(0);}
+    50%{transform:translateY(-3px);}
+  }
+  .smt-street-walking{animation:smtStreetWalkBob .42s ease-in-out infinite;}
+  .smt-street-ground{position:absolute;left:-260%;right:-260%;bottom:-4%;height:340px;
+    transform-origin:50% 0%;transform:rotateX(78deg);
+    background-color:#37493d;
     background-image:
-      radial-gradient(ellipse 65% 55% at 28% 22%, rgba(150,190,215,.16) 0%, transparent 60%),
-      radial-gradient(ellipse 70% 60% at 82% 88%, rgba(90,60,30,.18) 0%, transparent 65%),
-      linear-gradient(135deg, rgba(255,255,255,.10) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.10) 75%),
-      linear-gradient(135deg, rgba(255,255,255,.10) 25%, transparent 25%, transparent 75%, rgba(255,255,255,.10) 75%),
-      linear-gradient(180deg, rgba(210,230,255,.08) 0%, transparent 45%, rgba(0,0,0,.28) 100%);
-    background-size:100% 100%, 100% 100%, 44px 44px, 44px 44px, 100% 100%;
-    background-position:0 0, 0 0, 0 0, 22px 22px, 0 0;
-    background-blend-mode:normal, normal, normal, normal, overlay;
+      repeating-linear-gradient(90deg, rgba(255,255,255,.09) 0 2px, transparent 2px 44px),
+      radial-gradient(ellipse 70% 60% at 50% 30%, rgba(150,190,215,.16) 0%, transparent 65%),
+      linear-gradient(0deg, rgba(0,0,0,.4) 0%, transparent 55%);
+    background-size:44px 44px, 100% 100%, 100% 100%;
     filter:saturate(1.12) contrast(1.05);}
+  .smt-street-buildings{position:absolute;inset:0;transform-style:preserve-3d;}
+  .smt-street-facade{position:absolute;left:50%;bottom:32%;transform-style:preserve-3d;
+    filter:drop-shadow(0 6px 6px rgba(0,0,0,.5));}
+  .smt-street-facade-body{position:relative;left:-50%;width:74px;height:94px;
+    border-radius:4px 4px 2px 2px;display:flex;flex-direction:column;align-items:center;
+    justify-content:center;gap:4px;padding-bottom:6px;background:linear-gradient(180deg,#5a4a38,#332a1f);
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.4), inset 0 12px 14px rgba(255,255,255,.06);}
+  .smt-street-facade-icon{font-size:25px;filter:drop-shadow(0 2px 2px rgba(0,0,0,.6));}
+  .smt-street-facade-label{font-size:8.5px;background:rgba(0,0,0,.55);color:#f3e6c8;
+    border-radius:4px;padding:0 4px;margin-top:2px;white-space:nowrap;max-width:70px;
+    overflow:hidden;text-overflow:ellipsis;}
+  .smt-street-facade[data-kind="shop"] .smt-street-facade-body{background:linear-gradient(180deg,#7a3a30,#42201a);}
+  .smt-street-facade[data-kind="filler"] .smt-street-facade-body{width:58px;height:72px;}
+  .smt-street-facade[data-kind="gate"] .smt-street-facade-body{width:118px;height:150px;
+    background:linear-gradient(180deg,#6a5040,#362619);}
+  .smt-street-facade[data-kind="gate"][data-claimed="1"] .smt-street-facade-body{
+    background:linear-gradient(180deg,#3a6a4a,#1f3824);}
+  .smt-street-facade[data-kind="gate"][data-claimed="0"]{animation:smtGatePulse 1.8s ease-in-out infinite;}
+  @keyframes smtGatePulse{0%,100%{filter:drop-shadow(0 6px 6px rgba(0,0,0,.5)) drop-shadow(0 0 4px rgba(224,196,88,.4));}
+    50%{filter:drop-shadow(0 6px 6px rgba(0,0,0,.5)) drop-shadow(0 0 16px rgba(224,196,88,.85));}}
   .smt-fp-ambient{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1;}
   .smt-fp-mote{position:absolute;width:4px;height:4px;border-radius:50%;
     background:radial-gradient(circle, rgba(248,230,165,1) 0%, rgba(248,230,165,0) 72%);
@@ -370,33 +398,8 @@
   .smt-fp-lantern-band.b2{top:9px;}
   .smt-fp-lantern-tassel{position:absolute;bottom:-4px;left:50%;width:1px;height:4px;background:rgba(35,20,12,.75);}
   @keyframes smtLanternSway{0%,100%{transform:rotate(-4deg);}50%{transform:rotate(4deg);}}
-  .smt-fp-markers{position:absolute;inset:0;pointer-events:none;}
-  .smt-fp-marker{position:absolute;transform:translate(-50%,-100%);text-align:center;
-    filter:drop-shadow(0 2px 2px rgba(0,0,0,.65));animation:smtMarkerBob 2.6s ease-in-out infinite;animation-delay:inherit;}
-  .smt-fp-marker::after{content:'';position:absolute;left:50%;bottom:-2px;transform:translate(-50%,0);
-    width:62%;height:6px;border-radius:50%;background:rgba(0,0,0,.4);filter:blur(1.2px);z-index:-1;}
-  .smt-fp-marker[data-kind="gate"]:not([data-claimed="1"])::before{
-    content:'';position:absolute;left:50%;bottom:0;transform:translate(-50%,0);width:38px;height:38px;
-    border-radius:50%;z-index:-2;animation:smtGatePulse 1.8s ease-in-out infinite;
-    background:radial-gradient(circle, rgba(224,196,88,.55) 0%, rgba(224,196,88,0) 72%);}
-  @keyframes smtMarkerBob{0%,100%{transform:translate(-50%,-100%) translateY(0);}50%{transform:translate(-50%,-100%) translateY(-3px);}}
-  @keyframes smtGatePulse{0%,100%{opacity:.5;transform:translate(-50%,0) scale(0.88);}50%{opacity:.9;transform:translate(-50%,0) scale(1.18);}}
-  .smt-fp-marker-icon{display:block;line-height:1;}
-  .smt-fp-marker-label{display:inline-block;font-size:9px;background:rgba(0,0,0,.5);color:#f3e6c8;
-    border-radius:4px;padding:0 4px;margin-top:1px;white-space:nowrap;max-width:80px;overflow:hidden;text-overflow:ellipsis;}
-  .smt-fp-player{position:absolute;left:50%;top:56%;transform:translate(-50%,-50%);width:38px;height:38px;
-    z-index:5;filter:drop-shadow(0 3px 3px rgba(0,0,0,.55));}
-  .smt-fp-player::after{content:'';position:absolute;left:50%;bottom:-8px;transform:translate(-50%,0);
-    width:28px;height:9px;border-radius:50%;background:rgba(0,0,0,.42);filter:blur(1.3px);z-index:-1;}
-  /* 歩いている間だけ、小さく弾むような足踏みモーションを付ける(止まればすぐ元に戻る)。 */
-  @keyframes smtPlayerWalkBob{
-    0%,100%{transform:translate(-50%,-50%) translateY(0) rotate(0deg);}
-    25%{transform:translate(-50%,-50%) translateY(-2.5px) rotate(-4deg);}
-    75%{transform:translate(-50%,-50%) translateY(-2.5px) rotate(4deg);}
-  }
-  .smt-fp-player-walking{animation:smtPlayerWalkBob .42s ease-in-out infinite;}
-  /* 足元に一瞬だけ出す砂埃。プレイヤーの固定表示位置(left:50%/top:56%)を基準に、
-     実際にプレイヤーの足(接地影のあたり)に出るよう少し下にずらしている。 */
+  /* 足元に一瞬だけ出す砂埃。一人称視点なので自分の姿は描かないが、画面下寄りの固定位置に
+     出すことで「今、自分の足元」に見えるようにしている。 */
   .smt-fp-dust-layer{position:absolute;left:50%;top:56%;width:0;height:0;pointer-events:none;z-index:4;}
   .smt-fp-dust{position:absolute;bottom:-22px;width:9px;height:5px;border-radius:50%;
     background:rgba(235,235,222,.65);box-shadow:0 0 3px rgba(235,235,222,.4);
@@ -7796,6 +7799,93 @@ function smtIsoProject(originLat, originLng, lat, lng){
 // 構造物だとひと目でわかる、汎用的なオリジナルアイコンにしている。
 const SMT_ZONE_GATE_ICON = { '1':'🏢', '2':'🏰', '3':'🍸' };
 const SMT_DUNGEON_GATE_RADIUS_M = 16; // 建物のすぐそばまで実際に歩み寄ったときだけダンジョンに入る
+// ----- 一人称ストリート歩き(スクラッチ版アウトドア画面)の投影 ---------------------------
+// 見下ろし表示をやめ、駅前から各縄張りへ伸びる「通り」を歩いている一人称視点に描き直す
+// ための変換。実座標(緯度経度)をそのまま使うのではなく、駅前から各縄張りの中心へ向かう
+// 向きを通りの軸とみなし、その軸に沿った奥行き(forwardM=前後)と、軸に対して直角の
+// 横ずれ(lateralM=左右)に分解する。実測の道路形状データではなく、既存のゲームデータ
+// (SMT_ZONE_CENTER)から求めた「駅前からのおおよその方角」だけを使う簡易的な近似。
+const SMT_STREET_AXIS = {};
+['1','2','3'].forEach(corridor=>{
+  const center = SMT_ZONE_CENTER[corridor];
+  const dNorth = (center[0] - SHIMOKITA_STATION_CENTER[0]) * 111320;
+  const dEast = (center[1] - SHIMOKITA_STATION_CENTER[1]) * 111320 * Math.cos(SHIMOKITA_STATION_CENTER[0] * Math.PI/180);
+  const len = Math.sqrt(dNorth*dNorth + dEast*dEast) || 1;
+  SMT_STREET_AXIS[corridor] = { east: dEast/len, north: dNorth/len, lenM: len };
+});
+function smtStreetProjectOnAxis(lat, lng, axis){
+  const dNorth = (lat - SHIMOKITA_STATION_CENTER[0]) * 111320;
+  const dEast = (lng - SHIMOKITA_STATION_CENTER[1]) * 111320 * Math.cos(SHIMOKITA_STATION_CENTER[0] * Math.PI/180);
+  return {
+    forwardM: dNorth*axis.north + dEast*axis.east, // 通りの向きに沿った、駅前からの奥行き
+    lateralM: dEast*axis.north - dNorth*axis.east  // 通りに対して直角方向の横ずれ
+  };
+}
+const SMT_STREET_HUB_HYSTERESIS_M = 30; // 駅前ロータリー付近では、この距離の間はむやみに通りを切り替えない
+// 今いちばん「歩いている通り」らしい縄張りを選ぶ。駅前ロータリーに近いうちは、わずかな
+// 位置のブレで通りがコロコロ切り替わって画面がガクガクしないよう、前回選んだ通りをできる
+// だけ維持するヒステリシスを持たせている(s.lastStreetCorridorに記憶する)。
+function smtNearestStreetCorridor(s){
+  const dNorth = (s.pos.lat - SHIMOKITA_STATION_CENTER[0]) * 111320;
+  const dEast = (s.pos.lng - SHIMOKITA_STATION_CENTER[1]) * 111320 * Math.cos(SHIMOKITA_STATION_CENTER[0] * Math.PI/180);
+  const distFromHub = Math.sqrt(dNorth*dNorth + dEast*dEast);
+  const scoreOf = corridor => {
+    if(distFromHub < 1) return 0;
+    const axis = SMT_STREET_AXIS[corridor];
+    return (dNorth*axis.north + dEast*axis.east) / distFromHub; // 進んでいる方角とのコサイン類似度
+  };
+  let best = '1', bestScore = -Infinity;
+  ['1','2','3'].forEach(corridor=>{
+    const sc = scoreOf(corridor);
+    if(sc > bestScore){ bestScore = sc; best = corridor; }
+  });
+  if(distFromHub < SMT_STREET_HUB_HYSTERESIS_M && s.lastStreetCorridor){
+    const prevScore = scoreOf(s.lastStreetCorridor);
+    if(bestScore - prevScore < 0.35) best = s.lastStreetCorridor;
+  }
+  s.lastStreetCorridor = best;
+  return best;
+}
+const SMT_STREET_PX_PER_M = 13; // 奥行き・横ずれ1メートルが3D空間上で何pxに相当するか(共通スケール)
+const SMT_STREET_HALF_WIDTH_M = 9; // 通りの中心線から、左右の建物の並びまでのおおよその距離(メートル)
+const SMT_STREET_VIEW_DIST_M = 130; // これより奥の建物・お店は描画しない
+const SMT_STREET_FILLER_STEP_M = 16; // 実在の建物・お店がない区間を埋める、飾りの店先の間隔
+// 通り沿いに並べる店先(建物)候補の一覧を作る。実在の建物の意匠をそのまま再現するのでは
+// なく、実座標から求めた奥行き・左右だけを使い、何もない区間はオリジナルの飾りの店先
+// (filler)で埋めて、一本道がずっと続いているような雰囲気を出す。
+function smtStreetFacadeList(s, corridor){
+  const axis = SMT_STREET_AXIS[corridor];
+  const isY2000 = s.era === 'y2000';
+  const list = [];
+  // 通りの突き当たりに立つ、縄張りの入口(ひと目でわかる大きな建物)
+  const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[corridor] : corridor;
+  const clearedZones = isY2000 ? s.y2000.clearedZones : s.clearedZones;
+  const cleared = clearedZones[zoneKey];
+  const label = isY2000 ? Y2K_ZONE_REGULAR[zoneKey].zone : SMT2_ZONE_REGULAR[corridor].zone;
+  list.push({ forwardM: axis.lenM, side:0, kind:'gate', icon: cleared ? '✅' : SMT_ZONE_GATE_ICON[corridor], label, claimed:cleared });
+  // 現在編の実在店舗(2000年編のスポットはダンジョン内で拾う仕様のため、屋外には出さない)
+  if(!isY2000){
+    SHIMOKITA_SPOTS.forEach(spot=>{
+      if(typeof spot.lat !== 'number') return;
+      const proj = smtStreetProjectOnAxis(spot.lat, spot.lng, axis);
+      if(proj.forwardM < 0 || proj.forwardM > SMT_STREET_VIEW_DIST_M) return;
+      if(Math.abs(proj.lateralM) > 45) return; // この通り沿いとは言えないくらい離れている店は出さない
+      const claimed = !!s.claimedSpots[spot.id];
+      list.push({ forwardM: proj.forwardM, side: proj.lateralM >= 0 ? 1 : -1, kind:'shop', icon:'🏮', label:spot.name, claimed });
+    });
+  }
+  // 実在の建物・お店がない区間を、雰囲気だけのオリジナルの店先で埋める
+  const occupiedSteps = new Set(list.map(f => Math.round(f.forwardM / SMT_STREET_FILLER_STEP_M)));
+  let side = 1;
+  for(let d = SMT_STREET_FILLER_STEP_M; d < axis.lenM; d += SMT_STREET_FILLER_STEP_M){
+    const step = Math.round(d / SMT_STREET_FILLER_STEP_M);
+    if(!occupiedSteps.has(step)){
+      list.push({ forwardM: d, side, kind:'filler', icon:'🏪', label:null, claimed:false });
+    }
+    side = -side;
+  }
+  return list;
+}
 // 徒歩でうろつける小さなダンジョン(異世界の書き割り)のグリッド寸法。演出だけの
 // (通行できない)大きな建物・障害物のシルエットもここにまとめておく。
 const SMT_DUNGEON_W = 7;
@@ -7832,6 +7922,7 @@ function newSmtGame(){
     mapZoom: 17,
     alignment: 0,
     facingLeft: false, // ◀️を押して左へ歩いたときに、キャラの向き(左右反転)を覚えておく
+    lastStreetCorridor: null, // 一人称ストリート歩きで「今どの通りを歩いているか」のヒステリシス記憶
     claimedSpots: {},
     encounterTimer: 1.4,
     shopVisit: null,
@@ -8192,66 +8283,44 @@ function smtIsoRefresh(s){
     locationTag.innerHTML = `<div class="smt-fp-location-name">${escapeHtml(smtNearestZoneLabel(s))}</div><div class="smt-fp-location-sub">${eraLabel} ・ ${escapeHtml(smtHeadingLabel(heading))}</div>`;
   }
 
-  // 地面のひし形パターンを、実移動量ぶんスクロールさせる演出。マーカー(#smtFpMarkers)は
-  // 「自分から見た対象の相対位置」= smtIsoProject(自分, 対象) で描いており、歩けば歩くほど
-  // 遠ざかる建物ほど画面奥へ流れていく。地面もこれと必ず同じ向きに動かないと、建物は
-  // 右へ流れているのに足元の模様だけ左へ流れる…といった逆走しているような違和感が出る
-  // ため、駅前(固定点)を対象にしたsmtIsoProject(自分, 駅前)を使い、マーカーと全く同じ
-  // 向きの計算にそろえている(以前は引数の順序が逆で、模様だけ進行方向と反対に見えていた)。
-  // 継ぎ目が見えないよう、タイル1枚ぶんの幅・高さで割った余りだけを使う。
-  const ground = document.getElementById('smtFpGround');
+  // 一人称ストリート歩き:今いちばん「歩いている通り」らしい縄張りを選び、その通りの軸
+  // に沿った奥行き(forwardM)・横ずれ(lateralM)へ自分の実座標を変換する。地面(#smtStreetGround)
+  // はこの奥行き・横ずれぶんだけ模様をスクロールさせ、建物・お店(#smtStreetBuildings)は
+  // 各々の奥行きとの相対距離(relM)をCSSのtranslate3d(奥行きはZ)で表現し、パースの遠近感は
+  // ブラウザ側のperspective計算に任せる(手作業のスケール計算をしない、CSS 3Dならではのやり方)。
+  const corridor = smtNearestStreetCorridor(s);
+  const axis = SMT_STREET_AXIS[corridor];
+  const playerProj = smtStreetProjectOnAxis(s.pos.lat, s.pos.lng, axis);
+
+  const ground = document.getElementById('smtStreetGround');
   if(ground){
-    const p = smtIsoProject(s.pos.lat, s.pos.lng, SHIMOKITA_STATION_CENTER[0], SHIMOKITA_STATION_CENTER[1]);
-    const bgX = ((p.x % SMT_ISO_TILE_W) + SMT_ISO_TILE_W) % SMT_ISO_TILE_W;
-    const bgY = ((p.y % SMT_ISO_TILE_H) + SMT_ISO_TILE_H) % SMT_ISO_TILE_H;
+    const TILE = 44;
+    const bgX = ((-playerProj.lateralM * SMT_STREET_PX_PER_M % TILE) + TILE) % TILE;
+    const bgY = ((-playerProj.forwardM * SMT_STREET_PX_PER_M % TILE) + TILE) % TILE;
     ground.style.backgroundPosition = `${bgX}px ${bgY}px`;
   }
 
-  const player = document.getElementById('smtFpPlayer');
-  if(player){
-    player.innerHTML = smtPlayerIconHtml(s.alignment, s.facingLeft);
-    player.classList.toggle('smt-fp-player-walking', !!s.moving);
-  }
+  const world = document.getElementById('smtStreetWorld');
+  if(world) world.classList.toggle('smt-street-walking', !!s.moving);
 
-  const markersWrap = document.getElementById('smtFpMarkers');
-  if(markersWrap){
-    const isY2000 = s.era === 'y2000';
-    const candidates = [];
-    ['1','2','3'].forEach(corridor=>{
-      const zoneKey = isY2000 ? Y2K_CORRIDOR_MAP[corridor] : corridor;
-      const clearedZones = isY2000 ? s.y2000.clearedZones : s.clearedZones;
-      const cleared = clearedZones[zoneKey];
-      const pt = SMT_ZONE_CENTER[corridor];
-      const label = isY2000 ? Y2K_ZONE_REGULAR[zoneKey].zone : SMT2_ZONE_REGULAR[corridor].zone;
-      candidates.push({ lat:pt[0], lng:pt[1], icon: cleared ? '✅' : SMT_ZONE_GATE_ICON[corridor], claimed:cleared, kind:'gate', label });
-    });
-    if(!isY2000){
-      SHIMOKITA_SPOTS.forEach(spot=>{
-        if(typeof spot.lat !== 'number') return;
-        const claimed = !!s.claimedSpots[spot.id];
-        candidates.push({ lat:spot.lat, lng:spot.lng, icon:'🏮', claimed, kind:'shop', label:spot.name });
-      });
-    }
+  const buildingsWrap = document.getElementById('smtStreetBuildings');
+  if(buildingsWrap){
+    const facades = smtStreetFacadeList(s, corridor)
+      .map(f => Object.assign({}, f, { relM: f.forwardM - playerProj.forwardM }))
+      .filter(f => f.relM > -18 && f.relM < SMT_STREET_VIEW_DIST_M);
+    facades.sort((a,b) => b.relM - a.relM); // 奥から手前の順に描画する(ペインターズアルゴリズム)
 
-    const visible = [];
-    candidates.forEach(c=>{
-      const dist = smtDistMeters(s.pos.lat, s.pos.lng, c.lat, c.lng);
-      if(dist > SMT_ISO_MAX_DIST) return;
-      const proj = smtIsoProject(s.pos.lat, s.pos.lng, c.lat, c.lng);
-      visible.push(Object.assign({}, c, { dist, proj }));
-    });
-    visible.sort((a,b)=> a.proj.y - b.proj.y); // 奥から手前の順に描画する(ペインターズアルゴリズム)
-
-    markersWrap.innerHTML = visible.map(v=>{
-      const scale = Math.max(0.5, 1 - v.dist/SMT_ISO_MAX_DIST);
-      const fontSize = Math.round(14 + scale*20);
-      const opacity = v.claimed ? 0.4 : Math.max(0.55, scale);
-      // 全マーカーが完全に同じタイミングで揺れると人工的に見えるため、緯度経度から
-      // 決めた「揺れ開始のずれ」を持たせ、生き物らしい不揃いさを出す。
-      const bobDelay = (Math.abs(Math.round(v.lat*1e5) + Math.round(v.lng*1e5)) % 26) / 10;
-      return `<div class="smt-fp-marker" data-kind="${v.kind}" data-claimed="${v.claimed?1:0}" style="left:calc(50% + ${v.proj.x.toFixed(1)}px);top:calc(56% + ${v.proj.y.toFixed(1)}px);opacity:${opacity};animation-delay:-${bobDelay}s;">
-        <span class="smt-fp-marker-icon" style="font-size:${fontSize}px;">${v.icon}</span>
-        ${v.kind==='gate' ? `<span class="smt-fp-marker-label">${escapeHtml(v.label)}</span>` : ''}
+    buildingsWrap.innerHTML = facades.map(f=>{
+      const zPx = -f.relM * SMT_STREET_PX_PER_M;
+      const lateralM = f.side===0 ? 0 : f.side * SMT_STREET_HALF_WIDTH_M;
+      const xPx = (lateralM - playerProj.lateralM) * SMT_STREET_PX_PER_M;
+      const nearness = Math.max(0, 1 - f.relM / SMT_STREET_VIEW_DIST_M);
+      const opacity = f.claimed ? 0.4 : Math.max(0.45, nearness);
+      return `<div class="smt-street-facade" data-kind="${f.kind}" data-claimed="${f.claimed?1:0}" style="transform:translate3d(${xPx.toFixed(1)}px,0,${zPx.toFixed(1)}px);opacity:${opacity.toFixed(2)};">
+        <div class="smt-street-facade-body">
+          <div class="smt-street-facade-icon">${f.icon}</div>
+          ${f.label ? `<div class="smt-street-facade-label">${escapeHtml(f.label)}</div>` : ''}
+        </div>
       </div>`;
     }).join('');
   }
@@ -8747,12 +8816,15 @@ function smtIsoSceneHtml(s, showEraFlash){
     <div style="position:relative;">
       <div id="smtFpScene" class="smt-fp-scene${s.era==='y2000' ? ' smt-fp-scene-y2000' : ''}">
         <div id="smtFpLocationTag" class="smt-fp-location-tag"></div>
-        <div id="smtFpGround" class="smt-fp-ground"></div>
+        <div class="smt-street-viewport">
+          <div id="smtStreetWorld" class="smt-street-world">
+            <div id="smtStreetGround" class="smt-street-ground"></div>
+            <div id="smtStreetBuildings" class="smt-street-buildings"></div>
+          </div>
+        </div>
         <div id="smtFpAmbient" class="smt-fp-ambient"></div>
         ${smtArcadeRoofHtml()}
-        <div id="smtFpMarkers" class="smt-fp-markers"></div>
         <div id="smtFpDust" class="smt-fp-dust-layer"></div>
-        <div id="smtFpPlayer" class="smt-fp-player"></div>
         <div class="smt-fp-compass">
           <span id="smtFpCompassNeedle" class="smt-fp-compass-needle">▲</span>
           <span id="smtFpCompassLabel">北</span>
