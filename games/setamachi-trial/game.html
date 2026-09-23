@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>セタマチ 下北沢編(トライアル)</title>
+<style>
+  :root{
+    --bg:#F7EFDD;
+    --card:#FFFCF3;
+    --navy:#1F2C4C;
+    --navy-soft:#3B4A73;
+    --line:#D9C9A0;
+    --gold:#D4AF37;
+    --purple:#4B2E83;
+    --purple-soft:#6E4FA3;
+    --pink:#F2B6C6;
+    --blue:#AFCBEA;
+    --green:#B8D9BE;
+    --yellow:#F4DFA0;
+    --star:#E0562F;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Hiragino Sans","Yu Gothic",sans-serif;
+    background:var(--bg);
+    color:var(--navy);
+    -webkit-tap-highlight-color:transparent;
+  }
+  .wrap{max-width:520px;margin:0 auto;padding:14px 14px 40px;}
+  header{text-align:center;margin-bottom:10px;}
+  header h1{font-size:20px;margin:0 0 2px;color:var(--navy);}
+  header .sub{font-size:11.5px;color:var(--navy-soft);}
+  .badge-trial{
+    display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;
+    background:var(--purple);color:#fff;font-size:11px;font-weight:bold;
+  }
+  .notice{
+    background:#FFF7E6;border:1px solid var(--line);border-radius:10px;
+    padding:8px 10px;font-size:11.5px;color:var(--navy-soft);margin:10px 0 14px;line-height:1.5;
+  }
+  .area-select{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px;}
+  .area-btn{
+    border:2px solid var(--line);background:var(--card);border-radius:12px;
+    padding:10px 8px;text-align:center;cursor:pointer;font-size:12.5px;color:var(--navy);
+    position:relative;
+  }
+  .area-btn.active{border-color:var(--purple);box-shadow:0 0 0 2px rgba(75,46,131,0.15);}
+  .area-btn.cleared{opacity:0.6;}
+  .area-btn .check{position:absolute;top:4px;right:6px;color:var(--purple);font-size:12px;}
+  .area-btn .name{display:block;font-weight:bold;margin-bottom:2px;}
+  .area-btn .desc{display:block;font-size:10.5px;color:var(--navy-soft);}
+
+  .board-card{
+    background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:14px 10px;margin-bottom:14px;
+  }
+  .board-empty{text-align:center;font-size:12.5px;color:var(--navy-soft);padding:20px 10px;}
+  .board-title{font-size:13px;font-weight:bold;margin-bottom:10px;text-align:center;}
+  .board-track{display:flex;gap:5px;overflow-x:auto;padding:6px 2px 12px;}
+  .tile{
+    flex:0 0 auto;width:46px;height:46px;border-radius:8px;border:2px solid var(--navy);
+    display:flex;align-items:center;justify-content:center;flex-direction:column;
+    font-size:13px;font-weight:bold;position:relative;
+  }
+  .tile.n0{background:var(--blue);}
+  .tile.n1{background:var(--green);}
+  .tile.n2{background:var(--yellow);}
+  .tile.n3{background:var(--pink);}
+  .tile.goal{background:var(--gold);color:#3a2a00;}
+  .tile.star::after{content:"★";position:absolute;top:-9px;right:-6px;color:var(--star);font-size:13px;}
+  .tile.star.collected::after{content:"✅";font-size:12px;top:-8px;right:-7px;}
+  .tile.here{outline:3px solid var(--purple);outline-offset:1px;}
+  .player-row{display:flex;justify-content:center;margin-top:-4px;margin-bottom:6px;font-size:20px;}
+
+  .dice-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-top:6px;}
+  .dice-btn{
+    background:var(--purple);color:#fff;border:none;border-radius:999px;
+    padding:12px 26px;font-size:14px;font-weight:bold;cursor:pointer;
+  }
+  .dice-btn:disabled{background:#B8AFC7;cursor:default;}
+  .dice-result{font-size:13px;color:var(--navy-soft);min-width:70px;text-align:center;}
+
+  .collection-card{
+    background:linear-gradient(135deg,var(--purple),var(--purple-soft));
+    border-radius:14px;padding:14px;color:#fff;margin-bottom:14px;
+  }
+  .collection-card h2{font-size:14px;margin:0 0 2px;}
+  .collection-card .csub{font-size:10.5px;opacity:0.85;margin-bottom:10px;}
+  .rank-row{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .rank-circle{
+    width:40px;height:40px;border-radius:50%;background:#fff2;border:2px solid #fff5;
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:bold;flex:0 0 auto;
+  }
+  .rank-info{font-size:11.5px;line-height:1.5;}
+  .rank-bar{height:6px;border-radius:999px;background:#ffffff33;margin:8px 0 10px;overflow:hidden;}
+  .rank-bar-fill{height:100%;background:var(--gold);}
+  .grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;}
+  .cell{
+    aspect-ratio:1/1;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:16px;background:#ffffff22;
+  }
+  .cell.got{background:#fff;color:var(--purple);}
+  .cell.locked{color:#ffffff55;font-size:12px;}
+
+  .perks{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;}
+  .perks h3{font-size:12.5px;margin:0 0 8px;}
+  .perk-row{display:flex;gap:8px;align-items:flex-start;padding:6px 0;border-top:1px dashed var(--line);font-size:11px;color:var(--navy-soft);}
+  .perk-row:first-of-type{border-top:none;}
+  .perk-row .ic{font-size:15px;}
+  .perk-row .tag{display:inline-block;margin-left:4px;font-size:9.5px;background:#EFE7D0;color:var(--navy-soft);border-radius:6px;padding:1px 5px;}
+
+  .modal-bg{
+    position:fixed;inset:0;background:rgba(20,15,10,0.55);display:none;
+    align-items:center;justify-content:center;padding:20px;z-index:50;
+  }
+  .modal-bg.show{display:flex;}
+  .modal{
+    background:var(--card);border-radius:16px;padding:22px 18px;max-width:320px;width:100%;text-align:center;
+  }
+  .modal .ic{font-size:40px;margin-bottom:6px;}
+  .modal h3{margin:0 0 6px;font-size:15px;color:var(--navy);}
+  .modal p{font-size:12px;color:var(--navy-soft);line-height:1.6;margin:0 0 14px;}
+  .modal button{
+    background:var(--purple);color:#fff;border:none;border-radius:999px;padding:9px 22px;font-size:13px;
+  }
+  .reset-link{display:block;text-align:center;font-size:10.5px;color:var(--navy-soft);margin-top:14px;text-decoration:underline;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>セタマチ 下北沢編</h1>
+    <div class="sub">サイコロで巡る、下北沢すごろくマップ</div>
+    <div class="badge-trial">社内トライアル版</div>
+  </header>
+
+  <div class="notice">
+    これは企画トライアル用のテスト画面です。まだ実際のクーポン・商店会との連携は行っていません。マス名・お店の内容もすべて仮のものです。遊び心地の確認用としてご利用ください。
+  </div>
+
+  <div class="area-select" id="areaSelect"></div>
+
+  <div class="board-card">
+    <div id="boardTitle" class="board-title"></div>
+    <div id="boardEmpty" class="board-empty">上のエリアを選んで、すごろくを始めましょう。</div>
+    <div id="boardBody" style="display:none;">
+      <div class="player-row" id="playerRow"></div>
+      <div class="board-track" id="boardTrack"></div>
+      <div class="dice-row">
+        <button class="dice-btn" id="diceBtn" onclick="rollDice()">🎲 サイコロを振る</button>
+        <div class="dice-result" id="diceResult"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="collection-card">
+    <h2>セタマチ コレクション</h2>
+    <div class="csub">マスを進めて、お店やスポットを集めよう(トライアル版)</div>
+    <div class="rank-row">
+      <div class="rank-circle" id="rankCircle">Br</div>
+      <div class="rank-info" id="rankInfo"></div>
+    </div>
+    <div class="rank-bar"><div class="rank-bar-fill" id="rankBarFill" style="width:0%"></div></div>
+    <div class="grid" id="collectionGrid"></div>
+  </div>
+
+  <div class="perks">
+    <h3>今後の構想(トライアルでは未実装)</h3>
+    <div class="perk-row"><span class="ic">🎟️</span><span>セタペイ限定クーポン<span class="tag">構想中</span><br>集めた数に応じて加盟店クーポンを獲得</span></div>
+    <div class="perk-row"><span class="ic">🏅</span><span>称号バッジの表示<span class="tag">構想中</span><br>プロフィールにランクバッジが表示される</span></div>
+    <div class="perk-row"><span class="ic">📍</span><span>レアスポット出現<span class="tag">構想中</span><br>期間限定・コラボ店舗のレアマスが出現</span></div>
+    <div class="perk-row"><span class="ic">🎉</span><span>リアルイベント優先案内<span class="tag">構想中</span><br>下北線路祭などの先行案内・特典を受け取れる</span></div>
+  </div>
+
+  <a class="reset-link" onclick="resetProgress()">この端末の記録をリセットする</a>
+</div>
+
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <div class="ic" id="modalIcon">🎴</div>
+    <h3 id="modalTitle"></h3>
+    <p id="modalBody"></p>
+    <button onclick="closeModal()">とじる</button>
+  </div>
+</div>
+
+<script>
+// ---- データ定義(すべて仮の名称・トライアル用) ----
+const AREAS = [
+  {
+    id:'kita', name:'北口・一番街エリア', desc:'古着・レコード店', colorClass:'n0',
+    stars:{
+      3:{icon:'🎸', name:'レコード店の掘り出し物', flavor:'棚の奥から、聴いたことのないバンドの一枚を見つけた。'},
+      6:{icon:'👕', name:'古着屋の一点もの', flavor:'サイズもぴったりな一着に出会えた。'},
+      9:{icon:'📻', name:'路地裏のラジオ屋', flavor:'懐かしいラジオの修理をしているお店だった。'}
+    }
+  },
+  {
+    id:'higashi', name:'東口・劇場街エリア', desc:'本多劇場・ライブハウス', colorClass:'n1',
+    stars:{
+      3:{icon:'🎬', name:'小劇場のポスター', flavor:'今夜も小さな劇場で幕が上がる。'},
+      6:{icon:'🎤', name:'ライブハウスの音漏れ', flavor:'路地に、誰かのリハーサルの音が響いていた。'},
+      9:{icon:'🍜', name:'劇場帰りの一杯', flavor:'芝居の余韻に浸りながら、あたたかい一杯をすする。'}
+    }
+  },
+  {
+    id:'daizawa', name:'代沢・世田谷代田方面', desc:'住宅街・カフェ通り', colorClass:'n2',
+    stars:{
+      3:{icon:'☕', name:'路地のカフェ', flavor:'静かな通りに、コーヒーの香りが漂っている。'},
+      6:{icon:'🍵', name:'お茶と本の店', flavor:'一杯のお茶と一冊の本で、午後がゆっくり過ぎていく。'},
+      9:{icon:'🌿', name:'小さな庭のある家', flavor:'塀の向こうから、よく手入れされた庭木が顔を出していた。'}
+    }
+  },
+  {
+    id:'minami', name:'南口・下北線路街エリア', desc:'BONUS TRACK・NANSEI PLUS', colorClass:'n3',
+    stars:{
+      3:{icon:'🍡', name:'線路街の食べ歩き', flavor:'小さな店が並ぶ通りで、つい食べ歩きしてしまう。'},
+      6:{icon:'🎨', name:'アートな一角', flavor:'壁一面に、誰かの作品が飾られていた。'},
+      9:{icon:'🎞️', name:'ミニシアターの看板', flavor:'今度の週末に観たい作品を見つけた。'}
+    }
+  }
+];
+const TILES_PER_AREA = 10;
+const RANKS = [
+  {key:'bronze', label:'ブロンズ', short:'Br', min:0},
+  {key:'silver', label:'シルバー', short:'Si', min:4},
+  {key:'gold',   label:'ゴールド', short:'Au', min:8},
+  {key:'platina',label:'プラチナ', short:'Pt', min:12}
+];
+const TOTAL_COLLECTIBLE = AREAS.reduce((sum,a)=>sum+Object.keys(a.stars).length,0); // 12
+const FUTURE_TOTAL = 40; // 正式版で想定している総数(見せ方のみ。トライアルでは集められない)
+
+// ---- 状態(この端末のブラウザだけに保存) ----
+const STORAGE_KEY = 'setamachi_trial_v1';
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  return { collected:{}, cleared:{}, position:0, currentArea:null };
+}
+function saveState(){
+  try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }catch(e){}
+}
+let state = loadState();
+
+// ---- エリア選択UI ----
+function renderAreaSelect(){
+  const el = document.getElementById('areaSelect');
+  el.innerHTML = AREAS.map(a=>{
+    const cleared = !!state.cleared[a.id];
+    const active = state.currentArea === a.id;
+    return `
+      <div class="area-btn ${active?'active':''} ${cleared?'cleared':''}" onclick="selectArea('${a.id}')">
+        ${cleared?'<span class="check">クリア済</span>':''}
+        <span class="name">${a.name}</span>
+        <span class="desc">${a.desc}</span>
+      </div>
+    `;
+  }).join('');
+}
+
+function selectArea(id){
+  if(state.currentArea !== id){
+    state.currentArea = id;
+    state.position = state.cleared[id] ? TILES_PER_AREA : 0;
+  }
+  saveState();
+  renderAll();
+}
+
+function currentAreaObj(){
+  return AREAS.find(a=>a.id===state.currentArea) || null;
+}
+
+// ---- 盤面描画 ----
+function renderBoard(){
+  const area = currentAreaObj();
+  const empty = document.getElementById('boardEmpty');
+  const body = document.getElementById('boardBody');
+  const title = document.getElementById('boardTitle');
+  if(!area){
+    empty.style.display = 'block';
+    body.style.display = 'none';
+    title.textContent = '';
+    return;
+  }
+  empty.style.display = 'none';
+  body.style.display = 'block';
+  title.textContent = area.name;
+
+  const track = document.getElementById('boardTrack');
+  let html = '';
+  for(let i=1;i<=TILES_PER_AREA;i++){
+    const isGoal = i===TILES_PER_AREA;
+    const starInfo = area.stars[i];
+    const collected = starInfo ? !!state.collected[area.id+'-'+i] : false;
+    const here = state.position === i;
+    let cls = 'tile ' + (isGoal?'goal':area.colorClass) + (starInfo?' star':'') + (collected?' collected':'') + (here?' here':'');
+    html += `<div class="${cls}">${isGoal?'🏁':i}</div>`;
+  }
+  track.innerHTML = html;
+
+  const playerRow = document.getElementById('playerRow');
+  playerRow.innerHTML = state.position>0 ? '🚶' : '';
+
+  const diceBtn = document.getElementById('diceBtn');
+  diceBtn.disabled = state.position >= TILES_PER_AREA;
+  diceBtn.textContent = state.position >= TILES_PER_AREA ? 'このエリアはクリア済み' : '🎲 サイコロを振る';
+}
+
+function rollDice(){
+  const area = currentAreaObj();
+  if(!area || state.position >= TILES_PER_AREA) return;
+  const roll = 1 + Math.floor(Math.random()*6);
+  document.getElementById('diceResult').textContent = `出た目: ${roll}`;
+  const newPos = Math.min(TILES_PER_AREA, state.position + roll);
+  state.position = newPos;
+  saveState();
+  renderBoard();
+
+  const starInfo = area.stars[newPos];
+  const key = area.id+'-'+newPos;
+  if(starInfo && !state.collected[key]){
+    state.collected[key] = true;
+    saveState();
+    renderCollection();
+    setTimeout(()=>showModal(starInfo.icon, `発見!${starInfo.name}`, starInfo.flavor), 250);
+  } else if(newPos === TILES_PER_AREA){
+    state.cleared[area.id] = true;
+    saveState();
+    renderAreaSelect();
+    renderBoard();
+    setTimeout(()=>showModal('🏁', `${area.name} クリア!`, 'このエリアのすごろくを最後まで進みました。他のエリアも巡ってみましょう。'), 250);
+  }
+}
+
+// ---- コレクション描画 ----
+function rankFor(count){
+  let current = RANKS[0];
+  for(const r of RANKS){ if(count >= r.min) current = r; }
+  return current;
+}
+function renderCollection(){
+  const collectedCount = Object.keys(state.collected).length;
+  const rank = rankFor(collectedCount);
+  const nextRank = RANKS[RANKS.indexOf(rank)+1];
+
+  document.getElementById('rankCircle').textContent = rank.short;
+  document.getElementById('rankInfo').innerHTML = nextRank
+    ? `現在のランク:${rank.label}会員<br>あと${nextRank.min - collectedCount}個で${nextRank.label}に昇格!`
+    : `現在のランク:${rank.label}会員<br>トライアル版の最高ランクです!`;
+
+  const pct = Math.min(100, Math.round((collectedCount/TOTAL_COLLECTIBLE)*100));
+  document.getElementById('rankBarFill').style.width = pct+'%';
+
+  const items = [];
+  AREAS.forEach(a=>{
+    Object.keys(a.stars).forEach(pos=>{
+      const key = a.id+'-'+pos;
+      items.push({ icon:a.stars[pos].icon, got: !!state.collected[key] });
+    });
+  });
+  let cellsHtml = items.map(it=>`<div class="cell ${it.got?'got':''}">${it.got?it.icon:'？'}</div>`).join('');
+  const lockedCount = FUTURE_TOTAL - items.length;
+  for(let i=0;i<lockedCount;i++){
+    cellsHtml += `<div class="cell locked">？</div>`;
+  }
+  document.getElementById('collectionGrid').innerHTML = cellsHtml;
+}
+
+// ---- モーダル ----
+function showModal(icon, title, body){
+  document.getElementById('modalIcon').textContent = icon;
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').textContent = body;
+  document.getElementById('modalBg').classList.add('show');
+}
+function closeModal(){
+  document.getElementById('modalBg').classList.remove('show');
+}
+
+function resetProgress(){
+  if(!confirm('この端末に保存されたセタマチのトライアル記録をリセットします。よろしいですか?')) return;
+  state = { collected:{}, cleared:{}, position:0, currentArea:null };
+  saveState();
+  renderAll();
+}
+
+function renderAll(){
+  renderAreaSelect();
+  renderBoard();
+  renderCollection();
+}
+renderAll();
+</script>
+</body>
+</html>
